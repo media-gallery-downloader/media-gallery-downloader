@@ -9,6 +9,7 @@ if [ ! -f init.lock ]; then
 
     php artisan octane:install --server=frankenphp
     php artisan filament:install --panels --no-interaction
+    php artisan telescope:install
 
     php artisan migrate:fresh --seed
 
@@ -26,6 +27,5 @@ php artisan route:clear
 php artisan view:clear
 
 php artisan optimize
-php artisan filament:optimize
 
-php artisan octane:frankenphp --caddyfile=./Caddyfile
+php artisan octane:frankenphp -q --caddyfile=./Caddyfile

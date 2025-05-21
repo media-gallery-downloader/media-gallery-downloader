@@ -4,9 +4,6 @@ services:
         build: .
         pull_policy: build
         restart: unless-stopped
-        environment:
-            - PUID=1000
-            - PGID=1000
         extra_hosts:
             - "host.docker.internal:host-gateway"
         ulimits:

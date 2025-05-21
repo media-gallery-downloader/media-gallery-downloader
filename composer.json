@@ -1,24 +1,26 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/livewire-starter-kit",
+    "name": "avrabel/video-gallery-downloader",
     "type": "project",
-    "description": "The official Laravel starter kit for Livewire.",
-    "keywords": ["laravel", "framework"],
+    "description": "Video Gallery Downloader.",
     "license": "MIT",
     "require": {
         "php": "^8.2",
         "filament/filament": "^3.3",
+        "filament/spatie-laravel-media-library-plugin": "^3.0",
+        "filament/spatie-laravel-settings-plugin": "^3.0",
+        "filament/spatie-laravel-tags-plugin": "^3.0",
+        "filament/spatie-laravel-translatable-plugin": "^3.0",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.9",
-        "laravel/tinker": "^2.10.1",
-        "livewire/flux": "^2.1.1",
-        "livewire/volt": "^1.7.0"
+        "laravel/telescope": "^5.7",
+        "laravel/tinker": "^2.10.1"
     },
     "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.6",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.18",
-        "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "pestphp/pest": "^3.8",
