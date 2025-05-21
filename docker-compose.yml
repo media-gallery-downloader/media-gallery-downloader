@@ -1,0 +1,34 @@
+name: video-gallery-dl
+services:
+    vgd-php:
+        build: .
+        pull_policy: build
+        restart: unless-stopped
+        environment:
+            - PUID=1000
+            - PGID=1000
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        ulimits:
+            nofile:
+                soft: 20000
+                hard: 40000
+        ports:
+            - 80:80
+            - 443:443
+            - 443:443/udp
+        volumes:
+            - .:/app
+            - vgd_caddy_data:/data
+            - vgd_caddy_config:/config
+        tty: true
+
+    vgd-sqlite:
+        image: alpine/sqlite
+        volumes:
+            - vgd_sqlite:/root/db/
+
+volumes:
+    vgd_caddy_data:
+    vgd_caddy_config:
+    vgd_sqlite:
