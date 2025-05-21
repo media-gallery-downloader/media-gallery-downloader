@@ -7,10 +7,6 @@ if [ ! -f init.lock ]; then
     php artisan storage:link
     php artisan key:generate
 
-    php artisan octane:install --server=frankenphp
-    php artisan filament:install --panels --no-interaction
-    php artisan telescope:install
-
     php artisan migrate:fresh --seed
 
     bun install --frozen-lockfile
