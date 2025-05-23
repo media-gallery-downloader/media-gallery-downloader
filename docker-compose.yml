@@ -1,31 +1,24 @@
-name: video-gallery-dl
+name: media-gallery-downloader
 services:
-    vgd-php:
-        build: .
+    mgd_app:
+        build: .docker
         pull_policy: build
         restart: unless-stopped
+        working_dir: /app
         extra_hosts:
             - "host.docker.internal:host-gateway"
-        ulimits:
-            nofile:
-                soft: 20000
-                hard: 40000
         ports:
             - 80:80
             - 443:443
             - 443:443/udp
         volumes:
             - .:/app
-            - vgd_caddy_data:/data
-            - vgd_caddy_config:/config
+            - mgd_caddy_data:/data
+            - mgd_caddy_config:/config
+            - mgd_sqlite:/db
         tty: true
 
-    vgd-sqlite:
-        image: alpine/sqlite
-        volumes:
-            - vgd_sqlite:/root/db/
-
 volumes:
-    vgd_caddy_data:
-    vgd_caddy_config:
-    vgd_sqlite:
+    mgd_caddy_data:
+    mgd_caddy_config:
+    mgd_sqlite:

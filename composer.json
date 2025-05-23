@@ -1,20 +1,23 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "avrabel/video-gallery-downloader",
+    "name": "avrabel/media-gallery-downloader",
     "type": "project",
-    "description": "Video Gallery Downloader.",
+    "description": "Media Gallery Downloader",
     "license": "MIT",
     "require": {
         "php": "^8.2",
         "filament/filament": "^3.3",
-        "filament/spatie-laravel-media-library-plugin": "^3.0",
         "filament/spatie-laravel-settings-plugin": "^3.0",
         "filament/spatie-laravel-tags-plugin": "^3.0",
         "filament/spatie-laravel-translatable-plugin": "^3.0",
+        "justbetter/laravel-http3earlyhints": "^1.4",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.9",
+        "laravel/sanctum": "^4.0",
         "laravel/telescope": "^5.7",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "php-ffmpeg/php-ffmpeg": "^1.3",
+        "symfony/filesystem": "^7.2"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.6",
