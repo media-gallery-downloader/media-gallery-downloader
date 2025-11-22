@@ -2,79 +2,81 @@
 
 namespace App\Services;
 
-use App\Helpers\MimeTypeHelper;
-use App\Models\Media;
+use App\Jobs\ProcessDownloadJob;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
-use Filament\Notifications\Notification;
+use Symfony\Component\Process\Process;
 
 class DownloadService
 {
     /**
-     * Download media from a URL
+     * Add a URL to the download queue and dispatch the job
      */
-    public function downloadFromUrl(string $url)
+    public function downloadFromUrl(string $url, string $downloadId): void
+    {
+        Log::info('Adding download to queue', [
+            'url' => $url,
+            'downloadId' => $downloadId
+        ]);
+
+        // Dispatch the download job
+        ProcessDownloadJob::dispatch($url, $downloadId)
+            ->onQueue('downloads'); // Use a specific queue for downloads
+    }
+
+    /**
+     * Validate if a URL can be downloaded
+     */
+    public function validateUrl(string $url): bool
+    {
+        // Basic URL validation
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        // Check if it's a supported scheme
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        if (!in_array($scheme, ['http', 'https'])) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if yt-dlp supports this URL (without downloading)
+     */
+    public function canUseYtdlp(string $url): bool
     {
         try {
-            // Validate URL
-            if (!filter_var($url, FILTER_VALIDATE_URL)) {
-                throw new \Exception("Invalid URL provided");
-            }
-
-            // Get file information
-            $fileName = basename(parse_url($url, PHP_URL_PATH));
-            $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-
-            // If no extension in the URL, try to determine from headers
-            if (empty($extension)) {
-                $headers = get_headers($url, 1);
-                $contentType = $headers['Content-Type'] ?? '';
-                $extension = $extension = MimeTypeHelper::getExtensionFromMimeType($contentType);
-                $fileName = md5($url) . '.' . $extension;
-            }
-
-            // Download the file to a temporary location
-            $tempFile = tempnam(sys_get_temp_dir(), 'download_');
-            file_put_contents($tempFile, file_get_contents($url));
-
-            // Get file details
-            $mimeType = mime_content_type($tempFile);
-            $fileSize = filesize($tempFile);
-
-            // Store the file
-            $path = 'media/' . $fileName;
-            Storage::disk('public')->put($path, file_get_contents($tempFile));
-
-            // Clean up temp file
-            if (file_exists($tempFile)) {
-                @unlink($tempFile);
-            }
-
-            // Create media record
-            $media = Media::create([
-                'name' => $fileName,
-                'mime_type' => $mimeType,
-                'size' => $fileSize,
-                'file_name' => $fileName,
-                'path' => $path,
-                'url' => Storage::url($path),
-                'source' => $url
+            $process = new Process([
+                'yt-dlp',
+                '--simulate',
+                '--quiet',
+                $url
             ]);
 
-            Notification::make()
-                ->title('File downloaded successfully')
-                ->success()
-                ->send();
+            $process->setTimeout(10); // Short timeout for validation
+            $process->run();
 
-            return $media;
+            return $process->isSuccessful();
         } catch (\Exception $e) {
-            Log::error("Error downloading file: " . $e->getMessage(), [
+            Log::debug('yt-dlp validation failed', [
                 'url' => $url,
-                'exception' => $e
+                'error' => $e->getMessage()
             ]);
-
-            throw $e;
+            return false;
         }
+    }
+
+    /**
+     * Get estimated download method for a URL
+     */
+    public function getDownloadMethod(string $url): string
+    {
+        if ($this->canUseYtdlp($url)) {
+            return 'yt-dlp';
+        }
+
+        return 'direct';
     }
 }

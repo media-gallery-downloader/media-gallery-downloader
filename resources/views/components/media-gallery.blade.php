@@ -1,4 +1,6 @@
 @php
+use Illuminate\Support\Js;
+
 $sortOptions = [
 'newest' => 'Newest First',
 'oldest' => 'Oldest First',
@@ -80,25 +82,25 @@ $media = $query->paginate($perPage);
                 class="relative cursor-pointer p-0 overflow-hidden rounded-lg shadow"
                 style="width: calc(20% - 8px); margin: 4px; aspect-ratio: 1/1;"
                 x-data=""
-                x-on:click="$dispatch('open-media-preview', { 
-                url: '{{ $item->url }}', 
-                name: '{{ $item->name }}',
-                type: '{{ $item->mime_type }}'
-            })">
+                x-on:click="$dispatch('open-media-preview', {
+                    url: '{{ $item->url }}', 
+                    name: {{ Js::from($item->name) }}, 
+                    type: '{{ $item->mime_type }}'
+                })">
                 <!-- Info overlays -->
                 <div class="p-1" style="position:absolute;top:0;background:black;margin-right:0px;margin-left:0px;width:100%;opacity:0.8;z-index:15;">
                     <div class="group relative flex overflow-hidden max-w-[60%]"
                         x-data="{ 
-            shouldScroll: false,
-            init() {
-                this.checkOverflow();
-                window.addEventListener('resize', () => this.checkOverflow());
-            },
-            checkOverflow() {
-                const el = this.$refs.titleText;
-                this.shouldScroll = el.scrollWidth > el.clientWidth;
-            }
-         }">
+                        shouldScroll: false,
+                        init() {
+                            this.checkOverflow();
+                            window.addEventListener('resize', () => this.checkOverflow());
+                        },
+                        checkOverflow() {
+                            const el = this.$refs.titleText;
+                            this.shouldScroll = el.scrollWidth > el.clientWidth;
+                        }
+                    }">
                         <span
                             x-ref="titleText"
                             class="text-xs text-white whitespace-nowrap transition-all duration-1000 ease-in-out"
@@ -114,27 +116,27 @@ $media = $query->paginate($perPage);
                         <div class="flex space-x-1">
                             <a
                                 href="#"
-                                @click.stop.prevent="$dispatch('open-info-modal', { 
-                                id: {{ $item->id }},
-                                name: '{{ $item->name }}',
-                                file_name: '{{ $item->file_name }}',
-                                mime_type: '{{ $item->mime_type }}',
-                                size: {{ $item->size }},
-                                url: '{{ $item->url }}',
-                                created_at: '{{ $item->created_at }}',
-                                path: '{{ $item->path ?? '' }}',
-                                source: '{{ $item->source ?? '' }}'
-                            })"
+                                @click.stop.prevent="$dispatch('open-info-modal', {
+                                    id: {{ $item->id }}, 
+                                    name: {{ Js::from($item->name) }}, 
+                                    file_name: {{ Js::from($item->file_name) }}, 
+                                    mime_type: '{{ $item->mime_type }}', 
+                                    size: {{ $item->size }}, 
+                                    url: '{{ $item->url }}', 
+                                    created_at: '{{ $item->created_at }}', 
+                                    path: {{ Js::from($item->path ?? '') }}, 
+                                    source: {{ Js::from($item->source ?? '') }}
+                                })"
                                 class="text-blue-400 hover:text-blue-300">
                                 <x-heroicon-m-information-circle class="w-5 h-5" />
                             </a>
                             <button
                                 type="button"
                                 x-data=""
-                                @click.stop.prevent="$dispatch('open-delete-modal', { 
-                                id: {{ $item->id }},
-                                name: '{{ $item->name }}'
-                            })"
+                                @click.stop.prevent="$dispatch('open-delete-modal', {
+                                    id: {{ $item->id }}, 
+                                    name: {{ Js::from($item->name) }}
+                                })"
                                 class="text-red-400 hover:text-red-300">
                                 <x-heroicon-m-trash class="w-5 h-5" />
                             </button>
@@ -147,98 +149,111 @@ $media = $query->paginate($perPage);
                     <!-- Video thumbnail with hover-to-play -->
                     <div class="absolute inset-0"
                         x-data="{ 
-        isHovering: false,
-        init() {
-            this.$refs.videoElement.addEventListener('loadeddata', () => {
-                // Pause immediately after load
-                this.$refs.videoElement.pause();
-            });
-        }
-     }"
-                        @mouseenter="isHovering = true; $refs.videoElement.play().catch(e => console.log('Could not play video:', e))"
-                        @mouseleave="isHovering = false; $refs.videoElement.pause()">
-                        <video x-ref="videoElement" class="w-full h-full object-cover" muted @click.stop preload="metadata">
+                            isHovering: false,
+                            hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }}
+                        }"
+                        @mouseenter="
+                            isHovering = true; 
+                            $refs.videoElement.currentTime = 0;
+                            $refs.videoElement.play().catch(e => console.log('Could not play video:', e))
+                        "
+                        @mouseleave="
+                            isHovering = false; 
+                            $refs.videoElement.pause();
+                            $refs.videoElement.currentTime = 0;
+                        "
+                        @click="$dispatch('open-media-preview', {
+                            url: '{{ $item->url }}',
+                            name: {{ Js::from($item->name) }},
+                            type: '{{ $item->mime_type }}'
+                        })">
+
+                        <!-- Static thumbnail -->
+                        <img
+                            src="{{ $item->thumbnail_url ?: $item->url }}"
+                            alt="{{ $item->name }}"
+                            class="w-full h-full object-cover"
+                            x-show="!isHovering"
+                            loading="lazy">
+
+                        <!-- Video preview on hover -->
+                        <video
+                            x-ref="videoElement"
+                            class="w-full h-full object-cover"
+                            x-show="isHovering"
+                            muted
+                            loop
+                            preload="metadata">
                             <source src="{{ $item->url }}" type="{{ $item->mime_type }}">
                         </video>
-                        <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30"
-                            :class="{'opacity-0': isHovering, 'opacity-100': !isHovering}"
-                            class="transition-opacity duration-300">
+
+                        <!-- Play button overlay -->
+                        <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 transition-opacity duration-300"
+                            x-show="!isHovering">
                             <svg class="w-6 h-6 text-white opacity-70" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
                             </svg>
                         </div>
                     </div>
 
-                    @elseif(Str::contains($item->mime_type, 'image') && Str::contains($item->file_name, '.gif'))
-                    <!-- Animated GIF with hover-to-play -->
+                    @elseif(Str::contains($item->mime_type, 'image'))
+                    <!-- Image thumbnail with GIF hover animation -->
                     <div class="absolute inset-0"
                         x-data="{ 
-        isHovering: false,
-        staticUrl: null,
-        animatedUrl: '{{ $item->url }}',
-        init() {
-            this.createStaticImage('{{ $item->url }}');
-        },
-        createStaticImage(url) {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height);
-                this.staticUrl = canvas.toDataURL('image/png');
-            };
-            img.src = url;
-        }
-    }"
+                            isHovering: false,
+                            isGif: {{ pathinfo($item->file_name, PATHINFO_EXTENSION) === 'gif' ? 'true' : 'false' }},
+                            hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }}
+                        }"
                         @mouseenter="isHovering = true"
-                        @mouseleave="isHovering = false">
+                        @mouseleave="isHovering = false"
+                        @click="$dispatch('open-media-preview', {
+                            url: '{{ $item->url }}',
+                            name: {{ Js::from($item->name) }},
+                            type: '{{ $item->mime_type }}'
+                        })">
 
-                        <!-- Static preview -->
-                        <template x-if="staticUrl && !isHovering">
-                            <img
-                                :src="staticUrl"
-                                alt="{{ $item->file_name }}"
-                                class="w-full h-full object-cover">
-                        </template>
+                        @if(pathinfo($item->file_name, PATHINFO_EXTENSION) === 'gif')
+                        <!-- Static thumbnail for GIF -->
+                        <img
+                            src="{{ $item->thumbnail_url ?: $item->url }}"
+                            alt="{{ $item->name }}"
+                            class="w-full h-full object-cover"
+                            x-show="!isHovering"
+                            loading="lazy">
 
-                        <!-- Fallback while static image generates -->
-                        <template x-if="!staticUrl && !isHovering">
-                            <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                            </div>
-                        </template>
+                        <!-- Animated GIF on hover -->
+                        <img
+                            src="{{ $item->url }}"
+                            alt="{{ $item->file_name }}"
+                            class="w-full h-full object-cover"
+                            x-show="isHovering"
+                            loading="lazy">
 
-                        <!-- Animated version -->
-                        <div x-show="isHovering" class="w-full h-full">
-                            <img
-                                :src="animatedUrl"
-                                alt="{{ $item->file_name }}"
-                                class="w-full h-full object-cover">
+                        <!-- Play button overlay for GIF (matches video style) -->
+                        <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 transition-opacity duration-300"
+                            x-show="!isHovering">
+                            <svg class="w-6 h-6 text-white opacity-70" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+                            </svg>
                         </div>
-
-                        <!-- Play indicator -->
-                        <div class="absolute inset-0 flex items-center justify-center" x-show="!isHovering">
-                            <div class="bg-black bg-opacity-30 rounded-full p-2">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    @elseif(Str::contains($item->mime_type, 'image'))
-                    <!-- Regular image thumbnail - no change needed -->
-                    <div class="absolute inset-0">
-                        <img src="{{ $item->url }}" alt="{{ $item->file_name }}" class="w-full h-full object-cover">
+                        @else
+                        <!-- Regular static image -->
+                        <img
+                            src="{{ $item->url }}"
+                            alt="{{ $item->file_name }}"
+                            class="w-full h-full object-cover"
+                            loading="lazy">
+                        @endif
                     </div>
 
                     @elseif(Str::contains($item->mime_type, 'audio'))
                     <!-- Audio thumbnail -->
-                    <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+                    <div class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600"
+                        @click="$dispatch('open-media-preview', {
+                            url: '{{ $item->url }}',
+                            name: {{ Js::from($item->name) }},
+                            type: '{{ $item->mime_type }}'
+                        })">
                         <svg class="w-16 h-16 text-white opacity-80" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"></path>
                         </svg>
@@ -251,7 +266,12 @@ $media = $query->paginate($perPage);
 
                     @elseif(Str::contains($item->mime_type, 'pdf'))
                     <!-- PDF Document thumbnail -->
-                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-red-700">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-red-700"
+                        @click="$dispatch('open-media-preview', {
+                            url: '{{ $item->url }}',
+                            name: {{ Js::from($item->name) }},
+                            type: '{{ $item->mime_type }}'
+                        })">
                         <svg class="w-16 h-16 text-white opacity-80" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
                         </svg>

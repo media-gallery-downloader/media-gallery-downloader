@@ -2,6 +2,8 @@
 
 namespace App\Helpers;
 
+use Symfony\Component\Mime\MimeTypes;
+
 class MimeTypeHelper
 {
     /**
@@ -12,32 +14,9 @@ class MimeTypeHelper
      */
     public static function getExtensionFromMimeType($mimeType)
     {
-        $map = [
-            // Images
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-            'image/svg+xml' => 'svg',
+        $mimeTypes = MimeTypes::getDefault();
+        $extensions = $mimeTypes->getExtensions($mimeType);
 
-            // Videos
-            'video/mp4' => 'mp4',
-            'video/webm' => 'webm',
-            'video/ogg' => 'ogv',
-            'video/quicktime' => 'mov',
-
-            // Audio
-            'audio/mpeg' => 'mp3',
-            'audio/ogg' => 'ogg',
-            'audio/wav' => 'wav',
-            'audio/webm' => 'weba',
-
-            // Documents
-            'application/pdf' => 'pdf',
-            'application/msword' => 'doc',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-        ];
-
-        return $map[$mimeType] ?? '';
+        return $extensions[0] ?? '';
     }
 }

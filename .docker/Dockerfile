@@ -1,19 +1,19 @@
 FROM dunglas/frankenphp:php8.4-bookworm
 
-ARG TZ=America/Chicago
 ARG UID=1000
 ARG GID=1000
+ARG TZ=America/Chicago
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    TERM=xterm-color
+    TERM=xterm-color \
+    LOG_CHANNEL=stderr \
+    TZ=${TZ}
 
 WORKDIR /app
 
-SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
-RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
-    && echo ${TZ} > /etc/timezone
-
+# Install system dependencies in a single layer
 RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progress \
     apt-utils \
     gnupg \
@@ -29,6 +29,25 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
     libsqlite3-dev \
     ca-certificates \
     sudo \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    atomicparsley \
+    imagemagick \
+    libmagickwand-dev \
+    libmagickcore-dev \
+    libmagick++-dev \
+    ghostscript \
+    libgs-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libwebp-dev \
+    libtiff-dev \
+    librsvg2-dev \
+    libheif-dev \
+    libavif-dev \
+    tzdata \
+    supervisor \
     && install-php-extensions \
     bz2 \
     exif \
@@ -39,38 +58,68 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
     zip \
     intl \
     gd \
-    igbinary
+    igbinary \
+    imagick \
+    redis \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get -y autoremove \
-    && apt-get clean
+# Set system timezone from build arg
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
+# Configure ImageMagick security policy
+RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy domain="coder" rights="read|write" pattern="PDF" \/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="coder" rights="none" pattern="EPS" \/>/<policy domain="coder" rights="read|write" pattern="EPS" \/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="coder" rights="none" pattern="PS" \/>/<policy domain="coder" rights="read|write" pattern="PS" \/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="coder" rights="none" pattern="XPS" \/>/<policy domain="coder" rights="read|write" pattern="XPS" \/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="resource" name="memory" value="256MiB"\/>/<policy domain="resource" name="memory" value="1GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="resource" name="map" value="512MiB"\/>/<policy domain="resource" name="map" value="2GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="resource" name="disk" value="1GiB"\/>/<policy domain="resource" name="disk" value="8GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="resource" name="area" value="128MB"\/>/<policy domain="resource" name="area" value="1GB"\/>/g' /etc/ImageMagick-6/policy.xml
 
-RUN echo "upload_max_filesize = 5G" > ${PHP_INI_DIR}/conf.d/upload-limits.ini && \
-    echo "post_max_size = 5G" >> ${PHP_INI_DIR}/conf.d/upload-limits.ini && \
-    echo "memory_limit = 2G" >> ${PHP_INI_DIR}/conf.d/upload-limits.ini && \
-    echo "max_execution_time = 300" >> ${PHP_INI_DIR}/conf.d/upload-limits.ini && \
-    echo "max_input_time = 300" >> ${PHP_INI_DIR}/conf.d/upload-limits.ini
+# Install yt-dlp
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp && \
+    ln -sf /usr/local/bin/yt-dlp /usr/bin/youtube-dl
 
-COPY --link --from=composer:latest /usr/bin/composer /usr/bin/composer
-COPY --link --from=oven/bun:latest /usr/local/bin/bun /usr/bin/bun
+# Copy and configure PHP
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY .docker/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
-COPY . .
+# Copy external tools in one layer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=oven/bun:latest /usr/local/bin/bun /usr/bin/bun
 
+# Create app user before copying files
+RUN groupadd -g ${GID} app && \
+    useradd -u ${UID} -g app -m app && \
+    usermod -aG sudo app && \
+    echo "app ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Copy supervisor configuration to the main config location
+COPY .docker/supervisord.conf /etc/supervisor/supervisord.conf
+
+# Create required directories with proper permissions
 RUN mkdir -p \
     storage/framework/{sessions,views,cache,testing} \
     storage/logs \
-    bootstrap/cache && chmod -R a+rw storage
+    bootstrap/cache \
+    database \
+    public/build \
+    /home/app/.composer/cache \
+    && chown -R ${UID}:${GID} storage bootstrap/cache database public /home/app/.composer \
+    && chmod -R 775 storage bootstrap/cache database public/build
 
-RUN cat ./utilities.sh >> ~/.bashrc
+# Copy application files
+COPY --chown=app:app . .
 
-RUN groupadd -g ${GID} app \
-    && useradd -u ${UID} -g app -m app \
-    && usermod -aG sudo app \
-    && echo "app ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Copy utilities and make start script executable
+RUN cat .docker/utilities.sh >> /home/app/.bashrc \
+    && chmod +x .docker/start.sh
 
 USER app
 
-RUN cat ./utilities.sh >> ~/.bashrc
+# Add utilities to user bashrc
+RUN cat .docker/utilities.sh >> ~/.bashrc
 
-ENTRYPOINT [ ".docker/start.sh" ]
+ENTRYPOINT [".docker/start.sh"]

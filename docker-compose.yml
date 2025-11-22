@@ -1,24 +1,63 @@
 name: media-gallery-downloader
+
 services:
     mgd_app:
-        build: .docker
-        pull_policy: build
+        build:
+            context: .
+            dockerfile: .docker/Dockerfile
+            args:
+                UID: ${UID:-1000}
+                GID: ${GID:-1000}
+                TZ: ${TZ}
+        container_name: mgd_app
         restart: unless-stopped
         working_dir: /app
+        environment:
+            TZ: ${TZ}
+            LOG_CHANNEL: stack
         extra_hosts:
             - "host.docker.internal:host-gateway"
         ports:
-            - 80:80
-            - 443:443
-            - 443:443/udp
+            - "80:80"
+            - "443:443"
+            - "443:443/udp"
         volumes:
-            - .:/app
-            - mgd_caddy_data:/data
-            - mgd_caddy_config:/config
-            - mgd_sqlite:/db
-        tty: true
+            - .:/app:rw
+            - mgd_caddy_data:/data:rw
+            - mgd_sqlite:/db:rw
+            - mgd_composer_cache:/home/app/.composer/cache:rw
+            - mgd_bun_cache:/home/app/.bun/cache:rw
+        tmpfs:
+            - /tmp:noexec,nosuid,size=100m
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost/up"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
+        deploy:
+            resources:
+                limits:
+                    memory: 4G
+                reservations:
+                    memory: 2G
+        depends_on:
+            - mgd_valkey
+    mgd_valkey:
+        image: valkey/valkey:9
+        container_name: mgd_valkey
+        restart: unless-stopped
+        volumes:
+            - mgd_valkey_data:/data
 
 volumes:
     mgd_caddy_data:
-    mgd_caddy_config:
+        driver: local
     mgd_sqlite:
+        driver: local
+    mgd_composer_cache:
+        driver: local
+    mgd_bun_cache:
+        driver: local
+    mgd_valkey_data:
+        driver: local

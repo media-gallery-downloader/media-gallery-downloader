@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "avrabel/media-gallery-downloader",
+    "name": "media-gallery-downloader/media-gallery-downloader",
     "type": "project",
     "description": "Media Gallery Downloader",
     "license": "MIT",
@@ -12,15 +12,15 @@
         "filament/spatie-laravel-translatable-plugin": "^3.0",
         "justbetter/laravel-http3earlyhints": "^1.4",
         "laravel/framework": "^12.0",
+        "laravel/horizon": "^5.39",
         "laravel/octane": "^2.9",
         "laravel/sanctum": "^4.0",
-        "laravel/telescope": "^5.7",
         "laravel/tinker": "^2.10.1",
         "php-ffmpeg/php-ffmpeg": "^1.3",
+        "runtime/frankenphp-symfony": "^0.2.0",
         "symfony/filesystem": "^7.2"
     },
     "require-dev": {
-        "barryvdh/laravel-debugbar": "^3.6",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.18",
@@ -78,7 +78,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "symfony/runtime": true
         }
     },
     "minimum-stability": "stable",

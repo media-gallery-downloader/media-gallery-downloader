@@ -25,7 +25,6 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
             ->colors([
                 'primary' => Color::Blue,
             ])
@@ -46,7 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('3rem')
             ->authMiddleware([
-                Authenticate::class,
+                // Authenticate::class,
             ]);
     }
 }

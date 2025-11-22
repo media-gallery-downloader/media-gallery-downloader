@@ -32,8 +32,8 @@ class UploadService
             $fileName = basename($tempFile) . '.' . $extension;
             $filePath = Storage::disk('public')->putFileAs('media', $tempFile, $fileName);
 
-            chown(storage_path('app/public/' . $filePath), 'app');
-            chgrp(storage_path('app/public/' . $filePath), 'app');
+            // chown/chgrp removed as they are environment-specific and brittle.
+            // The web server/php process should already own the file it creates.
 
             $fileUrl = Storage::url($filePath);
 
@@ -53,6 +53,16 @@ class UploadService
                 'url' => $fileUrl,
                 'source' => 'local',
             ]);
+
+            // Generate thumbnail if needed
+            if ($media->needsThumbnail()) {
+                $thumbnailService = app(\App\Services\ThumbnailService::class);
+                $thumbnailPath = $thumbnailService->generateThumbnail($media->path, $media->mime_type);
+
+                if ($thumbnailPath) {
+                    $media->update(['thumbnail_path' => $thumbnailPath]);
+                }
+            }
 
             if (file_exists($tempFilePath)) {
                 @unlink($tempFilePath);

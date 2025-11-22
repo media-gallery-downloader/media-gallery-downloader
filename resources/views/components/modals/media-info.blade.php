@@ -20,6 +20,14 @@
         formatDate(dateString) {
             const date = new Date(dateString);
             return date.toLocaleString();
+        },
+        isUrl(str) {
+            try {
+                new URL(str);
+                return true;
+            } catch {
+                return false;
+            }
         }
     }"
     x-on:open-info-modal.window="
@@ -45,7 +53,10 @@
         <!-- Modal header -->
         <div class="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             <h3 class="text-base font-medium text-gray-900 dark:text-white">Media Properties</h3>
-            <button @click="open = false" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+            <button
+                @click="open = false"
+                type="button"
+                class="text-gray-400 hover:text-gray-500 focus:outline-none">
                 <x-heroicon-m-x-mark class="w-5 h-5" />
             </button>
         </div>
@@ -79,14 +90,29 @@
                 </div>
                 <div>
                     <dt class="font-medium text-gray-500 dark:text-gray-400">Source</dt>
-                    <dd class="mt-1 text-gray-900 dark:text-white break-all" x-text="source"></dd>
+                    <dd class="mt-1 text-gray-900 dark:text-white break-all">
+                        <template x-if="source && isUrl(source)">
+                            <a :href="source" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline">
+                                <span x-text="source"></span>
+                                <svg class="inline-block w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        </template>
+                        <template x-if="!source || !isUrl(source)">
+                            <span x-text="source || 'N/A'"></span>
+                        </template>
+                    </dd>
                 </div>
             </dl>
         </div>
 
         <!-- Modal footer -->
         <div class="flex justify-end p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-            <button @click.prevent.stop="open = false; id = null; name = '';" class="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 text-sm">
+            <button
+                @click="open = false"
+                type="button"
+                class="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 text-sm">
                 Close
             </button>
         </div>
