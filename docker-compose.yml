@@ -23,6 +23,7 @@ services:
             - "443:443/udp"
         volumes:
             - .:/app:rw
+            - ./.docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
             - mgd_caddy_data:/data:rw
             - mgd_sqlite:/db:rw
             - mgd_composer_cache:/home/app/.composer/cache:rw

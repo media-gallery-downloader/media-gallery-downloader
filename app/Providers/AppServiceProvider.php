@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Blade;
 use App\Services\DownloadService;
 use App\Services\UpdaterService;
 use App\Services\UploadService;
+use Illuminate\Support\Facades\Gate;
+use App\Models\Media;
+use App\Policies\MediaPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +35,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Blade::componentNamespace('App\\View\\Components', 'app');
+        Gate::policy(Media::class, MediaPolicy::class);
     }
 }

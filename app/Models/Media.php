@@ -41,4 +41,22 @@ class Media extends Model
         return str_starts_with($this->mime_type, 'video/') ||
             $this->mime_type === 'image/gif';
     }
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Media $media) {
+            // Delete the main file
+            if ($media->path && Storage::disk('public')->exists($media->path)) {
+                Storage::disk('public')->delete($media->path);
+            }
+
+            // Delete the thumbnail
+            if ($media->thumbnail_path && Storage::disk('public')->exists($media->thumbnail_path)) {
+                Storage::disk('public')->delete($media->thumbnail_path);
+            }
+        });
+    }
 }

@@ -2,84 +2,86 @@
 
 namespace App\Services;
 
-use App\Helpers\MimeTypeHelper;
-use App\Models\Media;
+use App\Jobs\ProcessUploadJob;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Cache;
 
 class UploadService
 {
     /**
-     * Process an uploaded file and create a media record
+     * Add an upload to the queue and dispatch the job
      */
-    public function processUpload(UploadedFile $tempFile)
+    public function enqueueUpload(UploadedFile $file): void
     {
-        try {
-            $tempFilePath = $tempFile->getRealPath();
+        $uploadId = \Illuminate\Support\Str::uuid()->toString();
+        $originalName = $file->getClientOriginalName();
+        $mimeType = $file->getMimeType();
 
-            $name = $tempFile->getClientOriginalName();
-            $mimeType = $tempFile->getMimeType();
-            $fileSize = $tempFile->getSize();
-
-            $extension = pathinfo($tempFile->getClientOriginalName(), PATHINFO_EXTENSION);
-            // If no extension found, try to determine from mime type
-            if (empty($extension)) {
-                $extension = MimeTypeHelper::getExtensionFromMimeType($mimeType);
-            }
-
-            $fileName = basename($tempFile) . '.' . $extension;
-            $filePath = Storage::disk('public')->putFileAs('media', $tempFile, $fileName);
-
-            // chown/chgrp removed as they are environment-specific and brittle.
-            // The web server/php process should already own the file it creates.
-
-            $fileUrl = Storage::url($filePath);
-
-            try {
-                $fileSize = Storage::disk('public')->size($filePath);
-            } catch (\Exception $e) {
-                Log::error("Error getting file size: " . $e->getMessage());
-                $fileSize = 0;
-            }
-
-            $media = Media::create([
-                'name' => $name,
-                'mime_type' => $mimeType,
-                'size' => $fileSize,
-                'file_name' => $fileName,
-                'path' => $filePath,
-                'url' => $fileUrl,
-                'source' => 'local',
-            ]);
-
-            // Generate thumbnail if needed
-            if ($media->needsThumbnail()) {
-                $thumbnailService = app(\App\Services\ThumbnailService::class);
-                $thumbnailPath = $thumbnailService->generateThumbnail($media->path, $media->mime_type);
-
-                if ($thumbnailPath) {
-                    $media->update(['thumbnail_path' => $thumbnailPath]);
-                }
-            }
-
-            if (file_exists($tempFilePath)) {
-                @unlink($tempFilePath);
-            }
-
-            Notification::make()
-                ->title('File uploaded successfully')
-                ->success()
-                ->send();
-
-            return $media;
-        } catch (\Exception $e) {
-            Log::error("Error processing file: " . $e->getMessage(), [
-                'exception' => $e
-            ]);
-
-            throw $e;
+        // Move to a temporary location that persists across requests/jobs
+        // We can't use the livewire temp file directly as it might be cleaned up
+        $tempPath = storage_path('app/temp');
+        if (!file_exists($tempPath)) {
+            mkdir($tempPath, 0755, true);
         }
+
+        $fileName = $uploadId . '_' . $originalName;
+        $file->move($tempPath, $fileName);
+        $fullPath = $tempPath . '/' . $fileName;
+
+        Log::info('Adding upload to queue', [
+            'file' => $originalName,
+            'uploadId' => $uploadId
+        ]);
+
+        // Add to Redis queue
+        $this->addToQueue($uploadId, $originalName, $mimeType);
+
+        // Dispatch the upload job
+        ProcessUploadJob::dispatch($fullPath, $originalName, $mimeType, $uploadId)
+            ->onQueue('uploads');
+    }
+
+    public function getQueue(): array
+    {
+        return Cache::get('upload_queue', []);
+    }
+
+    public function addToQueue(string $id, string $filename, string $mimeType): void
+    {
+        $queue = $this->getQueue();
+        $queue[] = [
+            'id' => $id,
+            'filename' => $filename,
+            'mime_type' => $mimeType,
+            'status' => 'queued',
+            'added_at' => now()->toISOString(),
+        ];
+        Cache::put('upload_queue', $queue);
+    }
+
+    public function updateStatus(string $id, string $status, array $extra = []): void
+    {
+        $queue = $this->getQueue();
+        foreach ($queue as &$item) {
+            if ($item['id'] === $id) {
+                $item['status'] = $status;
+                $item = array_merge($item, $extra);
+                break;
+            }
+        }
+        Cache::put('upload_queue', $queue);
+    }
+
+    public function removeFromQueue(string $id): void
+    {
+        $queue = $this->getQueue();
+        $queue = array_filter($queue, fn($item) => $item['id'] !== $id);
+        Cache::put('upload_queue', array_values($queue));
+    }
+
+    public function clearQueue(): void
+    {
+        Cache::forget('upload_queue');
     }
 }

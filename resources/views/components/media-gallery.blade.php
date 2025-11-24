@@ -10,8 +10,8 @@ $sortOptions = [
 'size_desc' => 'Size (Largest)',
 ];
 
-$sort = request()->query('sort', 'newest');
-$perPage = request()->query('per_page', 10);
+$sort = $sort ?? request()->query('sort', 'newest');
+$perPage = $perPage ?? request()->query('per_page', 10);
 
 // Build the query based on sort parameter
 $query = \App\Models\Media::query();

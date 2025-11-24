@@ -1,0 +1,15 @@
+{
+    "tasks": {
+        "test": "deno test -A",
+        "install:browsers": "deno run -A npm:playwright install"
+    },
+    "imports": {
+        "playwright": "npm:playwright@^1.49.0",
+        "@std/assert": "jsr:@std/assert@^1.0.0"
+    },
+    "lint": {
+        "rules": {
+            "exclude": ["no-explicit-any"]
+        }
+    }
+}

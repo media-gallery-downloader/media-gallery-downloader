@@ -27,16 +27,25 @@ class ProcessDownloadJob implements ShouldQueue
 
     public function handle()
     {
+        $downloadService = app(\App\Services\DownloadService::class);
+
         try {
             Log::info('Starting download job', [
                 'url' => $this->url,
                 'downloadId' => $this->downloadId
             ]);
 
+            $downloadService->updateStatus($this->downloadId, 'downloading');
+
             // Try yt-dlp first, fallback to direct download
             try {
                 $media = $this->downloadWithYtdlp($this->url);
             } catch (\Exception $e) {
+                // If it's a YouTube URL, we trust yt-dlp's failure and do not fallback.
+                if (preg_match('/(youtube\.com|youtu\.be)/i', $this->url)) {
+                    throw $e;
+                }
+
                 Log::info('yt-dlp failed, trying direct download', ['error' => $e->getMessage()]);
                 $media = $this->downloadDirectly($this->url);
             }
@@ -46,42 +55,24 @@ class ProcessDownloadJob implements ShouldQueue
                 'mediaId' => $media->id
             ]);
 
-            $this->notifyCompletion($media->id);
+            $downloadService->removeFromQueue($this->downloadId);
         } catch (\Exception $e) {
             Log::error('Download failed', [
                 'downloadId' => $this->downloadId,
                 'error' => $e->getMessage()
             ]);
 
-            $this->notifyFailure($e->getMessage());
-        }
-    }
-
-    private function notifyCompletion($mediaId)
-    {
-        try {
-            $home = new \App\Filament\Pages\Home();
-            $home->handleDownloadCompleted($this->downloadId, $mediaId);
-        } catch (\Exception $e) {
-            Log::error('Failed to notify completion', ['error' => $e->getMessage()]);
-        }
-    }
-
-    private function notifyFailure($error)
-    {
-        try {
-            $home = new \App\Filament\Pages\Home();
-            $home->handleDownloadFailed($this->downloadId, $error);
-        } catch (\Exception $e) {
-            Log::error('Failed to notify failure', ['error' => $e->getMessage()]);
+            $downloadService->updateStatus($this->downloadId, 'failed', ['error' => $e->getMessage()]);
         }
     }
 
     private function downloadWithYtdlp(string $url)
     {
-        // Create a unique temporary directory
-        $tempDir = sys_get_temp_dir() . '/ytdlp_' . uniqid();
-        mkdir($tempDir, 0755, true);
+        // Create a unique temporary directory in storage/app/temp
+        $tempDir = storage_path('app/temp/ytdlp_' . uniqid());
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
 
         try {
             // First, check if yt-dlp can handle this URL
@@ -117,15 +108,16 @@ class ProcessDownloadJob implements ShouldQueue
                 throw new \Exception("Error parsing video metadata");
             }
 
-            $videoTitle = $metadata['title'];
+            // Use fulltitle if available, otherwise title
+            $videoTitle = $metadata['fulltitle'] ?? $metadata['title'];
 
             // Output file template
             $outputTemplate = $tempDir . '/%(title)s.%(ext)s';
 
             // Get format preference from config
-            $maxHeight = config('mdg.video_quality.max_height', 1080);
+            $maxHeight = config('mgd.video_quality.max_height', 1080);
             $preferredFormat = config(
-                'mdg.video_quality.format_selector',
+                'mgd.video_quality.format_selector',
                 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
             );
 
@@ -143,22 +135,32 @@ class ProcessDownloadJob implements ShouldQueue
             ];
 
             // Add subtitle options if enabled
-            if (config('mdg.video_quality.embed_subs', true)) {
+            if (config('mgd.video_quality.embed_subs', true)) {
                 $command[] = '--embed-subs';
             }
 
-            if (config('mdg.video_quality.auto_subs', true)) {
+            if (config('mgd.video_quality.auto_subs', true)) {
                 $command[] = '--write-auto-sub';
                 $command[] = '--sub-lang';
-                $command[] = config('mdg.video_quality.sub_lang', 'en');
+                $command[] = config('mgd.video_quality.sub_lang', 'en');
             }
 
             $command[] = $url;
 
             $process = new Process($command);
-            $process->setTimeout(config('mdg.timeouts.download', 600));
+            $process->setTimeout(config('mgd.timeouts.download', 600));
 
-            $process->run();
+            $downloadService = app(\App\Services\DownloadService::class);
+            $process->run(function ($type, $buffer) use ($downloadService) {
+                if ($type === Process::OUT) {
+                    // Parse progress from stdout
+                    // yt-dlp output format: [download]  23.5% of 10.00MiB at 2.00MiB/s ETA 00:05
+                    if (preg_match('/\[download\]\s+(\d+(?:\.\d+)?)%/', $buffer, $matches)) {
+                        $percent = (float) $matches[1];
+                        $downloadService->updateStatus($this->downloadId, 'downloading', ['progress' => $percent]);
+                    }
+                }
+            });
 
             if (!$process->isSuccessful()) {
                 throw new \Exception("Error executing yt-dlp: " . $process->getErrorOutput());
@@ -169,14 +171,43 @@ class ProcessDownloadJob implements ShouldQueue
                 throw new \Exception("No files were downloaded");
             }
 
-            $downloadedFile = $files[0];
+            // Prioritize video files
+            $downloadedFile = null;
+
+            // 1. Look for video
+            foreach ($files as $file) {
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                $mime = MimeTypeHelper::getMimeTypeFromExtension($ext);
+                if (str_starts_with($mime, 'video/')) {
+                    $downloadedFile = $file;
+                    break;
+                }
+            }
+
+            // If no video file found, throw exception
+            if (!$downloadedFile) {
+                $foundFiles = implode(', ', array_map('basename', $files));
+                throw new \Exception("yt-dlp did not download a video file. Found: " . $foundFiles);
+            }
+
             $originalFilename = basename($downloadedFile);
             $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
 
             $uniqueId = \Illuminate\Support\Str::uuid()->toString();
             $proceduralFilename = $uniqueId . '.' . $extension;
 
-            $mimeType = mime_content_type($downloadedFile);
+            // Use MimeTypeHelper to get mime type from extension as it's more reliable for video files
+            // than mime_content_type which often returns application/octet-stream
+            $mimeType = MimeTypeHelper::getMimeTypeFromExtension($extension);
+            if (empty($mimeType)) {
+                $mimeType = mime_content_type($downloadedFile);
+            }
+
+            // Validate that it is a video file
+            if (!str_starts_with($mimeType, 'video/')) {
+                throw new \Exception("Downloaded file is not a video file (MIME: $mimeType)");
+            }
+
             $fileSize = filesize($downloadedFile);
 
             $path = 'media/' . $proceduralFilename;
@@ -221,9 +252,11 @@ class ProcessDownloadJob implements ShouldQueue
 
     private function downloadDirectly(string $url)
     {
-        // Create a unique temporary directory
-        $tempDir = sys_get_temp_dir() . '/direct_' . uniqid();
-        mkdir($tempDir, 0755, true);
+        // Create a unique temporary directory in storage/app/temp
+        $tempDir = storage_path('app/temp/direct_' . uniqid());
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
 
         try {
             // Validate URL
@@ -284,6 +317,20 @@ class ProcessDownloadJob implements ShouldQueue
 
             // Get file details
             $mimeType = mime_content_type($outputFilePath);
+
+            // If mime type is generic, try to guess from extension
+            if ($mimeType === 'application/octet-stream' || empty($mimeType)) {
+                $extMime = MimeTypeHelper::getMimeTypeFromExtension($extension);
+                if (!empty($extMime)) {
+                    $mimeType = $extMime;
+                }
+            }
+
+            // Validate that it is a video file
+            if (!str_starts_with($mimeType, 'video/')) {
+                throw new \Exception("Downloaded file is not a video file (MIME: $mimeType)");
+            }
+
             $fileSize = filesize($outputFilePath);
 
             // Store the file in the public storage with procedural filename

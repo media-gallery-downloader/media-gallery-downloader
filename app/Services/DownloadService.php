@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\ProcessDownloadJob;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Process\Process;
 
 class DownloadService
@@ -18,9 +19,55 @@ class DownloadService
             'downloadId' => $downloadId
         ]);
 
+        // Add to Redis queue
+        $this->addToQueue($downloadId, $url, $this->getDownloadMethod($url));
+
         // Dispatch the download job
         ProcessDownloadJob::dispatch($url, $downloadId)
             ->onQueue('downloads'); // Use a specific queue for downloads
+    }
+
+    public function getQueue(): array
+    {
+        return Cache::get('download_queue', []);
+    }
+
+    public function addToQueue(string $id, string $url, string $method): void
+    {
+        $queue = $this->getQueue();
+        $queue[] = [
+            'id' => $id,
+            'url' => $url,
+            'method' => $method,
+            'status' => 'queued',
+            'added_at' => now()->toISOString(),
+        ];
+        Cache::put('download_queue', $queue);
+    }
+
+    public function updateStatus(string $id, string $status, array $extra = []): void
+    {
+        $queue = $this->getQueue();
+        foreach ($queue as &$item) {
+            if ($item['id'] === $id) {
+                $item['status'] = $status;
+                $item = array_merge($item, $extra);
+                break;
+            }
+        }
+        Cache::put('download_queue', $queue);
+    }
+
+    public function removeFromQueue(string $id): void
+    {
+        $queue = $this->getQueue();
+        $queue = array_filter($queue, fn($item) => $item['id'] !== $id);
+        Cache::put('download_queue', array_values($queue));
+    }
+
+    public function clearQueue(): void
+    {
+        Cache::forget('download_queue');
     }
 
     /**
