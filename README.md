@@ -1,33 +1,24 @@
 # Media Gallery Downloader
 
-A powerful web application built with Laravel and FrankenPHP for downloading and managing media content from various online sources. This application provides a modern interface for downloading videos, images, and other media files while organizing them in a gallery format.
-
-## ⚠️ AI Assistance Disclaimer
-
-This project was developed with assistance from artificial intelligence tools. AI was used to help generate:
-
-- Code snippets and implementation patterns
-- Documentation and README content
-- Configuration files and Docker setup
-- Some project assets and structure
-
-While AI assistance was utilized, all code has been reviewed, tested, and customized for this specific application. Users should review and understand the code before deployment in production environments.
+A web application built with Laravel and FrankenPHP for downloading and managing media content from various online sources.
 
 ## Features
 
-- 🎥 **Multi-source Media Downloading**: Download content from various online platforms
-- 🖼️ **Gallery Management**: Organize downloaded media in an intuitive gallery interface
-- ⚡ **High Performance**: Built on FrankenPHP for optimal performance
-- 🔒 **Secure**: Containerized deployment with proper security headers
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
-- 🚀 **Modern Stack**: Laravel 11, PHP 8.4, Vite, and modern frontend tooling
-- 📊 **Background Processing**: Queue-based processing for downloads
-- 🗄️ **SQLite Database**: Lightweight, file-based database for easy deployment
+- **Multi-source Media Downloading**: Download content from various online platforms
+- **Direct File Upload**: Upload local media files directly to the gallery
+- **Gallery Management**: Organize downloaded media in a gallery interface
+- **High Performance**: Built on FrankenPHP for optimal performance
+- **Secure**: Rootless containerized deployment with proper security headers
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+- **Background Processing**: Queue-based processing for downloads and uploads
+- **SQLite Database**: Lightweight, file-based database for easy deployment
 
 ## Technology Stack
 
 - **Backend**: Laravel 11, PHP 8.4, FrankenPHP
-- **Frontend**: Vite, Bun, modern JavaScript/CSS
+- **Frontend**: Filament 3, Alpine.js, Tailwind CSS
+- **Unit Testing**: Pest PHP
+- **Acceptance Testing**: Deno with Playwright
 - **Database**: SQLite
 - **Web Server**: Caddy with HTTP/3 support
 - **Container**: Docker with multi-stage builds
@@ -63,26 +54,21 @@ export GID=$(id -g)
 
 ```bash
 # Build and start the container
-docker-compose up --build
+docker compose up --build
 
 # Or run in background
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ### 4. Access the Application
 
 - **HTTPS**: <https://mgd.localhost> (with self-signed certificate)
 
-**⚠️ Certificate Warning**: When first accessing the application, your browser will display a security warning about the self-signed certificate. This is normal for local development. To proceed:
+**Certificate Warning**: When first accessing the application, your browser will display a security warning about the self-signed certificate. This is normal for local development and/or self hosting. To proceed:
 
-- **Chrome/Edge**: Click "Advanced" → "Proceed to mgd.localhost (unsafe)"
-- **Firefox**: Click "Advanced" → "Accept the Risk and Continue"
-- **Safari**: Click "Show Details" → "visit this website" → "Visit Website"
-
-**Default Login Credentials**:
-
-- **Email**: <admin@admin.com>
-- **Password**: admin
+- **Chrome/Edge**: Click "Advanced" -> "Proceed to mgd.localhost (unsafe)"
+- **Firefox**: Click "Advanced" -> "Accept the Risk and Continue"
+- **Safari**: Click "Show Details" -> "visit this website" -> "Visit Website"
 
 The application will automatically:
 
@@ -92,35 +78,119 @@ The application will automatically:
 - Build frontend assets
 - Start background services
 
-## Configuration
+## LAN Deployment
 
-### Application Settings
+To make the application accessible to other devices on your local network:
 
-Key Laravel configuration options in `.env`:
+### 1. Find Your Server's IP Address
 
-```env
-APP_NAME="Media Gallery Downloader"
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=https://mgd.localhost
+```bash
+# Linux
+ip addr show | grep "inet " | grep -v 127.0.0.1
 
-DB_CONNECTION=sqlite
-DB_DATABASE=/app/database/database.sqlite
-
-# Queue configuration for background processing
-QUEUE_CONNECTION=database
+# macOS
+ifconfig | grep "inet " | grep -v 127.0.0.1
 ```
 
-## Usage
+Note your LAN IP address (e.g., `192.168.1.100`).
 
-### Basic Operation
+### 2. Update the Caddyfile
 
-1. **Access the Web Interface**: Navigate to <https://mgd.localhost>
-2. **Add Media Sources**: Use the interface to add URLs for media download
-3. **Monitor Downloads**: Track download progress in the dashboard
-4. **Browse Gallery**: View and manage downloaded media in the gallery
+Edit `.docker/Caddyfile` and replace `mgd.localhost` with your server's IP address:
+
+```caddyfile
+192.168.1.100 {
+    root * /app/public
+
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.webp *.svg *.ico *.woff *.woff2 *.ttf *.eot
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    encode zstd br gzip
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    try_files {path} {path}/ /index.php?{query}
+    php_server
+
+    file_server
+}
+```
+
+### 3. Update Laravel Environment
+
+Edit your `.env` file to match:
+
+```bash
+APP_URL=https://192.168.1.100
+```
+
+### 4. Restart the Application
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+### 5. Access from Other Devices
+
+Navigate to `https://192.168.1.100` from any device on your network.
+
+Note: You will see a certificate warning on each device since Caddy generates a self-signed certificate. Accept the certificate to proceed.
+
+### Changing the Default Port
+
+By default, the application listens on ports 80 (HTTP) and 443 (HTTPS). To use different ports:
+
+1. Edit `docker-compose.yml` and change the port mappings:
+
+```yaml
+ports:
+    - "8100:8080"      # HTTP: access via port 8100
+    - "8143:8443"      # HTTPS: access via port 8143
+    - "8143:8443/udp"  # HTTP/3
+```
+
+2. Update your `.env` file with the new port:
+
+```bash
+APP_URL=https://192.168.1.100:8143
+```
+
+4. Restart the application and access via `https://192.168.1.100:8143`
 
 ## Development
+
+### File Structure
+
+```text
+media-gallery-downloader/
+├── .docker/
+│   ├── Caddyfile               # Web server configuration
+│   ├── Dockerfile              # Container definition
+│   ├── php.ini                 # PHP configuration overrides
+│   ├── start.sh                # Container startup script
+│   ├── supervisord.conf        # Process management
+│   └── utilities.sh            # Shell utility functions
+├── app/                        # Laravel application code
+├── config/                     # Laravel configuration files
+├── database/                   # Migrations, factories, and seeds
+├── lang/                       # Language files
+├── public/                     # Web-accessible files
+├── resources/                  # Views and frontend assets
+├── routes/                     # Route definitions
+├── storage/                    # File storage and logs
+├── tests/                      # Pest and Playwright tests
+├── docker-compose.yml          # Container orchestration
+└── phpunit.xml                 # Test configuration
+```
 
 ### Local Development Setup
 
@@ -128,61 +198,73 @@ For development with live reloading:
 
 ```bash
 # Start the stack
-docker-compose up -d
+docker compose up -d
 
 # Watch for frontend changes (in container)
-docker-compose exec mgd_app bun run dev
+docker compose exec mgd_app deno task dev
 
-# Or run outside container if you have Node.js/Bun installed
-bun run dev
+# Or run outside container if you have Deno installed
+deno task dev
 ```
 
-### File Structure
+### Testing
+
+#### Unit Tests
+
+Unit tests are written using Pest PHP and cover services, models, and Filament pages.
 
 ```bash
-media-gallery-downloader/
-├── .docker/
-│   ├── Dockerfile              # Container definition
-│   ├── Caddyfile              # Web server configuration
-│   ├── start.sh               # Container startup script
-│   └── supervisord.conf       # Process management
-├── app/                       # Laravel application code
-├── resources/                 # Frontend assets and views
-├── database/                  # Database migrations and seeds
-├── public/                    # Web-accessible files
-├── storage/                   # File storage and logs
-└── docker-compose.yml         # Container orchestration
+# Run all unit tests
+docker compose exec mgd_app php vendor/bin/pest
+
+# Run only unit tests
+docker compose exec mgd_app php vendor/bin/pest tests/Unit
+
+# Run only feature tests
+docker compose exec mgd_app php vendor/bin/pest tests/Feature
+
+# Run tests with coverage
+docker compose exec mgd_app php vendor/bin/pest --coverage
 ```
 
-### Performance Optimization
+#### Acceptance Tests
 
-- **Memory**: Adjust the memory limits in `docker-compose.yml` based on your system
-- **CPU**: The application uses all available CPU cores by default
-- **Storage**: Use SSD storage for better I/O performance
-- **Network**: Enable HTTP/3 for improved connection performance
+Acceptance tests use Deno with Playwright for browser-based end-to-end testing. Tests run in both Chromium and Firefox.
 
-## Security Considerations
+**Prerequisites:**
 
-- The application runs as a non-root user inside the container
-- Self-signed certificates are used for HTTPS in development
-- Security headers are automatically applied via Caddy
-- File permissions are properly managed through Docker user mapping
+- Deno 2.x installed locally
+- Application running via Docker
 
-## Contributing
+```bash
+# Install browser binaries (first time only)
+cd tests/e2e
+deno task install:browsers
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+# Run acceptance tests
+deno task test
 
-## Support
+# Run specific test file
+deno test -A app_test.ts
+```
 
-For issues and questions:
+**Test Structure:**
 
-- Check the troubleshooting section above
-- Review container logs: `docker-compose logs mgd_app`
-- Open an issue in the repository
+- `tests/Unit/` - Pest unit tests for services and models
+- `tests/Feature/` - Pest feature tests for Filament pages
+- `tests/e2e/` - Deno acceptance tests for browser interactions
+
+## AI Assistance Disclaimer
+
+This is a hobby project to solve a personal need and learn how AI tools can be used. AI was used to help with:
+
+- 'Bells and whistles' like the stats page and parts of the settings page
+- IDE based code completion and suggestions
+- Documentation and README content
+- Configuration files and Docker setup
+- Testing
+
+While AI assistance was utilized, all code has been reviewed, tested, and customized for this specific application. Users should review and understand the code before deployment in production environments.
 
 ## License
 

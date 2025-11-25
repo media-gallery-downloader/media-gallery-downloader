@@ -2,6 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Widgets\MediaStatsWidget;
+use App\Filament\Widgets\MediaActivityChart;
+use App\Filament\Widgets\SystemHealthWidget;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentIcon;
 use Filament\Widgets\Widget;
@@ -44,7 +47,11 @@ class Dashboard extends \Filament\Pages\Dashboard
      */
     public function getWidgets(): array
     {
-        return Filament::getWidgets();
+        return [
+            MediaStatsWidget::class,
+            MediaActivityChart::class,
+            SystemHealthWidget::class,
+        ];
     }
 
     /**

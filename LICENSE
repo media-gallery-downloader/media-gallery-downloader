@@ -33,6 +33,7 @@ This software automatically downloads the following third-party components:
 
 2. **FFmpeg**
    - License: LGPL v2.1+ (or GPL v2.1+ depending on build configuration)
+   - Source: <https://ffmpeg.org>
    - Installed via system package manager during container build
    - Users are responsible for ensuring compliance with FFmpeg licensing terms
 

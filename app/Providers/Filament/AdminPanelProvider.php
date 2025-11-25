@@ -31,10 +31,18 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->pages([])
             ->renderHook(
-                PanelsRenderHook::GLOBAL_SEARCH_AFTER,
-                fn(): string => view('filament.components.settings-link')->render()
+                PanelsRenderHook::HEAD_END,
+                fn(): string => '<style>
+                    .fi-fo-select-option:hover,
+                    .fi-fo-select-option:focus-visible,
+                    .fi-fo-select-option[aria-selected="true"] {
+                        background-color: #4b5563 !important;
+                        color: white !important;
+                    }
+                </style>'
             )
             ->middleware([
                 EncryptCookies::class,

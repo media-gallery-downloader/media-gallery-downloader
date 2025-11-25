@@ -30,7 +30,7 @@ cleanup() {
     
     # Stop supervisor
     if [ ! -z "$SUPERVISOR_PID" ] && kill -0 $SUPERVISOR_PID 2>/dev/null; then
-        sudo supervisorctl -c /etc/supervisor/supervisord.conf stop all 2>/dev/null || true
+        supervisorctl -c /etc/supervisor/supervisord.conf stop all 2>/dev/null || true
         kill $SUPERVISOR_PID 2>/dev/null || true
     fi
     
@@ -79,10 +79,10 @@ if [ ! -f init.lock ]; then
 
     # Install and build frontend assets
     log "Installing frontend dependencies..."
-    bun install --frozen-lockfile
+    deno install
     
     log "Building frontend assets..."
-    bun run build
+    deno task build
 
     # Mark initialization as complete
     touch init.lock
@@ -109,7 +109,7 @@ fi
 log "Starting supervisor for background services..."
 
 # Start supervisor for queue and scheduler only
-sudo supervisord -c /etc/supervisor/supervisord.conf &
+supervisord -c /etc/supervisor/supervisord.conf &
 SUPERVISOR_PID=$!
 
 log "Starting FrankenPHP with standard mode..."

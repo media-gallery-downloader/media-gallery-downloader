@@ -7,7 +7,8 @@ ARG TZ=America/Chicago
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm-color \
     LOG_CHANNEL=stderr \
-    TZ=${TZ}
+    TZ=${TZ} \
+    PATH="/home/app/bin:${PATH}"
 
 WORKDIR /app
 
@@ -28,7 +29,6 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
     sqlite3 \
     libsqlite3-dev \
     ca-certificates \
-    sudo \
     python3 \
     python3-pip \
     ffmpeg \
@@ -88,13 +88,11 @@ COPY .docker/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
 # Copy external tools in one layer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-COPY --from=oven/bun:latest /usr/local/bin/bun /usr/bin/bun
+COPY --from=denoland/deno:bin /deno /usr/bin/deno
 
 # Create app user before copying files
 RUN groupadd -g ${GID} app && \
-    useradd -u ${UID} -g app -m app && \
-    usermod -aG sudo app && \
-    echo "app ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+    useradd -u ${UID} -g app -m app
 
 # Copy supervisor configuration to the main config location
 COPY .docker/supervisord.conf /etc/supervisor/supervisord.conf

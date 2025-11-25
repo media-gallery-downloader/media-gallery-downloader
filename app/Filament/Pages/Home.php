@@ -136,12 +136,12 @@ class Home extends Page implements HasForms
 
             // Upload section
             Section::make('Upload')
-                ->description('Select the file you want to upload.')
+                ->description('Select the video file you want to upload.')
                 ->schema([
                     Forms\Components\FileUpload::make('file')
                         ->label('File')
-                        ->placeholder('Upload media file')
-                        ->acceptedFileTypes(['image/*', 'video/*', 'audio/*', 'application/pdf'])
+                        ->placeholder('Upload video file')
+                        ->acceptedFileTypes(['video/*'])
                         ->live()
                         ->afterStateUpdated(function ($state, $set) use ($uploadService) {
                             if (!empty($state)) {

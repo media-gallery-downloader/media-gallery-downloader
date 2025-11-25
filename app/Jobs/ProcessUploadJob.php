@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
+use App\Models\FailedUpload;
 use App\Models\Media;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -39,6 +40,11 @@ class ProcessUploadJob implements ShouldQueue
 
             if (!file_exists($this->filePath)) {
                 throw new \Exception("File not found at path: " . $this->filePath);
+            }
+
+            // Validate that it is a video file
+            if (!str_starts_with($this->mimeType, 'video/')) {
+                throw new \Exception("Uploaded file is not a video file (MIME: {$this->mimeType})");
             }
 
             $extension = pathinfo($this->originalName, PATHINFO_EXTENSION);
@@ -102,6 +108,16 @@ class ProcessUploadJob implements ShouldQueue
             ]);
 
             $uploadService->updateStatus($this->uploadId, 'failed', ['error' => $e->getMessage()]);
+
+            // Track failed upload
+            FailedUpload::createFromUpload(
+                $this->originalName,
+                $this->mimeType,
+                $e->getMessage()
+            );
+
+            // Clean up temp file on failure
+            @unlink($this->filePath);
         }
     }
 }

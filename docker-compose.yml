@@ -18,16 +18,16 @@ services:
         extra_hosts:
             - "host.docker.internal:host-gateway"
         ports:
-            - "80:80"
-            - "443:443"
-            - "443:443/udp"
+            - "80:8080"
+            - "443:8443"
+            - "443:8443/udp"
         volumes:
             - .:/app:rw
             - ./.docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
             - mgd_caddy_data:/data:rw
             - mgd_sqlite:/db:rw
             - mgd_composer_cache:/home/app/.composer/cache:rw
-            - mgd_bun_cache:/home/app/.bun/cache:rw
+            - mgd_deno_cache:/home/app/.cache/deno:rw
         tmpfs:
             - /tmp:noexec,nosuid,size=100m
         healthcheck:
@@ -58,7 +58,7 @@ volumes:
         driver: local
     mgd_composer_cache:
         driver: local
-    mgd_bun_cache:
+    mgd_deno_cache:
         driver: local
     mgd_valkey_data:
         driver: local
