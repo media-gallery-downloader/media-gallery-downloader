@@ -11,6 +11,7 @@ When working on this project, log all user prompts to `.prompts/YYYY-MM-DD.md` f
 
 ### Prompt N
 
+**Model:** [The AI model being used, e.g., "Claude Opus 4.5 (Preview)", "GPT-4o", etc.]
 **Context:** [Describe any context: open files, pasted images, error messages, etc. Use "None" if no special context]
 
 > [User's exact prompt/request]
@@ -20,14 +21,15 @@ When working on this project, log all user prompts to `.prompts/YYYY-MM-DD.md` f
 
 1. Create a new dated file if one doesn't exist for today
 2. Number prompts sequentially within each day
-3. Include context such as:
+3. Always include the model name (e.g., "Claude Opus 4.5 (Preview)")
+4. Include context such as:
     - Open/active files
     - Pasted images or screenshots (describe what they show)
     - Error messages or logs
     - Previous conversation context if relevant
-4. Log the user's request verbatim in a blockquote
-5. Do NOT log AI responses, only user prompts
-6. Update the log BEFORE executing the user's request
+5. Log the user's request verbatim in a blockquote
+6. Do NOT log AI responses, only user prompts
+7. Update the log BEFORE executing the user's request
 
 ### File structure:
 
