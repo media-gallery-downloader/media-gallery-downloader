@@ -34,3 +34,13 @@ Transparency about AI usage in software development is important. This disclosur
 1. Helps users make informed decisions about using the software
 2. Contributes to honest conversations about AI in development
 3. Acknowledges the collaborative nature of modern software development
+
+## Prompt Logs
+
+User prompts/requests made during AI-assisted development are logged in the [`.prompts/`](.prompts/) directory. These logs contain:
+
+- The user's requests (not AI responses)
+- Context notes (open files, screenshots, error messages)
+- Dated log files for each development session
+
+This provides additional transparency about how AI assistance was directed during development.
