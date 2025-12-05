@@ -12,6 +12,7 @@ When working on this project, log all user prompts to `.prompts/YYYY-MM-DD.md` f
 ### Prompt N
 
 **Model:** [The AI model being used, e.g., "Claude Opus 4.5 (Preview)", "GPT-4o", etc.]
+
 **Context:** [Describe any context: open files, pasted images, error messages, etc. Use "None" if no special context]
 
 > [User's exact prompt/request]
