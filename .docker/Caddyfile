@@ -3,24 +3,22 @@
 
 	order php_server before file_server
 
+	# Disable automatic HTTPS - container serves HTTP only behind reverse proxy
+	auto_https off
+
 	log {
 		level ERROR
 		output file /app/storage/logs/caddy.log
 	}
 
-	storage file_system {
-		root /app/storage/caddy
-	}
-
-    http_port 8080
-    https_port 8443
+	http_port 8080
 
 	servers {
-		protocols h1 h2 h3
+		protocols h1 h2
 	}
 }
 
-mgd.localhost {
+:8080 {
 	root * /app/public
 
 	# Allow large file uploads (50GB)
@@ -37,8 +35,6 @@ mgd.localhost {
 	encode zstd br gzip
 
 	header {
-		# HSTS - enforce HTTPS for 1 year, include subdomains
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		# Prevent MIME type sniffing
 		X-Content-Type-Options nosniff
 		# Prevent clickjacking

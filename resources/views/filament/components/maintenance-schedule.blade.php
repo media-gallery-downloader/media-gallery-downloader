@@ -96,7 +96,7 @@
                 @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
                 <th class="text-center text-sm font-medium text-gray-500 dark:text-gray-400 pb-4" style="width: 50px;">{{ $day }}</th>
                 @endforeach
-                <th class="pb-4" style="width: 180px;"></th>
+                <th class="pb-4" style="width: 150px;"></th>
                 <th class="pb-4"></th>
             </tr>
         </thead>
@@ -115,28 +115,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="importHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="importHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="importMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="importMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="importPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="importPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveImportSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runImportScan" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveImportSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runImportScan" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>
@@ -155,33 +155,33 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="backupHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="backupHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="backupMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="backupMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="backupPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="backupPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2 items-center">
-                        <x-filament::button wire:click="saveBackupSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runBackup" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1 items-center flex-wrap">
+                        <x-filament::button wire:click="saveBackupSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runBackup" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                         <x-filament::button
                             x-on:click="$dispatch('open-modal', { id: 'download-backups-modal' })" 
                             icon="heroicon-m-arrow-down-tray" 
                             color="gray" 
-                            size="sm"
+                            size="xs"
                             tooltip="Download Backups"
                         >
                             Download
@@ -190,7 +190,7 @@
                             x-on:click="$dispatch('open-modal', { id: 'restore-backup-modal' })" 
                             icon="heroicon-m-arrow-up-tray" 
                             color="warning" 
-                            size="sm"
+                            size="xs"
                             tooltip="Restore from Backup"
                         >
                             Restore
@@ -213,28 +213,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="duplicatesHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="duplicatesHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="duplicatesMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="duplicatesMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="duplicatesPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="duplicatesPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveDuplicatesSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runDuplicateRemoval" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveDuplicatesSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runDuplicateRemoval" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>
@@ -253,28 +253,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="logRotationHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="logRotationHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="logRotationMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="logRotationMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="logRotationPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="logRotationPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveLogRotationSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runLogRotation" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveLogRotationSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runLogRotation" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>
@@ -293,28 +293,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="storageHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="storageHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="storageMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="storageMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="storagePeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="storagePeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveStorageSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runStorageCleanup" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveStorageSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runStorageCleanup" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>
@@ -333,28 +333,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="thumbnailHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="thumbnailHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="thumbnailMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="thumbnailMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="thumbnailPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="thumbnailPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveThumbnailSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runThumbnailRegeneration" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveThumbnailSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runThumbnailRegeneration" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>
@@ -373,28 +373,28 @@
                 </td>
                 @endforeach
                 <td class="align-middle py-3 px-2">
-                    <div class="flex items-center gap-2">
-                        <select x-model="ytdlpHour" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <div class="flex items-center gap-1">
+                        <select x-model="ytdlpHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @for($i = 1; $i <= 12; $i++)
                                 <option value="{{ $i }}">{{ $i }}</option>
                                 @endfor
                         </select>
                         <span class="text-gray-500 dark:text-gray-400">:</span>
-                        <select x-model="ytdlpMinute" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="ytdlpMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach(['00', '15', '30', '45'] as $min)
                             <option value="{{ $min }}">{{ $min }}</option>
                             @endforeach
                         </select>
-                        <select x-model="ytdlpPeriod" class="fi-select-input block w-20 py-2 px-3 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select x-model="ytdlpPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
                 </td>
                 <td class="align-middle py-3">
-                    <div class="flex gap-2">
-                        <x-filament::button wire:click="saveYtdlpSchedule" icon="heroicon-m-check" color="success" size="sm">Save</x-filament::button>
-                        <x-filament::button wire:click="runYtdlpUpdate" icon="heroicon-m-play" size="sm">Run Now</x-filament::button>
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveYtdlpSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runYtdlpUpdate" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                     </div>
                 </td>
             </tr>

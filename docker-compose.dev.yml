@@ -39,13 +39,17 @@ services:
             - no-new-privileges:true
         cap_drop:
             - ALL
+        cap_add:
+            - NET_BIND_SERVICE
+            - SETGID
+            - SETUID
         logging:
             driver: json-file
             options:
                 max-size: "10m"
                 max-file: "3"
         healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost/up"]
+            test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
             interval: 30s
             timeout: 10s
             retries: 3
