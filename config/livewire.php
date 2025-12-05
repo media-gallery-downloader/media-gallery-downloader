@@ -64,10 +64,10 @@ return [
     */
 
     'temporary_file_upload' => [
-        'disk' => null,        // Example: 'local', 's3'              | Default: 'default'
-        'rules' => ['max:5242880'],       // Example: ['file', 'mimes:png,jpg']  | Default: ['required', 'file', 'max:12288'] (12MB)
-        'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
-        'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
+        'disk' => 'local',     // Use local disk to avoid /tmp size limits (Docker /tmp is only 100MB)
+        'rules' => ['max:52428800'],       // 50GB in KB (50 * 1024 * 1024 = 52428800 KB)
+        'directory' => 'livewire-tmp',   // Store in storage/app/livewire-tmp
+        'middleware' => 'throttle:1000,1',  // Increased throttle limit for large file uploads (1000 requests per minute)
         'preview_mimes' => [   // Supported file types for temporary pre-signed file URLs...
             'png',
             'gif',
@@ -86,7 +86,7 @@ return [
             'webp',
             'wma',
         ],
-        'max_upload_time' => 5, // Max duration (in minutes) before an upload is invalidated...
+        'max_upload_time' => 120, // Max duration (in minutes) before an upload is invalidated - 2 hours for very large files
         'cleanup' => true, // Should cleanup temporary uploads older than 24 hrs...
     ],
 

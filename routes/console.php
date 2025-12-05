@@ -1,10 +1,10 @@
 <?php
 
+use App\Services\MaintenanceService;
+use App\Settings\MaintenanceSettings;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-use App\Settings\MaintenanceSettings;
-use App\Services\MaintenanceService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -19,7 +19,7 @@ try {
         'Wed' => 3,
         'Thu' => 4,
         'Fri' => 5,
-        'Sat' => 6
+        'Sat' => 6,
     ];
 
     // Helper function to schedule a task
@@ -28,10 +28,10 @@ try {
             return;
         }
 
-        $days = array_map(fn($day) => $dayMap[$day] ?? null, $scheduleDays);
-        $days = array_filter($days, fn($d) => !is_null($d));
+        $days = array_map(fn ($day) => $dayMap[$day] ?? null, $scheduleDays);
+        $days = array_filter($days, fn ($d) => ! is_null($d));
 
-        if (!empty($days)) {
+        if (! empty($days)) {
             Schedule::call($callback)
                 ->days($days)
                 ->at($scheduleTime)
@@ -96,6 +96,16 @@ try {
         'thumbnail-regeneration',
         function () {
             app(MaintenanceService::class)->regenerateThumbnails();
+        }
+    );
+
+    // Schedule bulk import scan
+    $scheduleTask(
+        $settings->import_scan_schedule_days ?? [],
+        $settings->import_scan_schedule_time ?? null,
+        'import-scan',
+        function () {
+            app(MaintenanceService::class)->scanAndQueueImports();
         }
     );
 

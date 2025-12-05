@@ -8,8 +8,8 @@ class MimeTypeHelper
 {
     /**
      * Get file extension from MIME type
-     * 
-     * @param string $mimeType
+     *
+     * @param  string  $mimeType
      * @return string
      */
     public static function getExtensionFromMimeType($mimeType)
@@ -22,8 +22,8 @@ class MimeTypeHelper
 
     /**
      * Get MIME type from file extension
-     * 
-     * @param string $extension
+     *
+     * @param  string  $extension
      * @return string
      */
     public static function getMimeTypeFromExtension($extension)
@@ -36,8 +36,8 @@ class MimeTypeHelper
 
     /**
      * Check if the MIME type corresponds to a media file (image, video, audio)
-     * 
-     * @param string $mimeType
+     *
+     * @param  string  $mimeType
      * @return bool
      */
     public static function isMedia($mimeType)

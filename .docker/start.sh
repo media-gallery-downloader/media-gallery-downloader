@@ -40,81 +40,111 @@ cleanup() {
 # Set up signal handlers
 trap cleanup SIGTERM SIGINT
 
-# First-time setup
-if [ ! -f init.lock ]; then
-    log "Running first-time setup..."
+# Detect environment
+IS_DEV=false
+if [ "$APP_ENV" = "local" ] || [ "$APP_ENV" = "development" ]; then
+    IS_DEV=true
+    log "Running in DEVELOPMENT mode"
+else
+    log "Running in PRODUCTION mode"
+fi
+
+# =============================================================================
+# Environment Setup (idempotent - only runs if needed)
+# =============================================================================
+
+# Copy environment file if it doesn't exist
+if [ ! -f .env ]; then
+    log "Creating .env file from example..."
+    cp .env.example .env
     
-    # Copy environment file
-    if [ ! -f .env ]; then
-        log "Creating .env file from example"
-        cp .env.example .env
-    fi
-
-    # Create SQLite database
-    if [ ! -f database/database.sqlite ]; then
-        log "Creating SQLite database"
-        touch database/database.sqlite
-        chmod 666 database/database.sqlite
-    fi
-
-    # Install dependencies
-    log "Installing PHP dependencies..."
-    composer install --no-interaction --prefer-dist --optimize-autoloader
-
-    # Create storage link
-    log "Creating storage link..."
-    php artisan storage:link --relative --force
-
-    # Generate application key
+    # Generate application key only for new installations
     log "Generating application key..."
     php artisan key:generate --force
+fi
 
-    # Install Octane
-    log "Installing Laravel Octane..."
-    php artisan octane:install --server=frankenphp --no-interaction
+# Create SQLite database if it doesn't exist
+if [ ! -f database/database.sqlite ]; then
+    log "Creating SQLite database..."
+    touch database/database.sqlite
+    chmod 666 database/database.sqlite
+fi
 
-    # Run migrations
-    log "Running database migrations..."
-    php artisan migrate --force --no-interaction --seed
+# Create test database if it doesn't exist (for development/testing)
+if [ ! -f database/testing.sqlite ]; then
+    log "Creating test SQLite database..."
+    touch database/testing.sqlite
+    chmod 666 database/testing.sqlite
+fi
 
-    # Install and build frontend assets
+# =============================================================================
+# Dependencies (development only - production has pre-built deps)
+# =============================================================================
+
+if [ "$IS_DEV" = true ]; then
+    # Install PHP dependencies with dev requirements
+    log "Installing PHP dependencies (with dev)..."
+    composer install --no-interaction --prefer-dist
+    
+    # Install frontend dependencies
     log "Installing frontend dependencies..."
     deno install
     
-    log "Building frontend assets..."
-    deno task build
-
-    # Mark initialization as complete
-    touch init.lock
-    log "First-time setup completed"
+    # Build frontend assets if needed
+    if [ ! -f public/build/manifest.json ] || [ resources/js/app.js -nt public/build/manifest.json ] || [ resources/css/app.css -nt public/build/manifest.json ]; then
+        log "Building frontend assets..."
+        deno task build
+    else
+        log "Frontend assets up to date"
+    fi
 fi
 
-# Always run these optimizations
-log "Running application optimizations..."
+# =============================================================================
+# Laravel Setup (all commands are idempotent)
+# =============================================================================
 
-# Dump autoloader
-composer dumpautoload --no-interaction --optimize
+# Create storage link (--force overwrites existing, --relative for portability)
+log "Ensuring storage link exists..."
+php artisan storage:link --relative --force 2>/dev/null || true
 
-# Clear caches
-php artisan config:clear
-php artisan event:clear
-php artisan route:clear
-php artisan view:clear
+# Install Octane if not already installed
+if [ ! -f config/octane.php ]; then
+    log "Installing Laravel Octane..."
+    php artisan octane:install --server=frankenphp --no-interaction
+fi
 
-if [ "$APP_ENV" = "production" ]; then
-    # Optimize application (only in production)
+# Run migrations (only runs pending migrations)
+log "Running database migrations..."
+php artisan migrate --force --no-interaction
+
+# Seed only if the settings table is empty (first run)
+if ! php artisan tinker --execute="echo App\Models\Setting::count();" 2>/dev/null | grep -q "^[1-9]"; then
+    log "Seeding database..."
+    php artisan db:seed --force --no-interaction 2>/dev/null || true
+fi
+
+# =============================================================================
+# Optimization (production only)
+# =============================================================================
+
+if [ "$IS_DEV" = false ]; then
+    log "Optimizing application for production..."
     php artisan optimize --no-interaction
 fi
 
+# =============================================================================
+# Start Services
+# =============================================================================
+
 log "Starting supervisor for background services..."
 
-# Start supervisor for queue and scheduler only
+# Start supervisor for queue and scheduler
 supervisord -c /etc/supervisor/supervisord.conf &
 SUPERVISOR_PID=$!
 
-log "Starting FrankenPHP with standard mode..."
+log "Starting FrankenPHP..."
 
-# Set Caddy data directory to use our custom storage location
+# Set Caddy data directory
 export XDG_DATA_HOME=/app/storage
 export XDG_CONFIG_HOME=/app/storage
 

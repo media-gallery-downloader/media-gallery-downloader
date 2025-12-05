@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+
+    # Level 5 is a good starting point
+    # Levels: 0 (loose) to 9 (strict)
+    level: 5
+
+    # Exclude generated files
+    excludePaths:
+        - app/Providers/Filament/

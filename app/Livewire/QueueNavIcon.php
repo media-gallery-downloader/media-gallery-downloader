@@ -4,8 +4,8 @@ namespace App\Livewire;
 
 use App\Services\DownloadService;
 use App\Services\UploadService;
-use Livewire\Component;
 use Filament\Notifications\Notification;
+use Livewire\Component;
 
 class QueueNavIcon extends Component
 {
@@ -47,7 +47,7 @@ class QueueNavIcon extends Component
             || collect($uploadQueue)->contains('status', 'processing');
 
         // If we were active and now we are not, it means a job finished
-        if ($this->wasActive && !$hasActive) {
+        if ($this->wasActive && ! $hasActive) {
             $this->dispatch('refresh-gallery');
             $this->dispatch('refresh-gallery')->to(\App\Filament\Pages\Home::class);
         }
@@ -55,7 +55,7 @@ class QueueNavIcon extends Component
         $this->wasActive = $hasActive;
 
         return view('livewire.queue-nav-icon', [
-            'hasActive' => $hasActive
+            'hasActive' => $hasActive,
         ]);
     }
 

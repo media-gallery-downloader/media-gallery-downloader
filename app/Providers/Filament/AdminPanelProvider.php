@@ -8,13 +8,13 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Filament\View\PanelsRenderHook;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -35,11 +35,45 @@ class AdminPanelProvider extends PanelProvider
             ->pages([])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn(): string => '<style>
+                fn (): string => '<style>
+                    /* Fix select dropdown hover state */
                     .fi-fo-select-option:hover,
                     .fi-fo-select-option:focus-visible,
                     .fi-fo-select-option[aria-selected="true"] {
                         background-color: #4b5563 !important;
+                        color: white !important;
+                    }
+                    
+                    /* Fix mobile hamburger menu hover states */
+                    .fi-sidebar-nav-item:hover,
+                    .fi-sidebar-nav-item:focus,
+                    .fi-sidebar-item:hover,
+                    .fi-sidebar-item:focus,
+                    [class*="fi-sidebar"] a:hover,
+                    [class*="fi-sidebar"] button:hover {
+                        background-color: #374151 !important;
+                        color: white !important;
+                    }
+                    
+                    /* Ensure text is readable on hover in dark mode navigation */
+                    .dark .fi-sidebar-nav a:hover,
+                    .dark .fi-sidebar a:hover {
+                        background-color: #4b5563 !important;
+                        color: white !important;
+                    }
+                    
+                    /* Fix dropdown/popover menu items */
+                    .fi-dropdown-list-item:hover,
+                    .fi-dropdown-list-item:focus,
+                    [role="menuitem"]:hover,
+                    [role="menuitem"]:focus {
+                        background-color: #374151 !important;
+                        color: white !important;
+                    }
+                    
+                    /* Ensure child elements also have readable text */
+                    .fi-dropdown-list-item:hover *,
+                    [role="menuitem"]:hover * {
                         color: white !important;
                     }
                 </style>'

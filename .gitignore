@@ -28,4 +28,6 @@ storage/caddy/*
 frankenphp
 frankenphp-worker.php
 
-init.lock
+# Deno
+deno.lock
+backup/

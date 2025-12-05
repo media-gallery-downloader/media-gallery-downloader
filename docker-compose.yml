@@ -1,35 +1,70 @@
+# =============================================================================
+# Media Gallery Downloader - Production Docker Compose
+# =============================================================================
+#
+# Quick Start:
+#   1. Create a directory for your data:
+#      mkdir -p mgd && cd mgd
+#      mkdir -p data database
+#
+#   2. Download this file:
+#      curl -o docker-compose.yml https://raw.githubusercontent.com/OWNER/media-gallery-downloader/master/docker-compose.yml
+#
+#   3. Start the application:
+#      docker compose up -d
+#
+#   4. Access at http://localhost:8080
+#
+# Configuration:
+#   Create a .env file to customize settings (all are optional):
+#     TZ=America/New_York
+#     HTTP_PORT=8080
+#
+# Reverse Proxy:
+#   This container serves HTTP only. For HTTPS, place behind your reverse proxy
+#   (Traefik, Nginx Proxy Manager, Caddy, etc.) and configure SSL there.
+#
+# Data Persistence:
+#   - ./data/    - Media files, thumbnails, backups, imports
+#   - ./database/ - SQLite database
+#
+# For more information, see: https://github.com/OWNER/media-gallery-downloader
+# =============================================================================
+
 name: media-gallery-downloader
 
 services:
     mgd_app:
-        build:
-            context: .
-            dockerfile: .docker/Dockerfile
-            args:
-                UID: ${UID:-1000}
-                GID: ${GID:-1000}
-                TZ: ${TZ}
+        image: ghcr.io/OWNER/media-gallery-downloader:latest
         container_name: mgd_app
         restart: unless-stopped
-        working_dir: /app
         environment:
-            TZ: ${TZ}
+            TZ: ${TZ:-UTC}
+            APP_ENV: production
+            APP_DEBUG: "false"
             LOG_CHANNEL: stack
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
+            LOG_LEVEL: warning
         ports:
-            - "80:8080"
-            - "443:8443"
-            - "443:8443/udp"
+            - "${HTTP_PORT:-8080}:8080"
+        networks:
+            - mgd_internal
+            - mgd_external
         volumes:
-            - .:/app:rw
-            - ./.docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
-            - mgd_caddy_data:/data:rw
-            - mgd_sqlite:/db:rw
-            - mgd_composer_cache:/home/app/.composer/cache:rw
-            - mgd_deno_cache:/home/app/.cache/deno:rw
+            - ./data:/app/storage/app/data:rw
+            - ./database:/app/database:rw
         tmpfs:
-            - /tmp:noexec,nosuid,size=100m
+            - /tmp:noexec,nosuid,size=500m
+            - /run:noexec,nosuid,size=10m
+        stop_grace_period: 30s
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost/up"]
             interval: 30s
@@ -39,26 +74,51 @@ services:
         deploy:
             resources:
                 limits:
-                    memory: 4G
+                    memory: ${MEMORY_LIMIT:-4G}
                 reservations:
-                    memory: 2G
+                    memory: ${MEMORY_RESERVATION:-1G}
         depends_on:
-            - mgd_valkey
+            mgd_valkey:
+                condition: service_healthy
+
     mgd_valkey:
-        image: valkey/valkey:9
+        image: valkey/valkey:9-alpine
         container_name: mgd_valkey
         restart: unless-stopped
+        command: valkey-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+        networks:
+            - mgd_internal
         volumes:
             - mgd_valkey_data:/data
+        security_opt:
+            - no-new-privileges:true
+        cap_drop:
+            - ALL
+        cap_add:
+            - SETGID
+            - SETUID
+        read_only: true
+        tmpfs:
+            - /tmp:mode=1777
+        logging:
+            driver: json-file
+            options:
+                max-size: "5m"
+                max-file: "2"
+        healthcheck:
+            test: ["CMD", "valkey-cli", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+
+networks:
+    mgd_internal:
+        driver: bridge
+        internal: true
+    mgd_external:
+        driver: bridge
 
 volumes:
-    mgd_caddy_data:
-        driver: local
-    mgd_sqlite:
-        driver: local
-    mgd_composer_cache:
-        driver: local
-    mgd_deno_cache:
-        driver: local
     mgd_valkey_data:
         driver: local

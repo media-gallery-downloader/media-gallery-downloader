@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 class ThumbnailService
@@ -23,7 +23,7 @@ class ThumbnailService
             Log::error('Thumbnail generation failed', [
                 'source' => $sourcePath,
                 'mime_type' => $mimeType,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -37,14 +37,15 @@ class ThumbnailService
     {
         $sourceFullPath = Storage::disk('public')->path($sourcePath);
 
-        if (!file_exists($sourceFullPath)) {
+        if (! file_exists($sourceFullPath)) {
             Log::warning("Source file not found for thumbnail generation: $sourceFullPath");
+
             return null;
         }
 
         // Generate thumbnail filename
-        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME) . '_thumb.jpg';
-        $thumbnailPath = 'thumbnails/' . $thumbnailFilename;
+        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME).'_thumb.jpg';
+        $thumbnailPath = 'thumbnails/'.$thumbnailFilename;
         $thumbnailFullPath = Storage::disk('public')->path($thumbnailPath);
 
         // Create thumbnails directory if it doesn't exist
@@ -64,7 +65,7 @@ class ThumbnailService
             '-q:v',
             '2',                 // High quality
             '-y',                        // Overwrite existing
-            $thumbnailFullPath
+            $thumbnailFullPath,
         ]);
 
         $process->setTimeout(30);
@@ -86,7 +87,7 @@ class ThumbnailService
             '-q:v',
             '2',
             '-y',
-            $thumbnailFullPath
+            $thumbnailFullPath,
         ]);
 
         $process->setTimeout(30);
@@ -107,8 +108,8 @@ class ThumbnailService
         $sourceFullPath = Storage::disk('public')->path($sourcePath);
 
         // Generate thumbnail filename
-        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME) . '_thumb.jpg';
-        $thumbnailPath = 'thumbnails/' . $thumbnailFilename;
+        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME).'_thumb.jpg';
+        $thumbnailPath = 'thumbnails/'.$thumbnailFilename;
         $thumbnailFullPath = Storage::disk('public')->path($thumbnailPath);
 
         // Create thumbnails directory if it doesn't exist
@@ -118,7 +119,7 @@ class ThumbnailService
         if ($this->hasImageMagick()) {
             $process = new Process([
                 'convert',
-                $sourceFullPath . '[0]',    // Extract first frame
+                $sourceFullPath.'[0]',    // Extract first frame
                 '-resize',
                 '400x400',       // Resize to 400x400
                 '-background',
@@ -129,7 +130,7 @@ class ThumbnailService
                 '400x400',       // Pad to exact size
                 '-quality',
                 '90',           // High quality
-                $thumbnailFullPath
+                $thumbnailFullPath,
             ]);
 
             $process->setTimeout(30);
@@ -152,7 +153,7 @@ class ThumbnailService
             '-q:v',
             '2',
             '-y',
-            $thumbnailFullPath
+            $thumbnailFullPath,
         ]);
 
         $process->setTimeout(30);
@@ -172,6 +173,7 @@ class ThumbnailService
     {
         $process = new Process(['convert', '-version']);
         $process->run();
+
         return $process->isSuccessful();
     }
 

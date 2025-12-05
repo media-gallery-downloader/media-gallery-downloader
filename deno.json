@@ -1,0 +1,38 @@
+{
+    "tasks": {
+        "build": "deno run -A npm:vite build",
+        "dev": "deno run -A npm:vite",
+        "preview": "deno run -A npm:vite preview",
+        "lint": "deno lint resources/js/",
+        "lint:fix": "deno lint --fix resources/js/",
+        "fmt": "deno fmt resources/js/",
+        "fmt:check": "deno fmt --check resources/js/",
+        "lint-staged": "deno run -A npm:lint-staged",
+        "prepare": "deno run -A npm:husky"
+    },
+    "imports": {
+        "vite": "npm:vite@^6.0.0",
+        "laravel-vite-plugin": "npm:laravel-vite-plugin@^1.0.0",
+        "tailwindcss": "npm:tailwindcss@^4.0.0",
+        "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.0.0",
+        "autoprefixer": "npm:autoprefixer@^10.4.0",
+        "postcss": "npm:postcss@^8.4.0",
+        "axios": "npm:axios@^1.7.0",
+        "husky": "npm:husky@^9.1.0",
+        "lint-staged": "npm:lint-staged@^15.2.0"
+    },
+    "compilerOptions": {
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "strict": true
+    },
+    "nodeModulesDir": "auto",
+    "lint": {
+        "rules": {
+            "exclude": ["no-window"]
+        }
+    },
+    "fmt": {
+        "indentWidth": 4,
+        "singleQuote": true
+    }
+}

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Widgets\MediaStatsWidget;
 use App\Filament\Widgets\MediaActivityChart;
+use App\Filament\Widgets\MediaStatsWidget;
 use App\Filament\Widgets\SystemHealthWidget;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentIcon;
@@ -30,7 +30,7 @@ class Dashboard extends \Filament\Pages\Dashboard
             __('filament-panels::pages/dashboard.title');
     }
 
-    public static function getNavigationIcon(): string | Htmlable | null
+    public static function getNavigationIcon(): string|Htmlable|null
     {
         return static::$navigationIcon
             ?? FilamentIcon::resolve('panels::pages.dashboard.navigation-item')
@@ -65,12 +65,12 @@ class Dashboard extends \Filament\Pages\Dashboard
     /**
      * @return int | string | array<string, int | string | null>
      */
-    public function getColumns(): int | string | array
+    public function getColumns(): int|string|array
     {
         return 2;
     }
 
-    public function getTitle(): string | Htmlable
+    public function getTitle(): string|Htmlable
     {
         return static::$title ?? __('filament-panels::pages/dashboard.title');
     }

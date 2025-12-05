@@ -23,6 +23,11 @@
 mgd.localhost {
 	root * /app/public
 
+	# Allow large file uploads (50GB)
+	request_body {
+		max_size 50GB
+	}
+
 	@static {
 		file
 		path *.css *.js *.png *.jpg *.jpeg *.gif *.webp *.svg *.ico *.woff *.woff2 *.ttf *.eot
@@ -32,10 +37,20 @@ mgd.localhost {
 	encode zstd br gzip
 
 	header {
+		# HSTS - enforce HTTPS for 1 year, include subdomains
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# Prevent MIME type sniffing
 		X-Content-Type-Options nosniff
+		# Prevent clickjacking
 		X-Frame-Options DENY
+		# XSS protection (legacy browsers)
 		X-XSS-Protection "1; mode=block"
+		# Control referrer information
 		Referrer-Policy strict-origin-when-cross-origin
+		# Permissions policy (disable unnecessary features)
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		# Remove server identification
+		-Server
 	}
 
 	try_files {path} {path}/ /index.php?{query}

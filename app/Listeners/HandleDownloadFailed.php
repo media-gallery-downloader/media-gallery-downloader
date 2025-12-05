@@ -3,17 +3,22 @@
 namespace App\Listeners;
 
 use App\Events\DownloadFailed;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Cache;
 
 class HandleDownloadFailed
 {
     public function handle(DownloadFailed $event): void
     {
-        // Dispatch Livewire event to update UI
-        \Livewire\Livewire::dispatch('downloadFailed', [
+        // Store event data in cache for Livewire polling to pick up
+        // This approach works reliably from queue workers
+        $cacheKey = 'download_failed_'.$event->downloadId;
+        Cache::put($cacheKey, [
             'downloadId' => $event->downloadId,
-            'error' => $event->error
-        ]);
+            'error' => $event->error,
+            'timestamp' => now()->timestamp,
+        ], 300); // Keep for 5 minutes
+
+        // Also clear the pending count cache
+        Cache::forget('queue_pending_count');
     }
 }

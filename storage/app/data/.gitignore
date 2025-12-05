@@ -1,0 +1,6 @@
+*
+!.gitignore
+!media/
+!thumbnails/
+!backups/
+!import/

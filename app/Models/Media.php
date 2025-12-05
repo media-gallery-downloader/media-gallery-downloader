@@ -30,6 +30,7 @@ class Media extends Model
         if ($this->thumbnail_path) {
             return Storage::url($this->thumbnail_path);
         }
+
         return null;
     }
 

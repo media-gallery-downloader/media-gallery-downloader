@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Events\DownloadCompleted;
 use App\Events\DownloadFailed;
-use App\Events\DownloadStarted;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;

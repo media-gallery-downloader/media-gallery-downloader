@@ -2,26 +2,32 @@
 
 namespace App\Filament\Pages;
 
-use App\Services\UploadService;
 use App\Services\DownloadService;
-use Filament\Pages\Page;
+use App\Services\UploadService;
+use Filament\Forms;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Forms;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
+/**
+ * @property \Filament\Forms\Form $form
+ */
 class Home extends Page implements HasForms
 {
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-home';
+
     protected static ?string $navigationLabel = 'Home';
+
     protected static ?int $navigationSort = -5;
+
     protected static string $view = 'filament.pages.home';
 
     public ?array $data = [];
@@ -48,12 +54,13 @@ class Home extends Page implements HasForms
         $downloadService = app(DownloadService::class);
 
         // Validate URL first
-        if (!$downloadService->validateUrl($url)) {
+        if (! $downloadService->validateUrl($url)) {
             Notification::make()
                 ->title('Invalid URL')
                 ->body('Please enter a valid HTTP or HTTPS URL')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -105,15 +112,17 @@ class Home extends Page implements HasForms
                                         ->body('URL is required')
                                         ->danger()
                                         ->send();
+
                                     return;
                                 }
 
-                                if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                                if (! filter_var($url, FILTER_VALIDATE_URL)) {
                                     Notification::make()
                                         ->title('Error')
                                         ->body('Please enter a valid URL')
                                         ->danger()
                                         ->send();
+
                                     return;
                                 }
 
@@ -126,25 +135,36 @@ class Home extends Page implements HasForms
                                 // Notify user
                                 Notification::make()
                                     ->title('Added to download queue')
-                                    ->body('URL: ' . $url)
+                                    ->body('URL: '.$url)
                                     ->info()
                                     ->send();
                             })
-                            ->requiresConfirmation(false)
+                            ->requiresConfirmation(false),
                     ])->alignRight(),
                 ])->columnSpan(6)->collapsible(),
 
             // Upload section
             Section::make('Upload')
-                ->description('Select the video file you want to upload.')
+                ->description('Select video files or archives (zip, tar, 7z, rar) to upload.')
                 ->schema([
                     Forms\Components\FileUpload::make('file')
                         ->label('File')
-                        ->placeholder('Upload video file')
-                        ->acceptedFileTypes(['video/*'])
+                        ->placeholder('Upload video or archive file')
+                        ->acceptedFileTypes([
+                            'video/*',
+                            'application/zip',
+                            'application/x-zip-compressed',
+                            'application/x-tar',
+                            'application/gzip',
+                            'application/x-gzip',
+                            'application/x-bzip2',
+                            'application/x-7z-compressed',
+                            'application/x-rar-compressed',
+                            'application/vnd.rar',
+                        ])
                         ->live()
                         ->afterStateUpdated(function ($state, $set) use ($uploadService) {
-                            if (!empty($state)) {
+                            if (! empty($state)) {
                                 try {
                                     $uploadService->enqueueUpload($state);
                                     $set('file', null);
@@ -162,7 +182,7 @@ class Home extends Page implements HasForms
                                         ->send();
                                 }
                             }
-                        })
+                        }),
                 ])->columnSpan(6)->collapsible()->collapsed(),
 
             // Media Gallery section
@@ -173,7 +193,7 @@ class Home extends Page implements HasForms
                         ->viewData([
                             'perPage' => $this->per_page,
                             'sort' => $this->sort,
-                        ])
+                        ]),
                 ])->columnSpan(12)->compact(true),
         ])->statePath('data')->columns(12);
     }

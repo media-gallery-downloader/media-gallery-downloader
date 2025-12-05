@@ -20,9 +20,10 @@
                 this.$refs.audioPlayer.currentTime = 0;
             }
         },
-        playVideo() {
+        loadAndPlayVideo() {
             this.$nextTick(() => {
                 if (this.$refs.videoPlayer && this.isVideo) {
+                    this.$refs.videoPlayer.load();
                     this.$refs.videoPlayer.play().catch(e => {
                         console.log('Could not auto-play video:', e);
                     });
@@ -60,7 +61,7 @@
         isPdf = mediaType.includes('pdf');
         isOther = !isVideo && !isAudio && !isImage && !isPdf;
         if (isVideo) {
-            playVideo();
+            loadAndPlayVideo();
             setupFullscreenListeners();
         }
     "
@@ -94,7 +95,6 @@
                             x-ref="videoPlayer"
                             style="max-height: calc(80vh - 110px); max-width: 100%;"
                             controls
-                            @loadeddata="playVideo()"
                             @fullscreenchange="isFullscreen = !!document.fullscreenElement">
                             <source :src="mediaUrl" :type="mediaType">
                             Your browser does not support video playback.

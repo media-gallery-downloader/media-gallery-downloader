@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Jobs\ProcessDownloadJob;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 class DownloadService
@@ -16,7 +16,7 @@ class DownloadService
     {
         Log::info('Adding download to queue', [
             'url' => $url,
-            'downloadId' => $downloadId
+            'downloadId' => $downloadId,
         ]);
 
         // Add to Redis queue
@@ -61,7 +61,7 @@ class DownloadService
     public function removeFromQueue(string $id): void
     {
         $queue = $this->getQueue();
-        $queue = array_filter($queue, fn($item) => $item['id'] !== $id);
+        $queue = array_filter($queue, fn ($item) => $item['id'] !== $id);
         Cache::put('download_queue', array_values($queue));
     }
 
@@ -76,13 +76,13 @@ class DownloadService
     public function validateUrl(string $url): bool
     {
         // Basic URL validation
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
             return false;
         }
 
         // Check if it's a supported scheme
         $scheme = parse_url($url, PHP_URL_SCHEME);
-        if (!in_array($scheme, ['http', 'https'])) {
+        if (! in_array($scheme, ['http', 'https'])) {
             return false;
         }
 
@@ -99,7 +99,7 @@ class DownloadService
                 'yt-dlp',
                 '--simulate',
                 '--quiet',
-                $url
+                $url,
             ]);
 
             $process->setTimeout(10); // Short timeout for validation
@@ -109,8 +109,9 @@ class DownloadService
         } catch (\Exception $e) {
             Log::debug('yt-dlp validation failed', [
                 'url' => $url,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }

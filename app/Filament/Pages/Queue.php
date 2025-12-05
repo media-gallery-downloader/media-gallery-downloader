@@ -4,19 +4,19 @@ namespace App\Filament\Pages;
 
 use App\Services\DownloadService;
 use App\Services\UploadService;
-use Filament\Pages\Page;
 use Filament\Notifications\Notification;
-use Livewire\Attributes\On;
-use Illuminate\Support\Facades\Log;
+use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Support\HtmlString;
-
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
+use Livewire\Attributes\On;
 
 class Queue extends Page
 {
     protected static ?string $navigationLabel = 'Queue';
+
     protected static ?int $navigationSort = 0;
+
     protected static string $view = 'filament.pages.queue';
 
     public static function getNavigationIcon(): string|Htmlable|null
@@ -25,9 +25,16 @@ class Queue extends Page
     }
 
     public array $downloadQueue = [];
+
     public array $uploadQueue = [];
+
+    public array $importQueue = [];
+
     public ?string $currentDownloadId = null;
+
     public ?string $currentUploadId = null;
+
+    public ?string $currentImportId = null;
 
     public function mount()
     {

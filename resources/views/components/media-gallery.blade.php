@@ -79,9 +79,13 @@ $media = $query->paginate($perPage);
         <div class="flex flex-wrap" style="margin: -4px;">
             @forelse($media as $item)
             <div
+                wire:key="media-{{ $item->id }}-{{ $item->updated_at->timestamp }}"
                 class="relative cursor-pointer p-0 overflow-hidden rounded-lg shadow"
                 style="width: calc(20% - 8px); margin: 4px; aspect-ratio: 1/1;"
-                x-data=""
+                data-media-url="/admin/view/{{ $item->id }}"
+                x-data="{ cardMenuOpen: false, overCard: false, overPopup: false }"
+                @mouseenter="overCard = true"
+                @mouseleave="overCard = false; setTimeout(() => { if (!overCard && !overPopup) cardMenuOpen = false }, 50)"
                 x-on:click="$dispatch('open-media-preview', {
                     url: '{{ $item->url }}', 
                     name: {{ Js::from($item->name) }}, 
@@ -130,16 +134,74 @@ $media = $query->paginate($perPage);
                                 class="text-blue-400 hover:text-blue-300">
                                 <x-heroicon-m-information-circle class="w-5 h-5" />
                             </a>
-                            <button
-                                type="button"
-                                x-data=""
-                                @click.stop.prevent="$dispatch('open-delete-modal', {
-                                    id: {{ $item->id }}, 
-                                    name: {{ Js::from($item->name) }}
-                                })"
-                                class="text-red-400 hover:text-red-300">
-                                <x-heroicon-m-trash class="w-5 h-5" />
-                            </button>
+                            <!-- Hamburger menu -->
+                            <div class="relative" x-data="{
+                                menuPosition: { top: 0, left: 0 },
+                                updatePosition() {
+                                    const rect = this.$refs.menuBtn.getBoundingClientRect();
+                                    this.menuPosition = {
+                                        top: rect.top - 8,
+                                        left: rect.right - 144
+                                    };
+                                }
+                            }" @click.stop>
+                                <button
+                                    type="button"
+                                    x-ref="menuBtn"
+                                    @click.prevent="updatePosition(); cardMenuOpen = !cardMenuOpen"
+                                    class="text-gray-300 hover:text-white">
+                                    <x-heroicon-m-bars-3 class="w-5 h-5" />
+                                </button>
+                                <template x-teleport="body">
+                                    <div
+                                        x-show="cardMenuOpen"
+                                        x-transition:enter="transition ease-out duration-100"
+                                        x-transition:enter-start="transform opacity-0 scale-95"
+                                        x-transition:enter-end="transform opacity-100 scale-100"
+                                        x-transition:leave="transition ease-in duration-75"
+                                        x-transition:leave-start="transform opacity-100 scale-100"
+                                        x-transition:leave-end="transform opacity-0 scale-95"
+                                        @mouseenter="overPopup = true"
+                                        @mouseleave="overPopup = false; setTimeout(() => { if (!overCard && !overPopup) cardMenuOpen = false }, 50)"
+                                        class="fixed w-36 rounded-md shadow-lg z-[9999]"
+                                        :style="'top: ' + menuPosition.top + 'px; left: ' + menuPosition.left + 'px; transform: translateY(-100%); background-color: #2d2d2d; border: 1px solid #000000;'">
+                                        <div class="py-1">
+                                            <button
+                                                type="button"
+                                                @click.stop.prevent="
+                                                    cardMenuOpen = false;
+                                                    const link = document.createElement('a');
+                                                    link.href = '{{ $item->url }}';
+                                                    link.download = '{{ $item->file_name }}';
+                                                    link.style.display = 'none';
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                "
+                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none text-left"
+                                                style="color: #e5e7eb;"
+                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#ffffff';"
+                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#e5e7eb';">
+                                                <x-heroicon-m-arrow-down-tray class="w-4 h-4" />
+                                                Download
+                                            </button>
+                                            <button
+                                                type="button"
+                                                @click.prevent="cardMenuOpen = false; $dispatch('open-delete-modal', {
+                                                    id: {{ $item->id }}, 
+                                                    name: {{ Js::from($item->name) }}
+                                                })"
+                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none"
+                                                style="color: #f87171;"
+                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#fca5a5';"
+                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#f87171';">
+                                                <x-heroicon-m-trash class="w-4 h-4" />
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -150,10 +212,15 @@ $media = $query->paginate($perPage);
                     <div class="absolute inset-0"
                         x-data="{ 
                             isHovering: false,
-                            hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }}
+                            hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }},
+                            videoSrc: '{{ $item->url }}'
                         }"
                         @mouseenter="
-                            isHovering = true; 
+                            isHovering = true;
+                            if ($refs.videoElement.src !== videoSrc) {
+                                $refs.videoElement.src = videoSrc;
+                                $refs.videoElement.load();
+                            }
                             $refs.videoElement.currentTime = 0;
                             $refs.videoElement.play().catch(e => console.log('Could not play video:', e))
                         "
@@ -183,8 +250,7 @@ $media = $query->paginate($perPage);
                             x-show="isHovering"
                             muted
                             loop
-                            preload="metadata">
-                            <source src="{{ $item->url }}" type="{{ $item->mime_type }}">
+                            preload="none">
                         </video>
 
                         <!-- Play button overlay -->
@@ -318,8 +384,13 @@ $media = $query->paginate($perPage);
     </div>
 
     <!-- Pagination Links -->
-    <div class="mt-6">
-        {{ $media->appends(['sort' => $sort, 'per_page' => $perPage])->links() }}
+    <div class="mt-6 flex justify-between items-center">
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+            Showing {{ $media->firstItem() ?? 0 }} to {{ $media->lastItem() ?? 0 }} of {{ $media->total() }} results
+        </div>
+        <div>
+            {{ $media->appends(['sort' => $sort, 'per_page' => $perPage, 'page' => $media->currentPage()])->onEachSide(1)->links('vendor.pagination.tailwind-no-info') }}
+        </div>
     </div>
 </div>
 
@@ -327,3 +398,50 @@ $media = $query->paginate($perPage);
 <x-modals.media-preview />
 <x-modals.media-info />
 <x-modals.delete-confirmation />
+
+<script>
+    // Prevent auto-scroll on middle mouse button down
+    document.addEventListener('mousedown', function(e) {
+        if (e.button === 1) { // Middle click
+            const mediaItem = e.target.closest('[data-media-url]');
+            if (mediaItem) {
+                e.preventDefault();
+            }
+        }
+    }, true);
+
+    // Open media viewer on middle mouse button up (attempts background tab)
+    document.addEventListener('mouseup', function(e) {
+        if (e.button === 1) { // Middle click
+            const mediaItem = e.target.closest('[data-media-url]');
+            if (mediaItem) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Create a temporary link and simulate middle-click on it
+                // This leverages the browser's native middle-click behavior which opens in background
+                const link = document.createElement('a');
+                link.href = mediaItem.dataset.mediaUrl;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+
+                // Dispatch a middle-click event on the link
+                const clickEvent = new MouseEvent('click', {
+                    button: 1,
+                    ctrlKey: true, // Ctrl+click typically opens in background
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                link.dispatchEvent(clickEvent);
+
+                // Fallback: also try regular click with ctrl
+                link.click();
+
+                document.body.removeChild(link);
+            }
+        }
+    }, true);
+</script>
