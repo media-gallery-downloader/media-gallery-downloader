@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build frontend assets
 # =============================================================================
-FROM denoland/deno:2.1.4 AS frontend-builder
+FROM denoland/deno:2.5.6 AS frontend-builder
 
 WORKDIR /app
 
@@ -197,7 +197,7 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends \
 
 # Add composer and deno for development
 COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
-COPY --from=denoland/deno:bin-2.1.4 /deno /usr/bin/deno
+COPY --from=denoland/deno:bin-2.5.6 /deno /usr/bin/deno
 
 ENV APP_ENV=local
 

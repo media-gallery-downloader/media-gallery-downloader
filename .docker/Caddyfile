@@ -3,7 +3,6 @@
 
 	order php_server before file_server
 
-	# Disable automatic HTTPS - container serves HTTP only behind reverse proxy
 	auto_https off
 
 	log {
@@ -11,14 +10,14 @@
 		output file /app/storage/logs/caddy.log
 	}
 
-	http_port 8080
+	http_port {$HTTP_PORT:8080}
 
 	servers {
 		protocols h1 h2
 	}
 }
 
-:8080 {
+:{$HTTP_PORT:8080} {
 	root * /app/public
 
 	# Allow large file uploads (50GB)
