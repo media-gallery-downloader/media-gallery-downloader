@@ -609,22 +609,11 @@ deno test -A app_test.ts
 - `tests/Feature/` - Pest feature tests for Filament pages
 - `tests/e2e/` - Deno acceptance tests for browser interactions
 
-## AI Assistance Disclaimer
-
-This is a hobby project to solve a personal need and learn how AI tools can be used. AI was used to help with:
-
-- 'Bells and whistles' like the stats page and parts of the settings page
-- Styling
-- IDE based code completion and suggestions
-- Documentation and README content
-- Configuration files and Docker setup
-- Testing
-
-While AI assistance was utilized, all code has been reviewed, tested, and customized for this specific application. Users should review and understand the code before deployment in production environments.
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+See [AI_DISCLAIMER.md](AI_DISCLAIMER.md) for information about AI assistance used in development.
 
 ## Legal Notice
 
