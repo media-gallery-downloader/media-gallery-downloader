@@ -320,9 +320,11 @@ To restore your media database from a backup:
 **What happens during restore:**
 
 - **Existing records** with matching name + size are skipped (no duplicates created)
+- **Records without source URLs** are skipped (they cannot be re-downloaded)
 - **Records with source URLs** but missing local files are queued for automatic re-download
 - **Records with existing files** have their thumbnails regenerated
 - The restore process is additive - it won't delete any existing data
+- **Notifications** show a summary of imported, queued, skipped duplicates, and skipped no-source records
 
 **Supported backup formats:**
 
