@@ -13,6 +13,7 @@ This directory contains logs of prompts/requests used during AI-assisted develop
 ## Purpose
 
 These logs provide transparency about AI assistance used in development and may be useful for:
+
 - Understanding the development process
 - Reproducibility of AI-assisted work
 - Educational purposes

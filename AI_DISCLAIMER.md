@@ -44,3 +44,10 @@ User prompts/requests made during AI-assisted development are logged in the [`.p
 - Dated log files for each development session
 
 This provides additional transparency about how AI assistance was directed during development.
+
+### Caveats
+
+- **Incomplete history** - Prompt logging was added mid-project; earlier development sessions are not logged
+- **Best effort** - Logging depends on the developer remembering to log or the AI following project instructions
+- **Prompts only** - AI responses are not included; the actual implementation may differ from what was requested
+- **No guarantee** - AI tools don't reliably follow custom instruction files across all sessions
