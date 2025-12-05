@@ -6,7 +6,6 @@ use App\Models\FailedUpload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
-use ReflectionMethod;
 
 uses(RefreshDatabase::class);
 
@@ -306,7 +305,7 @@ describe('Logs Page - System Logs', function () {
 
     it('returns log files list', function () {
         $logs = new Logs;
-        $method = new ReflectionMethod($logs, 'getLogFiles');
+        $method = new \ReflectionMethod($logs, 'getLogFiles');
         $method->setAccessible(true);
         $files = $method->invoke($logs);
 
@@ -320,7 +319,7 @@ describe('Logs Page - System Logs', function () {
         File::put($logPath, "Test log line 1\nTest log line 2\nTest log line 3");
 
         $logs = new Logs;
-        $method = new ReflectionMethod($logs, 'getLogContent');
+        $method = new \ReflectionMethod($logs, 'getLogContent');
         $method->setAccessible(true);
         $content = $method->invoke($logs, 'test.log', 100);
 
@@ -332,7 +331,7 @@ describe('Logs Page - System Logs', function () {
 
     it('handles non-existent log file', function () {
         $logs = new Logs;
-        $method = new ReflectionMethod($logs, 'getLogContent');
+        $method = new \ReflectionMethod($logs, 'getLogContent');
         $method->setAccessible(true);
         $content = $method->invoke($logs, 'nonexistent.log', 100);
 
