@@ -135,20 +135,20 @@ By default, the application listens on port 8080 (HTTP). To use a different port
 HTTP_PORT=3000
 ```
 
-2. Or edit `docker-compose.yml` and change the port mapping:
+1. Or edit `docker-compose.yml` and change the port mapping:
 
 ```yaml
 ports:
     - "3000:8080"
 ```
 
-3. Update your `.env` file with the new port:
+1. Update your `.env` file with the new port:
 
 ```bash
 APP_URL=http://192.168.1.100:3000
 ```
 
-4. Restart the application and access via `http://192.168.1.100:3000`
+1. Restart the application and access via `http://192.168.1.100:3000`
 
 ### Using a Reverse Proxy (Recommended for Production)
 

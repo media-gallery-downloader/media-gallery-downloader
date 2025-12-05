@@ -306,7 +306,6 @@ describe('Logs Page - System Logs', function () {
     it('returns log files list', function () {
         $logs = new Logs;
         $method = new \ReflectionMethod($logs, 'getLogFiles');
-        $method->setAccessible(true);
         $files = $method->invoke($logs);
 
         // Should be an array (may be empty if no log files)
@@ -320,7 +319,6 @@ describe('Logs Page - System Logs', function () {
 
         $logs = new Logs;
         $method = new \ReflectionMethod($logs, 'getLogContent');
-        $method->setAccessible(true);
         $content = $method->invoke($logs, 'test.log', 100);
 
         expect($content)->toContain('Test log line');
@@ -332,7 +330,6 @@ describe('Logs Page - System Logs', function () {
     it('handles non-existent log file', function () {
         $logs = new Logs;
         $method = new \ReflectionMethod($logs, 'getLogContent');
-        $method->setAccessible(true);
         $content = $method->invoke($logs, 'nonexistent.log', 100);
 
         expect($content)->toBe('File not found.');
