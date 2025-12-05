@@ -3,9 +3,9 @@ name: "CodeQL Config"
 # Exclude vendor and published assets from CodeQL analysis
 # These are third-party library files that shouldn't be modified
 paths-ignore:
-    - "public/vendor/**"
-    - "public/js/filament/**"
-    - "vendor/**"
-    - "node_modules/**"
-    - "storage/**"
-    - "bootstrap/cache/**"
+  - "public/vendor/**"
+  - "public/js/filament/**"
+  - "vendor/**"
+  - "node_modules/**"
+  - "storage/**"
+  - "bootstrap/cache/**"
