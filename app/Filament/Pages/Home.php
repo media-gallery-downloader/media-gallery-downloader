@@ -145,7 +145,7 @@ class Home extends Page implements HasForms
 
             // Upload section
             Section::make('Upload')
-                ->description('Select video files or archives (zip, tar, 7z, rar) to upload.')
+                ->description('Select a video file or archive (zip, tar, 7z, rar) to upload.')
                 ->schema([
                     Forms\Components\FileUpload::make('file')
                         ->label('File')
@@ -183,7 +183,7 @@ class Home extends Page implements HasForms
                                 }
                             }
                         }),
-                ])->columnSpan(6)->collapsible()->collapsed(),
+                ])->columnSpan(6)->collapsible(),
 
             // Media Gallery section
             Section::make('Media Gallery')
