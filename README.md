@@ -21,41 +21,35 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - **Unit Testing**: Pest PHP
 - **Acceptance Testing**: Deno with Playwright
 - **Database**: SQLite
-- **Web Server**: Caddy with HTTP/3 support
+- **Web Server**: Caddy (via FrankenPHP)
 - **Container**: Docker with multi-stage builds
 - **Process Management**: Supervisor for background services
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Git
 - Linux/macOS/Windows with WSL2
 
 ## Quick Start
 
-### 1. Clone the Repository
+The easiest way to run Media Gallery Downloader is using the pre-built Docker image from GitHub Container Registry.
+
+### 1. Create Project Directory
 
 ```bash
-git clone <repository-url>
-cd media-gallery-downloader
+mkdir media-gallery-downloader && cd media-gallery-downloader
 ```
 
-### 2. Environment Setup
+### 2. Download Docker Compose File
 
 ```bash
-# Copy environment file
-cp .env.example .env
-
-# Set your user ID for proper permissions (Linux/macOS)
-export UID=$(id -u)
-export GID=$(id -g)
+curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/docker-compose.yml
 ```
 
 ### 3. Start the Application
 
 ```bash
-# Build and start the application
-docker compose up -d --build
+docker compose up -d
 ```
 
 ### 4. Access the Application
@@ -66,10 +60,8 @@ The application serves HTTP only by default. For HTTPS, place behind a reverse p
 
 The application will automatically:
 
-- Install PHP dependencies
 - Set up the database
 - Run migrations and seeders
-- Build frontend assets
 - Start background services
 
 ## LAN Deployment
@@ -117,42 +109,60 @@ The application uses environment variables for configuration. Copy `.env.example
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DATA_PATH` | `./data` | Path to media, thumbnails, backups, imports |
+| `DB_PATH` | `./database` | Path to SQLite database directory |
+| `HTTP_PORT` | `8080` | HTTP port mapping |
+| `MEMORY_LIMIT` | `4G` | Container memory limit |
+| `TZ` | `UTC` | Timezone |
 | `DOCKER_TARGET` | `production` | Build target (`production` or `development`) |
 | `APP_ENV` | `production` | Laravel environment |
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
-| `HTTP_PORT` | `8080` | HTTP port mapping |
-| `MEMORY_LIMIT` | `4G` | Container memory limit |
-| `TZ` | `UTC` | Timezone |
 
 ### Changing the Default Port
 
 By default, the application listens on port 8080 (HTTP). To use a different port:
 
-1. Set the `HTTP_PORT` environment variable in `.env`:
+- Set the `HTTP_PORT` environment variable in `.env`:
 
-```bash
-HTTP_PORT=3000
-```
+    ```bash
+    HTTP_PORT=3000
+    ```
 
-1. Or edit `docker-compose.yml` and change the port mapping:
+- Or edit `docker-compose.yml` and change the port mapping:
 
-```yaml
-ports:
-    - "3000:8080"
-```
+    ```yaml
+    ports:
+        - "3000:8080"
+    ```
 
-1. Update your `.env` file with the new port:
+- Update your `.env` file with the new port:
 
-```bash
-APP_URL=http://192.168.1.100:3000
-```
+    ```bash
+    APP_URL=http://192.168.1.100:3000
+    ```
 
-1. Restart the application and access via `http://192.168.1.100:3000`
+- Restart the application and access via `http://192.168.1.100:3000`
 
 ### Using a Reverse Proxy (Recommended for Production)
 
-For HTTPS support, place the application behind a reverse proxy like Traefik, Nginx Proxy Manager, or Caddy. Example with Traefik labels:
+For HTTPS support, place the application behind a reverse proxy like Traefik, Nginx Proxy Manager, or Caddy.
+
+#### Caddy Example
+
+Add to your Caddyfile:
+
+```caddyfile
+mgd.example.com {
+    reverse_proxy mgd_app:8080
+}
+```
+
+Caddy automatically obtains and renews SSL certificates from Let's Encrypt.
+
+#### Traefik Example
+
+Add these labels to your docker-compose.yml:
 
 ```yaml
 labels:
@@ -188,6 +198,8 @@ To download age-restricted YouTube videos, you need to provide authentication co
 4. Click "Upload Cookies"
 
 Age-restricted videos should now download successfully.
+
+> **⚠️ Warning**: Using the same browser while downloads are in progress may cause authentication issues. YouTube can detect concurrent sessions and may invalidate cookies or trigger security measures. For best results, avoid using YouTube in the browser you exported cookies from while downloads are running, or use a separate browser profile for cookie export.
 
 **Note**: Cookies may expire over time. If age-restricted downloads start failing, export fresh cookies from your browser and upload them again.
 
@@ -406,11 +418,11 @@ The Docker stack is designed with security and performance in mind:
 
 #### Volumes and Data Persistence
 
-| Path | Type | Persists `down -v` | Purpose |
-|------|------|-------------------|---------|
-| `./storage/app/data` | Bind mount | ✅ Yes | Media, thumbnails, backups, imports |
-| `./database` | Bind mount | ✅ Yes | SQLite database |
-| `mgd_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
+| Path (Production) | Path (Development) | Type | Persists `down -v` | Purpose |
+|-------------------|-------------------|------|-------------------|--------|
+| `./data` | `./storage/app/data` | Bind mount | ✅ Yes | Media, thumbnails, backups, imports |
+| `./database` | `./database` | Bind mount | ✅ Yes | SQLite database |
+| `mgd_valkey_data` | `mgd_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
 
 #### Networks
 
@@ -426,7 +438,15 @@ The Docker stack is designed with security and performance in mind:
 
 ### Local Development Setup
 
-For development, set these environment variables in `.env`:
+For development, first clone the repository:
+
+```bash
+git clone https://github.com/media-gallery-downloader/media-gallery-downloader.git
+cd media-gallery-downloader
+cp .env.example .env
+```
+
+Then set these environment variables in `.env`:
 
 ```bash
 DOCKER_TARGET=development
@@ -435,10 +455,10 @@ APP_DEBUG=true
 LOG_LEVEL=debug
 ```
 
-Then rebuild:
+Then build and start using the development compose file:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 The development build:
@@ -449,10 +469,10 @@ The development build:
 
 ```bash
 # View logs
-docker compose logs -f mgd_app
+docker compose -f docker-compose.dev.yml logs -f mgd_app
 
 # Watch for frontend changes (hot reload for CSS/JS)
-docker compose exec mgd_app deno task dev
+docker compose -f docker-compose.dev.yml exec mgd_app deno task dev
 
 # Or run Vite dev server outside container if you have Deno installed
 deno task dev
