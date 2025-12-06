@@ -124,6 +124,19 @@ By default, the application listens on port 8080 (HTTP). To use a different port
 
 - Restart the application and access via `http://192.168.1.100:3000`
 
+### Updating
+
+To update to the latest version:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+The application will automatically run any necessary database migrations on startup.
+
+> **Tip:** Check the [releases page](https://github.com/media-gallery-downloader/media-gallery-downloader/releases) for changelogs before updating.
+
 ### Using a Reverse Proxy (Recommended for Production)
 
 For HTTPS support, place the application behind a reverse proxy like Traefik, Nginx Proxy Manager, or Caddy.
