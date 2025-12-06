@@ -1,266 +1,266 @@
 name: CI
 
 on:
-    push:
-        branches:
-            - master
-    pull_request:
-        branches:
-            - master
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 # Cancel in-progress runs when a new push occurs
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-    contents: write
-    packages: write
+  contents: write
+  packages: write
 
 env:
-    REGISTRY: ghcr.io
-    IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-    test:
-        name: Run Tests
-        runs-on: ubuntu-latest
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Setup PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: "8.4"
-                  extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
-                  coverage: none
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
 
-            - name: Get Composer cache directory
-              id: composer-cache
-              run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-            - name: Cache Composer dependencies
-              uses: actions/cache@v4
-              with:
-                  path: ${{ steps.composer-cache.outputs.dir }}
-                  key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: ${{ runner.os }}-composer-
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
 
-            - name: Install Composer dependencies
-              run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
 
-            - name: Copy environment file
-              run: cp .env.development .env
+      - name: Copy environment file
+        run: cp .env.development .env
 
-            - name: Generate application key
-              run: php artisan key:generate
+      - name: Generate application key
+        run: php artisan key:generate
 
-            - name: Create test database
-              run: touch database/testing.sqlite
+      - name: Create test database
+        run: touch database/testing.sqlite
 
-            - name: Run migrations
-              run: php artisan migrate --force
+      - name: Run migrations
+        run: php artisan migrate --force
 
-            - name: Run tests
-              run: php artisan test --parallel
+      - name: Run tests
+        run: php artisan test --parallel
 
-    release:
-        name: Create Release
-        needs: test
-        runs-on: ubuntu-latest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        outputs:
-            new_tag: ${{ steps.next_version.outputs.next_version }}
-            released: ${{ steps.check_release.outputs.needs_release }}
+  release:
+    name: Create Release
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    outputs:
+      new_tag: ${{ steps.next_version.outputs.next_version }}
+      released: ${{ steps.check_release.outputs.needs_release }}
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Get latest tag
-              id: get_tag
-              run: |
-                  # Get the latest tag, or use v0.0.0 if none exists
-                  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-                  echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-                  echo "Latest tag: $LATEST_TAG"
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          # Get the latest tag, or use v0.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
 
-            - name: Calculate next version
-              id: next_version
-              run: |
-                  LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+      - name: Calculate next version
+        id: next_version
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
 
-                  # Remove 'v' prefix if present
-                  VERSION=${LATEST_TAG#v}
+          # Remove 'v' prefix if present
+          VERSION=${LATEST_TAG#v}
 
-                  # If no previous version, start at 0.1.0
-                  if [ "$VERSION" = "0.0.0" ]; then
-                    NEXT_VERSION="0.1.0"
-                  else
-                    # Split version into parts
-                    IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-                    
-                    # Increment patch version
-                    PATCH=$((PATCH + 1))
-                    
-                    NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-                  fi
+          # If no previous version, start at 0.1.0
+          if [ "$VERSION" = "0.0.0" ]; then
+            NEXT_VERSION="0.1.0"
+          else
+            # Split version into parts
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            
+            # Increment patch version
+            PATCH=$((PATCH + 1))
+            
+            NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
 
-                  echo "next_version=v${NEXT_VERSION}" >> $GITHUB_OUTPUT
-                  echo "Next version: v${NEXT_VERSION}"
+          echo "next_version=v${NEXT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Next version: v${NEXT_VERSION}"
 
-            - name: Check if release needed
-              id: check_release
-              run: |
-                  LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+      - name: Check if release needed
+        id: check_release
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
 
-                  # Check if there are commits since the last tag
-                  if [ "$LATEST_TAG" = "v0.0.0" ]; then
-                    echo "needs_release=true" >> $GITHUB_OUTPUT
-                    echo "First release needed"
-                  else
-                    COMMITS_SINCE_TAG=$(git rev-list ${LATEST_TAG}..HEAD --count)
-                    if [ "$COMMITS_SINCE_TAG" -gt 0 ]; then
-                      echo "needs_release=true" >> $GITHUB_OUTPUT
-                      echo "Found $COMMITS_SINCE_TAG commits since $LATEST_TAG"
-                    else
-                      echo "needs_release=false" >> $GITHUB_OUTPUT
-                      echo "No new commits since $LATEST_TAG"
-                    fi
-                  fi
+          # Check if there are commits since the last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            echo "needs_release=true" >> $GITHUB_OUTPUT
+            echo "First release needed"
+          else
+            COMMITS_SINCE_TAG=$(git rev-list ${LATEST_TAG}..HEAD --count)
+            if [ "$COMMITS_SINCE_TAG" -gt 0 ]; then
+              echo "needs_release=true" >> $GITHUB_OUTPUT
+              echo "Found $COMMITS_SINCE_TAG commits since $LATEST_TAG"
+            else
+              echo "needs_release=false" >> $GITHUB_OUTPUT
+              echo "No new commits since $LATEST_TAG"
+            fi
+          fi
 
-            - name: Generate changelog
-              id: changelog
-              if: steps.check_release.outputs.needs_release == 'true'
-              run: |
-                  LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+      - name: Generate changelog
+        id: changelog
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
 
-                  if [ "$LATEST_TAG" = "v0.0.0" ]; then
-                    # First release - get all commits
-                    CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -50)
-                  else
-                    # Get commits since last tag
-                    CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-                  fi
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            # First release - get all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -50)
+          else
+            # Get commits since last tag
+            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
 
-                  # Write to file to handle multiline
-                  echo "$CHANGELOG" > changelog.txt
-                  echo "Changelog generated"
+          # Write to file to handle multiline
+          echo "$CHANGELOG" > changelog.txt
+          echo "Changelog generated"
 
-            - name: Create and push tag
-              if: steps.check_release.outputs.needs_release == 'true'
-              run: |
-                  NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
-                  git config user.name "github-actions[bot]"
-                  git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
-                  git push origin "$NEXT_VERSION"
+      - name: Create and push tag
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: |
+          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
+          git push origin "$NEXT_VERSION"
 
-            - name: Create GitHub Release
-              if: steps.check_release.outputs.needs_release == 'true'
-              uses: softprops/action-gh-release@v2
-              with:
-                  tag_name: ${{ steps.next_version.outputs.next_version }}
-                  name: Release ${{ steps.next_version.outputs.next_version }}
-                  body_path: changelog.txt
-                  draft: false
-                  prerelease: false
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        if: steps.check_release.outputs.needs_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.next_version.outputs.next_version }}
+          name: Release ${{ steps.next_version.outputs.next_version }}
+          body_path: changelog.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Release summary
-              if: steps.check_release.outputs.needs_release == 'true'
-              run: |
-                  echo "## Release Created :rocket:" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "**Version:** ${{ steps.next_version.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "### Changelog" >> $GITHUB_STEP_SUMMARY
-                  cat changelog.txt >> $GITHUB_STEP_SUMMARY
+      - name: Release summary
+        if: steps.check_release.outputs.needs_release == 'true'
+        run: |
+          echo "## Release Created :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.next_version.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changelog" >> $GITHUB_STEP_SUMMARY
+          cat changelog.txt >> $GITHUB_STEP_SUMMARY
 
-            - name: No release needed
-              if: steps.check_release.outputs.needs_release != 'true'
-              run: |
-                  echo "## No Release Needed" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "No new commits since ${{ steps.get_tag.outputs.latest_tag }}" >> $GITHUB_STEP_SUMMARY
+      - name: No release needed
+        if: steps.check_release.outputs.needs_release != 'true'
+        run: |
+          echo "## No Release Needed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No new commits since ${{ steps.get_tag.outputs.latest_tag }}" >> $GITHUB_STEP_SUMMARY
 
-    build:
-        name: Build and Push Docker Image
-        needs: release
-        runs-on: ubuntu-latest
-        if: always() && needs.test.result == 'success' && (needs.release.outputs.released == 'true' || github.event_name == 'pull_request')
+  build:
+    name: Build and Push Docker Image
+    needs: release
+    runs-on: ubuntu-latest
+    if: always() && needs.test.result == 'success' && (needs.release.outputs.released == 'true' || github.event_name == 'pull_request')
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Fetch tags
-              if: needs.release.outputs.released == 'true'
-              run: git fetch --tags --force
+      - name: Fetch tags
+        if: needs.release.outputs.released == 'true'
+        run: git fetch --tags --force
 
-            - name: Set up QEMU
-              uses: docker/setup-qemu-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-            - name: Log in to Container Registry
-              if: github.event_name != 'pull_request'
-              uses: docker/login-action@v3
-              with:
-                  registry: ${{ env.REGISTRY }}
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Extract metadata for Docker
-              id: meta
-              uses: docker/metadata-action@v5
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-                  tags: |
-                      # Set latest tag for master branch
-                      type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
-                      # Tag with branch name
-                      type=ref,event=branch
-                      # Tag with PR number
-                      type=ref,event=pr
-                      # Tag with the new release version if created
-                      type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.released == 'true' }}
-                      # Tag with short SHA
-                      type=sha
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Set latest tag for master branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            # Tag with branch name
+            type=ref,event=branch
+            # Tag with PR number
+            type=ref,event=pr
+            # Tag with the new release version if created
+            type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.released == 'true' }}
+            # Tag with short SHA
+            type=sha
 
-            - name: Build and push Docker image
-              uses: docker/build-push-action@v6
-              with:
-                  context: .
-                  file: .docker/Dockerfile
-                  platforms: linux/amd64,linux/arm64
-                  push: ${{ github.event_name != 'pull_request' }}
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
-                  target: production
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
-                  build-args: |
-                      APP_ENV=production
-                      APP_DEBUG=false
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          target: production
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_ENV=production
+            APP_DEBUG=false
 
-            - name: Generate build summary
-              run: |
-                  echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "### Tags" >> $GITHUB_STEP_SUMMARY
-                  echo '```' >> $GITHUB_STEP_SUMMARY
-                  echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-                  echo '```' >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "### Platforms" >> $GITHUB_STEP_SUMMARY
-                  echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
-                  echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
+      - name: Generate build summary
+        run: |
+          echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Platforms" >> $GITHUB_STEP_SUMMARY
+          echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
+          echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
