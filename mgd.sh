@@ -3,12 +3,13 @@
 # Media Gallery Downloader - Management Script
 # =============================================================================
 # Usage:
-#   ./mgd.sh           # Install or update
-#   ./mgd.sh install   # Fresh install
-#   ./mgd.sh update    # Update existing installation
-#   ./mgd.sh start     # Start containers
-#   ./mgd.sh stop      # Stop containers
-#   ./mgd.sh logs      # View logs
+#   ./mgd.sh              # Install or update
+#   ./mgd.sh install      # Fresh install
+#   ./mgd.sh update       # Update existing installation
+#   ./mgd.sh start        # Start containers
+#   ./mgd.sh stop         # Stop containers
+#   ./mgd.sh logs         # View logs
+#   ./mgd.sh selfupdate   # Update this script to latest version
 #
 # One-liner install:
 #   curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
@@ -55,14 +56,6 @@ install() {
     echo ""
     
     check_requirements
-    
-    # Update mgd.sh itself
-    log "Updating mgd.sh..."
-    curl -fsSL "$REPO_URL/mgd.sh" -o "mgd.sh.new"
-    if [ -f "mgd.sh.new" ]; then
-        mv mgd.sh.new mgd.sh
-        chmod +x mgd.sh
-    fi
     
     # Download docker-compose.yml (always update)
     download_file "docker-compose.yml"
@@ -145,16 +138,30 @@ install() {
     log "Access the application at: http://localhost:${HTTP_PORT}"
     echo ""
     log "Useful commands:"
-    echo "  ./mgd.sh logs      # View logs"
-    echo "  ./mgd.sh stop      # Stop"
-    echo "  ./mgd.sh start     # Start"
-    echo "  ./mgd.sh update    # Update to latest version"
+    echo "  ./mgd.sh logs        # View logs"
+    echo "  ./mgd.sh stop        # Stop"
+    echo "  ./mgd.sh start       # Start"
+    echo "  ./mgd.sh update      # Update to latest version"
+    echo "  ./mgd.sh selfupdate  # Update this script"
 }
 
 # Update only (alias for install)
 update() {
     log "Updating Media Gallery Downloader..."
     install
+}
+
+# Self-update the mgd.sh script
+selfupdate() {
+    log "Updating mgd.sh script..."
+    curl -fsSL "$REPO_URL/mgd.sh" -o "mgd.sh.new"
+    if [ -f "mgd.sh.new" ]; then
+        mv mgd.sh.new mgd.sh
+        chmod +x mgd.sh
+        log "mgd.sh updated successfully!"
+    else
+        error "Failed to download mgd.sh"
+    fi
 }
 
 # Start containers
@@ -193,8 +200,11 @@ case "${1:-install}" in
     logs)
         logs
         ;;
+    selfupdate)
+        selfupdate
+        ;;
     *)
-        echo "Usage: $0 [install|update|start|stop|logs]"
+        echo "Usage: $0 [install|update|start|stop|logs|selfupdate]"
         exit 1
         ;;
 esac
