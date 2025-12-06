@@ -99,9 +99,24 @@ The application will automatically:
 
 For HTTPS support, place the application behind a reverse proxy (see [Using a Reverse Proxy](#using-a-reverse-proxy-recommended-for-production) below).
 
-The application uses environment variables for configuration. Copy `.env.docker.example` to `.env` and customize as needed.
+### Environment Files
+
+The project includes several environment files for different purposes:
+
+| File | Purpose | Committed to Git |
+|------|---------|------------------|
+| `.env.docker.example` | Template for Docker deployment settings (ports, paths, timezone). Copy to `.env` and customize. | ✅ Yes |
+| `.env.production` | Production Laravel configuration baked into the Docker image. Contains app settings, Redis/Valkey config, etc. | ✅ Yes |
+| `.env.development` | Full Laravel configuration for local development. Copy to `.env` when developing. | ✅ Yes |
+| `.env` | Your local configuration (created from one of the above). | ❌ No |
+
+**For production users:** You only need to create a `.env` file from `.env.docker.example` if you want to customize deployment settings (port, timezone, data path). The application works out of the box without any `.env` file.
+
+**For developers:** Copy `.env.development` to `.env` before starting the development container.
 
 ### Environment Variables
+
+These variables can be set in your `.env` file to customize the Docker deployment:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
