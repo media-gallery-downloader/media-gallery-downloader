@@ -169,6 +169,10 @@ COPY --from=frontend-builder --chown=app:app /app/public/build ./public/build
 # Copy application files
 COPY --chown=app:app . .
 
+# Create production .env with generated APP_KEY
+# Other config comes from environment variables at runtime
+RUN echo "APP_KEY=" > .env && php artisan key:generate --force
+
 # Make start script executable
 RUN chmod +x .docker/start.sh
 

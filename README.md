@@ -422,15 +422,6 @@ cd media-gallery-downloader
 cp .env.development .env
 ```
 
-Then set these environment variables in `.env`:
-
-```bash
-DOCKER_TARGET=development
-APP_ENV=local
-APP_DEBUG=true
-LOG_LEVEL=debug
-```
-
 Then build and start using the development compose file:
 
 ```bash
@@ -605,11 +596,13 @@ deno test -A app_test.ts
 - `tests/Feature/` - Pest feature tests for Filament pages
 - `tests/e2e/` - Deno acceptance tests for browser interactions
 
+## AI Disclaimer
+
+See [AI_DISCLAIMER.md](AI_DISCLAIMER.md) for information about AI assistance used in development.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-See [AI_DISCLAIMER.md](AI_DISCLAIMER.md) for information about AI assistance used in development.
 
 ## Legal Notice
 

@@ -53,14 +53,36 @@ fi
 # Environment Setup (idempotent - only runs if needed)
 # =============================================================================
 
-# Copy environment file if it doesn't exist
+# Create .env file if it doesn't exist
+# In production, we create a minimal .env since config comes from environment variables
+# In development, we copy from .env.development for the full Laravel config
 if [ ! -f .env ]; then
-    log "Creating .env file from example..."
-    cp .env.example .env
+    if [ "$IS_DEV" = true ] && [ -f .env.development ]; then
+        log "Creating .env file from development template..."
+        cp .env.development .env 2>/dev/null || {
+            warn "Could not copy .env.development, creating minimal .env"
+            echo "APP_KEY=" > .env
+        }
+    elif [ "$IS_DEV" = true ] && [ -f .env.example ]; then
+        log "Creating .env file from example..."
+        cp .env.example .env 2>/dev/null || {
+            warn "Could not copy .env.example, creating minimal .env"
+            echo "APP_KEY=" > .env
+        }
+    else
+        log "Creating minimal .env file for production..."
+        # Production only needs APP_KEY - everything else comes from environment variables
+        echo "APP_KEY=" > .env 2>/dev/null || {
+            warn "Could not create .env file - this is expected if the filesystem is read-only"
+            warn "Make sure APP_KEY environment variable is set"
+        }
+    fi
     
     # Generate application key only for new installations
-    log "Generating application key..."
-    php artisan key:generate --force
+    if [ -f .env ]; then
+        log "Generating application key..."
+        php artisan key:generate --force
+    fi
 fi
 
 # Create SQLite database if it doesn't exist
