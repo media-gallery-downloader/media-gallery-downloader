@@ -46,13 +46,24 @@ mkdir media-gallery-downloader && cd media-gallery-downloader
 curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/docker-compose.yml
 ```
 
-### 3. Start the Application
+### 3. (Optional) Configure Environment
+
+To customize settings like port, timezone, or data paths:
+
+```bash
+curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/.env.example
+mv .env.example .env
+```
+
+Edit `.env` to adjust settings. See [Environment Variables](#environment-variables) for available options.
+
+### 4. Start the Application
 
 ```bash
 docker compose up -d
 ```
 
-### 4. Access the Application
+### 5. Access the Application
 
 - **HTTP**: <http://localhost:8080>
 
