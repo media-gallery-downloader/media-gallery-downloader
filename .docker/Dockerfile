@@ -153,6 +153,7 @@ RUN mkdir -p \
     storage/framework/{sessions,views,cache,testing} \
     storage/logs \
     storage/caddy \
+    storage/app/db \
     bootstrap/cache \
     database \
     public/build \

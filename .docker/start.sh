@@ -86,17 +86,18 @@ if [ ! -f .env ]; then
 fi
 
 # Create SQLite database if it doesn't exist
-if [ ! -f database/database.sqlite ]; then
+mkdir -p storage/app/db
+if [ ! -f storage/app/db/database.sqlite ]; then
     log "Creating SQLite database..."
-    touch database/database.sqlite
-    chmod 666 database/database.sqlite
+    touch storage/app/db/database.sqlite
+    chmod 666 storage/app/db/database.sqlite
 fi
 
 # Create test database if it doesn't exist (for development/testing)
-if [ ! -f database/testing.sqlite ]; then
+if [ ! -f storage/app/db/testing.sqlite ]; then
     log "Creating test SQLite database..."
-    touch database/testing.sqlite
-    chmod 666 database/testing.sqlite
+    touch storage/app/db/testing.sqlite
+    chmod 666 storage/app/db/testing.sqlite
 fi
 
 # =============================================================================

@@ -85,8 +85,7 @@ The application uses environment variables for configuration. Copy `.env.example
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_PATH` | `./data` | Path to media, thumbnails, backups, imports |
-| `DB_PATH` | `./database` | Path to SQLite database directory |
+| `DATA_PATH` | `./data` | Path to all persistent data (media, database, backups, imports) |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
@@ -95,7 +94,7 @@ The application uses environment variables for configuration. Copy `.env.example
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your data directories by running: `sudo chown -R 1000:1000 ./data ./database`
+> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your data directory by running: `sudo chown -R 1000:1000 ./data`
 
 ### Changing the Default Port
 
