@@ -2,6 +2,8 @@
 
 A web application built with Laravel and FrankenPHP for downloading and managing media content from various online sources.
 
+![Screenshot](.github/images/screenshot.jpg)
+
 ## Features
 
 - **Multi-source Media Downloading**: Download content from various online platforms

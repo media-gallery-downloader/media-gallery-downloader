@@ -63,5 +63,7 @@ Route::get('/backup/download/{filename}', function (string $filename) {
         abort(404, 'Backup not found');
     }
 
-    return response()->download($filepath);
+    return response()->download($filepath, $filename, [
+        'Content-Type' => 'application/octet-stream',
+    ]);
 })->name('backup.download')->middleware(['web']);
