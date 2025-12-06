@@ -17,12 +17,17 @@ name: PHPMD
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "master" ]
+    branches: ["master"]
   schedule:
-    - cron: '43 7 * * 0'
+    - cron: "43 7 * * 0"
+
+# Cancel in-progress runs when a new push occurs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
