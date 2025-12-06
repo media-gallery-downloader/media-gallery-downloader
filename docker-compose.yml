@@ -2,7 +2,7 @@ name: media-gallery-downloader
 
 services:
     mgd_app:
-        image: ghcr.io/OWNER/media-gallery-downloader:latest
+        image: ghcr.io/media-gallery-downloader/media-gallery-downloader:latest
         container_name: mgd_app
         restart: unless-stopped
         environment:

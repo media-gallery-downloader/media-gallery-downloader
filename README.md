@@ -75,42 +75,7 @@ The application will automatically:
 - Run migrations and seeders
 - Start background services
 
-## LAN Deployment
-
-To make the application accessible to other devices on your local network:
-
-### 1. Find Your Server's IP Address
-
-```bash
-# Linux
-ip addr show | grep "inet " | grep -v 127.0.0.1
-
-# macOS
-ifconfig | grep "inet " | grep -v 127.0.0.1
-```
-
-Note your LAN IP address (e.g., `192.168.1.100`).
-
-### 2. Update Laravel Environment
-
-Edit your `.env` file to match your IP:
-
-```bash
-APP_URL=http://192.168.1.100:8080
-```
-
-### 3. Restart the Application
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-### 4. Access from Other Devices
-
-Navigate to `http://192.168.1.100:8080` from any device on your network.
-
-> **Note:** For HTTPS on LAN, use a reverse proxy with a self-signed certificate or set up local DNS with a trusted certificate.
+> **Tip:** To access from other devices on your network, use your server's IP address instead of `localhost` (e.g., `http://192.168.1.100:8080`).
 
 ## Production Deployment
 
@@ -454,7 +419,7 @@ For development, first clone the repository:
 ```bash
 git clone https://github.com/media-gallery-downloader/media-gallery-downloader.git
 cd media-gallery-downloader
-cp .env.example .env
+cp .env.development .env
 ```
 
 Then set these environment variables in `.env`:
