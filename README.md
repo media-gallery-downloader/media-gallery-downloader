@@ -30,9 +30,30 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - Docker and Docker Compose
 - Linux/macOS/Windows with WSL2
 
+## Super Quick Start
+
+One command to install or update:
+
+```bash
+mkdir -p mgd && cd mgd && curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
+```
+
+Or download the script for repeated use:
+
+```bash
+mkdir -p mgd && cd mgd
+curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh
+chmod +x mgd.sh
+./mgd.sh install   # Install
+./mgd.sh update    # Update to latest
+./mgd.sh logs      # View logs
+./mgd.sh stop      # Stop
+./mgd.sh start     # Start
+```
+
 ## Quick Start
 
-The easiest way to run Media Gallery Downloader is using the pre-built Docker image from GitHub Container Registry.
+The manual way to run Media Gallery Downloader using the pre-built Docker image from GitHub Container Registry.
 
 ### 1. Create Project Directory
 
@@ -63,7 +84,7 @@ Edit `.env` to adjust settings. See [Environment Variables](#environment-variabl
 docker compose up -d
 ```
 
-### 5. Access the Application
+## Access the Application
 
 - **HTTP**: <http://localhost:8080>
 
@@ -75,9 +96,9 @@ The application will automatically:
 - Run migrations and seeders
 - Start background services
 
-> **Tip:** To access from other devices on your network, use your server's IP address instead of `localhost` (e.g., `http://192.168.1.100:8080`).
-
 ## Production Deployment
+
+For HTTPS support, place the application behind a reverse proxy (see [Using a Reverse Proxy](#using-a-reverse-proxy-recommended-for-production) below).
 
 The application uses environment variables for configuration. Copy `.env.example` to `.env` and customize as needed.
 
@@ -124,6 +145,12 @@ By default, the application listens on port 8080 (HTTP). To use a different port
 ### Updating
 
 To update to the latest version:
+
+```bash
+./mgd.sh update
+```
+
+Or manually:
 
 ```bash
 docker compose pull

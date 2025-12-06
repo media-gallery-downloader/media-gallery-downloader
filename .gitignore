@@ -27,7 +27,3 @@ yarn-error.log
 storage/caddy/*
 frankenphp
 frankenphp-worker.php
-
-# Deno
-deno.lock
-backup/
