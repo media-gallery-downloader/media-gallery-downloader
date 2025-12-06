@@ -93,14 +93,30 @@ install() {
     mkdir -p "$DATA_PATH/framework/views"
     mkdir -p "$DATA_PATH/logs"
     
-    # Fix permissions (for NAS users)
-    if [ "$(id -u)" = "0" ]; then
+    # Fix permissions (container runs as UID 1000)
+    fix_permissions() {
         log "Setting permissions on $DATA_PATH..."
-        chown -R 1000:1000 "$DATA_PATH"
+        if [ "$(id -u)" = "0" ]; then
+            chown -R 1000:1000 "$DATA_PATH"
+        elif command -v sudo >/dev/null 2>&1; then
+            sudo chown -R 1000:1000 "$DATA_PATH"
+        else
+            warn "Could not set permissions. Run: sudo chown -R 1000:1000 $DATA_PATH"
+            return 1
+        fi
+    }
+    
+    # Check if permissions need fixing (test if UID 1000 can write)
+    # Create a test file to check actual write permissions
+    TEST_FILE="$DATA_PATH/.permission_test"
+    if ! touch "$TEST_FILE" 2>/dev/null; then
+        fix_permissions
     else
-        # Check if current user can write to data dir
-        if [ ! -w "$DATA_PATH" ]; then
-            warn "You may need to fix permissions: sudo chown -R 1000:1000 $DATA_PATH"
+        rm -f "$TEST_FILE"
+        # Also check if files are owned by 1000 (for existing installs)
+        OWNER=$(stat -c '%u' "$DATA_PATH" 2>/dev/null || stat -f '%u' "$DATA_PATH" 2>/dev/null)
+        if [ "$OWNER" != "1000" ]; then
+            fix_permissions
         fi
     fi
     
