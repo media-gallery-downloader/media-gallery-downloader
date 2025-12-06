@@ -56,6 +56,14 @@ install() {
     
     check_requirements
     
+    # Update mgd.sh itself
+    log "Updating mgd.sh..."
+    curl -fsSL "$REPO_URL/mgd.sh" -o "mgd.sh.new"
+    if [ -f "mgd.sh.new" ]; then
+        mv mgd.sh.new mgd.sh
+        chmod +x mgd.sh
+    fi
+    
     # Download docker-compose.yml (always update)
     download_file "docker-compose.yml"
     
