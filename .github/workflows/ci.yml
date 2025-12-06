@@ -248,6 +248,9 @@ jobs:
           target: production
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+          outputs: type=image,compression=zstd,compression-level=3,force-compression=true
           build-args: |
             APP_ENV=production
             APP_DEBUG=false
