@@ -63,10 +63,10 @@ if [ ! -f .env ]; then
             warn "Could not copy .env.development, creating minimal .env"
             echo "APP_KEY=" > .env
         }
-    elif [ "$IS_DEV" = true ] && [ -f .env.example ]; then
-        log "Creating .env file from example..."
-        cp .env.example .env 2>/dev/null || {
-            warn "Could not copy .env.example, creating minimal .env"
+    elif [ "$IS_DEV" = true ] && [ -f .env.docker.example ]; then
+        log "Creating .env file from docker example..."
+        cp .env.docker.example .env 2>/dev/null || {
+            warn "Could not copy .env.docker.example, creating minimal .env"
             echo "APP_KEY=" > .env
         }
     else

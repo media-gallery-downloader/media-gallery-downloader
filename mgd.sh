@@ -70,7 +70,7 @@ install() {
     # Create .env if it doesn't exist
     if [ ! -f ".env" ]; then
         log "Creating .env from template..."
-        download_file ".env.example" ".env"
+        download_file ".env.docker.example" ".env"
         warn "Edit .env to customize settings (timezone, port, etc.)"
     else
         log ".env already exists, preserving your configuration"

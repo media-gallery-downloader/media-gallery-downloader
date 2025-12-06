@@ -71,8 +71,8 @@ curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery
 To customize settings like port, timezone, or data paths:
 
 ```bash
-curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/.env.example
-mv .env.example .env
+curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/.env.docker.example
+mv .env.docker.example .env
 ```
 
 Edit `.env` to adjust settings. See [Environment Variables](#environment-variables) for available options.
@@ -99,7 +99,7 @@ The application will automatically:
 
 For HTTPS support, place the application behind a reverse proxy (see [Using a Reverse Proxy](#using-a-reverse-proxy-recommended-for-production) below).
 
-The application uses environment variables for configuration. Copy `.env.example` to `.env` and customize as needed.
+The application uses environment variables for configuration. Copy `.env.docker.example` to `.env` and customize as needed.
 
 ### Environment Variables
 
