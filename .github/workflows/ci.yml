@@ -58,7 +58,10 @@ jobs:
         run: php artisan key:generate
 
       - name: Create test database
-        run: touch database/testing.sqlite
+        run: |
+          mkdir -p storage/app/db
+          touch storage/app/db/database.sqlite
+          touch storage/app/db/testing.sqlite
 
       - name: Run migrations
         run: php artisan migrate --force

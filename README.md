@@ -238,6 +238,7 @@ The bulk import feature allows you to import large numbers of video files direct
 
 ```text
 storage/app/data/
+├── db/          # SQLite database
 ├── media/       # Stored video files
 ├── thumbnails/  # Generated thumbnails
 ├── backups/     # Database backups
@@ -437,8 +438,7 @@ The Docker stack is designed with security and performance in mind:
 
 | Path (Production) | Path (Development) | Type | Persists `down -v` | Purpose |
 |-------------------|-------------------|------|-------------------|--------|
-| `./data` | `./storage/app/data` | Bind mount | ✅ Yes | Media, thumbnails, backups, imports |
-| `./database` | `./database` | Bind mount | ✅ Yes | SQLite database |
+| `./data` | `./storage/app/data` | Bind mount | ✅ Yes | Media, thumbnails, database, backups, imports |
 | `mgd_valkey_data` | `mgd_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
 
 #### Networks
