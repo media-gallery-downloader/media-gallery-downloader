@@ -88,8 +88,6 @@ The application uses environment variables for configuration. Copy `.env.example
 | `DATA_PATH` | `./data` | Path to media, thumbnails, backups, imports |
 | `DB_PATH` | `./database` | Path to SQLite database directory |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
-| `PUID` | `1000` | User ID for file permissions (run `id` to find yours) |
-| `PGID` | `1000` | Group ID for file permissions |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
 | `DOCKER_TARGET` | `production` | Build target (`production` or `development`) |
@@ -97,7 +95,7 @@ The application uses environment variables for configuration. Copy `.env.example
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** If you encounter permission errors, set `PUID` and `PGID` to match your NAS user. SSH into your NAS and run `id` to find your UID/GID (commonly `1026:100` on Synology).
+> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your data directories by running: `sudo chown -R 1000:1000 ./data ./database`
 
 ### Changing the Default Port
 

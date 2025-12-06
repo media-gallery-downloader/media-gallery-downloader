@@ -224,6 +224,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.description=A self-hosted media gallery downloader with yt-dlp integration
           tags: |
             # Set latest tag for master branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}

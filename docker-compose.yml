@@ -5,7 +5,6 @@ services:
         image: ghcr.io/media-gallery-downloader/media-gallery-downloader:latest
         container_name: mgd_app
         restart: unless-stopped
-        user: "${PUID:-1000}:${PGID:-1000}"
         environment:
             TZ: ${TZ:-UTC}
             APP_ENV: production
