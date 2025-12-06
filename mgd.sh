@@ -72,11 +72,18 @@ install() {
     DATA_PATH=$(grep -E "^DATA_PATH=" .env 2>/dev/null | cut -d'=' -f2 || echo "./storage")
     DATA_PATH=${DATA_PATH:-./storage}
     
-    # Create data directory
-    if [ ! -d "$DATA_PATH" ]; then
-        log "Creating storage directory at $DATA_PATH..."
-        mkdir -p "$DATA_PATH"
-    fi
+    # Create storage directory structure (required because mount overlays container's /app/storage)
+    log "Creating storage directory structure at $DATA_PATH..."
+    mkdir -p "$DATA_PATH/app/db"
+    mkdir -p "$DATA_PATH/app/data/import/incoming"
+    mkdir -p "$DATA_PATH/app/data/import/failed"
+    mkdir -p "$DATA_PATH/app/data/media"
+    mkdir -p "$DATA_PATH/app/data/thumbnails"
+    mkdir -p "$DATA_PATH/app/data/backups"
+    mkdir -p "$DATA_PATH/framework/cache"
+    mkdir -p "$DATA_PATH/framework/sessions"
+    mkdir -p "$DATA_PATH/framework/views"
+    mkdir -p "$DATA_PATH/logs"
     
     # Fix permissions (for NAS users)
     if [ "$(id -u)" = "0" ]; then

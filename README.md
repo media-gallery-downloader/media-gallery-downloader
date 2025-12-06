@@ -35,13 +35,12 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 One command to install or update:
 
 ```bash
-mkdir -p mgd && cd mgd && curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
+curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
 ```
 
 Or download the script for repeated use:
 
 ```bash
-mkdir -p mgd && cd mgd
 curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh
 chmod +x mgd.sh
 ./mgd.sh install   # Install
