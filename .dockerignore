@@ -58,4 +58,3 @@ npm-debug.log*
 *.key
 *.crt
 cookies.txt
-.env.production
