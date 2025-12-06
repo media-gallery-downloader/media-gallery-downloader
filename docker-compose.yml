@@ -17,7 +17,7 @@ services:
             - mgd_internal
             - mgd_external
         volumes:
-            - ${DATA_PATH:-./data}:/app/storage/app/data:rw
+            - ${DATA_PATH:-./storage}:/app/storage:rw
         tmpfs:
             - /tmp:noexec,nosuid,size=500m
             - /run:noexec,nosuid,size=10m

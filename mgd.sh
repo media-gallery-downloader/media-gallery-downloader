@@ -69,12 +69,12 @@ install() {
     fi
     
     # Get DATA_PATH from .env or use default
-    DATA_PATH=$(grep -E "^DATA_PATH=" .env 2>/dev/null | cut -d'=' -f2 || echo "./data")
-    DATA_PATH=${DATA_PATH:-./data}
+    DATA_PATH=$(grep -E "^DATA_PATH=" .env 2>/dev/null | cut -d'=' -f2 || echo "./storage")
+    DATA_PATH=${DATA_PATH:-./storage}
     
     # Create data directory
     if [ ! -d "$DATA_PATH" ]; then
-        log "Creating data directory at $DATA_PATH..."
+        log "Creating storage directory at $DATA_PATH..."
         mkdir -p "$DATA_PATH"
     fi
     

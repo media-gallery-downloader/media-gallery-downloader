@@ -106,7 +106,7 @@ The application uses environment variables for configuration. Copy `.env.example
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_PATH` | `./data` | Path to all persistent data (media, database, backups, imports) |
+| `DATA_PATH` | `./storage` | Path to all persistent data (mounted to /app/storage) |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
@@ -115,7 +115,7 @@ The application uses environment variables for configuration. Copy `.env.example
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your data directory by running: `sudo chown -R 1000:1000 ./data`
+> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your storage directory by running: `sudo chown -R 1000:1000 ./storage`
 
 ### Changing the Default Port
 
@@ -237,24 +237,27 @@ The bulk import feature allows you to import large numbers of video files direct
 ### Directory Structure
 
 ```text
-storage/app/data/
-├── db/          # SQLite database
-├── media/       # Stored video files
-├── thumbnails/  # Generated thumbnails
-├── backups/     # Database backups
-└── import/
-    ├── incoming/    # Place video files here for import
-    └── failed/      # Failed imports are moved here
-        ├── video.mp4
-        └── video.mp4.log    # Contains error details
+storage/                    # DATA_PATH mount point
+├── app/
+│   ├── db/                 # SQLite database
+│   │   └── database.sqlite
+│   └── data/
+│       ├── media/          # Stored video files
+│       ├── thumbnails/     # Generated thumbnails
+│       ├── backups/        # Database backups
+│       └── import/
+│           ├── incoming/   # Place video files here for import
+│           └── failed/     # Failed imports with error logs
+├── logs/                   # Application logs
+└── framework/              # Laravel cache, sessions, views
 ```
 
 ### Accessing the Import Directory
 
-The `storage/app/data/` directory is bind-mounted, so files persist even after `docker compose down -v`. You can place files directly in:
+The `storage/` directory is bind-mounted, so files persist even after `docker compose down -v`. You can place files directly in:
 
 ```text
-storage/app/data/import/incoming/
+./storage/app/data/import/incoming/
 ```
 
 Or copy files into the container:
@@ -438,7 +441,7 @@ The Docker stack is designed with security and performance in mind:
 
 | Path (Production) | Path (Development) | Type | Persists `down -v` | Purpose |
 |-------------------|-------------------|------|-------------------|--------|
-| `./data` | `./storage/app/data` | Bind mount | ✅ Yes | Media, thumbnails, database, backups, imports |
+| `./storage` | `./storage` | Bind mount | ✅ Yes | All app data: database, media, logs, cache |
 | `mgd_valkey_data` | `mgd_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
 
 #### Networks
