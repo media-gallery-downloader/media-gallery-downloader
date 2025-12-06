@@ -97,8 +97,6 @@ The application will automatically:
 
 ## Production Deployment
 
-For HTTPS support, place the application behind a reverse proxy (see [Using a Reverse Proxy](#using-a-reverse-proxy-recommended-for-production) below).
-
 ### Environment Files
 
 The project includes several environment files for different purposes:
@@ -129,7 +127,12 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership of your storage directory by running: `sudo chown -R 1000:1000 ./storage`
+> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership and permissions of your storage directory:
+>
+> ```bash
+> sudo chown -R 1000:1000 ./storage
+> sudo chmod -R 777 ./storage
+> ```
 
 ### Changing the Default Port
 
@@ -177,7 +180,7 @@ The application will automatically run any necessary database migrations on star
 
 ### Using a Reverse Proxy (Recommended for Production)
 
-For HTTPS support, place the application behind a reverse proxy like Traefik, Nginx Proxy Manager, or Caddy.
+For HTTPS support, place the application behind a reverse proxy like Caddy or Traefik.
 
 #### Caddy Example
 
