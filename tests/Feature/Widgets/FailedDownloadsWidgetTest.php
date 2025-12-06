@@ -3,6 +3,7 @@
 use App\Filament\Widgets\FailedDownloadsWidget;
 use App\Models\FailedDownload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -178,6 +179,8 @@ describe('FailedDownloadsWidget', function () {
     });
 
     it('can retry a single failed download', function () {
+        Queue::fake();
+
         $failed = FailedDownload::create([
             'url' => 'https://example.com/video.mp4',
             'method' => 'direct',
@@ -202,6 +205,8 @@ describe('FailedDownloadsWidget', function () {
     });
 
     it('can retry all pending downloads', function () {
+        Queue::fake();
+
         FailedDownload::create([
             'url' => 'https://example.com/video1.mp4',
             'method' => 'direct',

@@ -7,6 +7,7 @@ use App\Services\UpdaterService;
 use App\Settings\MaintenanceSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -351,6 +352,8 @@ describe('MaintenanceService', function () {
 
     describe('retryFailedDownloads', function () {
         it('returns count of retried downloads', function () {
+            Queue::fake();
+
             // Create pending failed downloads
             \App\Models\FailedDownload::create([
                 'url' => 'https://example.com/video1.mp4',
@@ -362,13 +365,15 @@ describe('MaintenanceService', function () {
 
             $service = app(MaintenanceService::class);
 
-            // The retry will fail since the URL doesn't exist
-            // But it should still process the pending items
+            // The retry will dispatch jobs but not execute them
             $count = $service->retryFailedDownloads();
 
-            // The download will fail, so the failed download should now be marked as failed
+            // Should return 1 since we retried 1 download
+            expect($count)->toBe(1);
+
+            // The failed download should be resolved (job was dispatched successfully)
             $failed = \App\Models\FailedDownload::first();
-            expect($failed->status)->toBeIn(['failed', 'retrying', 'resolved']);
+            expect($failed->status)->toBe('resolved');
         });
     });
 

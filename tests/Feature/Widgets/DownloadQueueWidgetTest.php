@@ -3,6 +3,7 @@
 use App\Filament\Widgets\DownloadQueueWidget;
 use App\Services\DownloadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -90,6 +91,8 @@ describe('DownloadQueueWidget', function () {
     });
 
     it('can retry failed downloads', function () {
+        Queue::fake();
+
         $downloadService = app(DownloadService::class);
         $downloadService->addToQueue('test-id-1', 'https://example.com/video1.mp4', 'direct');
         $downloadService->updateStatus('test-id-1', 'failed', ['error' => 'Connection timeout']);

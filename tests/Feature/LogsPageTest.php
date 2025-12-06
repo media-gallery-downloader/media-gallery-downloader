@@ -5,6 +5,7 @@ use App\Models\FailedDownload;
 use App\Models\FailedUpload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -217,6 +218,8 @@ describe('Logs Page - System Logs', function () {
     });
 
     it('can retry download', function () {
+        Queue::fake();
+
         $failed = FailedDownload::factory()->create([
             'url' => 'https://example.com/video.mp4',
             'status' => 'pending',
@@ -237,6 +240,8 @@ describe('Logs Page - System Logs', function () {
     });
 
     it('can retry all pending downloads', function () {
+        Queue::fake();
+
         FailedDownload::factory()->create([
             'url' => 'https://example.com/video1.mp4',
             'status' => 'pending',
