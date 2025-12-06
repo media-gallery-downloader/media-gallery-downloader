@@ -1,42 +1,34 @@
 <?php
 
-namespace Tests\Feature;
-
 use App\Filament\Pages\Settings;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
-use Tests\TestCase;
 
-class BackupDownloadTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        parent::setUp();
+uses(RefreshDatabase::class);
 
-        // Create backup directory and a test backup file
-        $backupDir = storage_path('app/data/backups');
-        if (! File::exists($backupDir)) {
-            File::makeDirectory($backupDir, 0755, true);
-        }
-
-        // Create a dummy backup file
-        File::put($backupDir.'/test_backup.sql', 'SQLite format 3 test data');
+beforeEach(function () {
+    // Create backup directory and a test backup file
+    $backupDir = storage_path('app/data/backups');
+    if (! File::exists($backupDir)) {
+        File::makeDirectory($backupDir, 0755, true);
     }
 
-    protected function tearDown(): void
-    {
-        // Clean up test backup
-        $backupFile = storage_path('app/data/backups/test_backup.sql');
-        if (File::exists($backupFile)) {
-            File::delete($backupFile);
-        }
+    // Create a dummy backup file with proper SQLite header
+    File::put($backupDir.'/test_backup.sqlite', 'SQLite format 3 test data');
+});
 
-        parent::tearDown();
+afterEach(function () {
+    // Clean up test backup
+    $backupFile = storage_path('app/data/backups/test_backup.sqlite');
+    if (File::exists($backupFile)) {
+        File::delete($backupFile);
     }
+});
 
-    public function test_settings_page_renders_with_livewire(): void
-    {
+describe('Backup Download', function () {
+    it('can render the settings page', function () {
         Livewire::test(Settings::class)
             ->assertSuccessful();
-    }
-}
+    });
+});
