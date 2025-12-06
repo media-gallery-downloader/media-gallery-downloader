@@ -574,7 +574,8 @@ class Settings extends Page implements HasForms
 
         $files = [];
         foreach (\Illuminate\Support\Facades\File::files($backupDir) as $file) {
-            if ($file->getExtension() === 'sql') {
+            // Accept both .sql (legacy/MySQL) and .sqlite (SQLite) extensions
+            if (in_array($file->getExtension(), ['sql', 'sqlite'], true)) {
                 $files[] = [
                     'name' => $file->getFilename(),
                     'size' => $this->formatBytes($file->getSize()),
@@ -602,7 +603,7 @@ class Settings extends Page implements HasForms
         return response()->download($filepath);
     }
 
-    public function restoreBackup(string $content): void
+    public function restoreBackup(string $content, bool $isBase64 = false): void
     {
         if (empty($content)) {
             Notification::make()
@@ -612,6 +613,20 @@ class Settings extends Page implements HasForms
                 ->send();
 
             return;
+        }
+
+        // Decode Base64 if needed (for binary SQLite files)
+        if ($isBase64) {
+            $content = base64_decode($content, true);
+            if ($content === false) {
+                Notification::make()
+                    ->title('Invalid file')
+                    ->body('The file could not be decoded. Please ensure it is a valid backup file.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
         }
 
         try {

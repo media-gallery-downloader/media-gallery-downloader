@@ -124,7 +124,6 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 | `HTTP_PORT` | `8080` | HTTP port mapping |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
-| `DOCKER_TARGET` | `production` | Build target (`production` or `development`) |
 | `APP_ENV` | `production` | Laravel environment |
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
@@ -594,7 +593,7 @@ The pre-commit hook automatically runs on staged files:
 
 | Feature | Production | Development |
 |---------|------------|-------------|
-| `DOCKER_TARGET` | `production` | `development` |
+| Compose file | `docker-compose.yml` | `docker-compose.dev.yml` |
 | Dependencies | Pre-built in image | Installed at startup |
 | Frontend assets | Pre-built in image | Built at startup |
 | Dev tools | None (minimal image) | vim, git, wget, deno, composer |
@@ -607,8 +606,8 @@ The pre-commit hook automatically runs on staged files:
 #### Testing Production Build Locally
 
 ```bash
-# Ensure .env has production settings (or unset dev vars)
-unset DOCKER_TARGET APP_DEBUG
+# Ensure .env has production settings
+unset APP_DEBUG
 docker compose up -d --build
 ```
 

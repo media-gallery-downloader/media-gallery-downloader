@@ -5,20 +5,22 @@ services:
         build:
             context: .
             dockerfile: .docker/Dockerfile
-            target: ${DOCKER_TARGET:-production}
+            target: development
             args:
-                UID: ${UID:-1000}
-                GID: ${GID:-1000}
                 TZ: ${TZ:-UTC}
         container_name: mgd_app
         restart: unless-stopped
         working_dir: /app
         environment:
             TZ: ${TZ:-UTC}
-            APP_ENV: ${APP_ENV:-production}
-            APP_DEBUG: ${APP_DEBUG:-false}
+            APP_ENV: local
+            APP_DEBUG: "true"
             LOG_CHANNEL: stack
-            LOG_LEVEL: ${LOG_LEVEL:-warning}
+            LOG_LEVEL: debug
+            # Disable all Laravel caching for development
+            CACHE_STORE: array
+            VIEW_COMPILED_PATH: /tmp/views
+            SESSION_DRIVER: file
         extra_hosts:
             - "host.docker.internal:host-gateway"
         ports:
@@ -27,10 +29,7 @@ services:
             - mgd_internal
             - mgd_external
         volumes:
-            - ./storage/app/data:/app/storage/app/data:rw
-            - ./database:/app/database:rw
-            - ./bootstrap/cache:/app/bootstrap/cache:rw
-            - .:/app:rw # Full project mount for development (comment out for production)
+            - .:/app:rw
         tmpfs:
             - /tmp:noexec,nosuid,size=500m
             - /run:noexec,nosuid,size=10m

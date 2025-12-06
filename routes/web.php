@@ -65,5 +65,6 @@ Route::get('/backup/download/{filename}', function (string $filename) {
 
     return response()->download($filepath, $filename, [
         'Content-Type' => 'application/octet-stream',
+        'Content-Disposition' => 'attachment; filename="'.$filename.'"',
     ]);
 })->name('backup.download')->middleware(['web']);

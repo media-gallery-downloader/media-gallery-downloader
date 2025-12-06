@@ -429,14 +429,17 @@
                             <div class="font-medium text-gray-900 dark:text-white">{{ $backup['name'] }}</div>
                             <div class="text-sm text-gray-500 dark:text-gray-400">{{ $backup['size'] }} • {{ $backup['date'] }}</div>
                         </div>
-                        <x-filament::button
-                            tag="a"
+                        <a
                             href="{{ route('backup.download', ['filename' => $backup['name']]) }}"
-                            icon="heroicon-m-arrow-down-tray"
-                            size="sm"
+                            download
+                            class="fi-btn fi-btn-size-sm relative grid-flow-col items-center justify-center font-semibold outline-none transition duration-75 focus-visible:ring-2 rounded-lg fi-color-custom fi-btn-color-primary fi-color-primary fi-size-sm gap-1 px-2.5 py-1.5 text-sm inline-grid shadow-sm bg-primary-600 text-white hover:bg-primary-500 focus-visible:ring-primary-500/50 dark:bg-primary-500 dark:hover:bg-primary-400"
                         >
-                            Download
-                        </x-filament::button>
+                            <svg class="fi-btn-icon h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                                <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                            </svg>
+                            <span class="fi-btn-label">Download</span>
+                        </a>
                     </div>
                 @endforeach
             </div>
@@ -471,7 +474,7 @@
             <div wire:ignore>
                 <input 
                     type="file" 
-                    accept=".sql,.sqlite,.db"
+                    accept=".sqlite,.sql,.db"
                     class="block w-full text-sm text-gray-500 dark:text-gray-400
                         file:mr-4 file:py-2 file:px-4
                         file:rounded-lg file:border-0
@@ -485,16 +488,23 @@
                         if (file) {
                             const reader = new FileReader();
                             reader.onload = function(e) {
-                                $wire.restoreBackup(e.target.result);
+                                // Convert ArrayBuffer to Base64 for binary-safe transfer
+                                const bytes = new Uint8Array(e.target.result);
+                                let binary = '';
+                                for (let i = 0; i < bytes.byteLength; i++) {
+                                    binary += String.fromCharCode(bytes[i]);
+                                }
+                                const base64 = btoa(binary);
+                                $wire.restoreBackup(base64, true);
                             };
-                            reader.readAsText(file);
+                            reader.readAsArrayBuffer(file);
                         }
                     "
                 />
             </div>
 
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Supported formats: SQLite database files (.sql, .sqlite, .db) or SQL dump files
+                Supported formats: SQLite database files (.sqlite, .db) or SQL dump files (.sql)
             </p>
         </div>
     </x-filament::modal>

@@ -29,12 +29,20 @@ class BackupService extends BaseMaintenanceService
             File::makeDirectory($backupDir, 0755, true);
         }
 
-        $filename = 'backup_'.date('Y-m-d_His').'.sql';
+        // Use .sqlite extension for SQLite backups, .sql for MySQL dumps
+        $extension = config('database.default') === 'sqlite' ? 'sqlite' : 'sql';
+        $filename = 'backup_'.date('Y-m-d_His').'.'.$extension;
         $filepath = $backupDir.'/'.$filename;
 
         $database = config('database.connections.sqlite.database');
 
         if (config('database.default') === 'sqlite' && $database) {
+            // Resolve relative paths from base_path() for consistent behavior
+            // (CLI runs from /app, web runs from /app/public)
+            if (! str_starts_with($database, '/')) {
+                $database = base_path($database);
+            }
+
             // SQLite backup - just copy the file
             if (File::copy($database, $filepath)) {
                 Cache::put('last_database_backup', now());

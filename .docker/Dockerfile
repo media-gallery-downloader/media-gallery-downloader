@@ -21,7 +21,7 @@ RUN deno task build
 # =============================================================================
 # Stage 2: Install PHP dependencies
 # =============================================================================
-FROM composer:2.8 AS composer-builder
+FROM composer:2.9 AS composer-builder
 
 WORKDIR /app
 
@@ -43,9 +43,7 @@ RUN composer dump-autoload --optimize --classmap-authoritative
 # =============================================================================
 FROM dunglas/frankenphp:php8.4-bookworm AS production
 
-ARG UID=1000
-ARG GID=1000
-ARG TZ=America/Chicago
+ARG TZ=UTC
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=xterm-color \
@@ -76,7 +74,6 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
     supervisor \
     p7zip-full \
     unar \
-    # Temporary: dev libraries for PHP extension compilation
     libsqlite3-dev \
     libmagickwand-dev \
     libmagickcore-dev \
@@ -102,6 +99,7 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
     igbinary \
     imagick \
     redis \
+    pcov \
     # Remove dev libraries after extensions are compiled (saves ~200MB)
     && apt-get purge -y --auto-remove \
     libsqlite3-dev \
@@ -142,8 +140,8 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY .docker/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
 # Create app user before copying files
-RUN groupadd -g ${GID} app && \
-    useradd -u ${UID} -g app -m app
+RUN groupadd -g 1000 app && \
+    useradd -u 1000 -g app -m app
 
 # Copy supervisor configuration
 COPY .docker/supervisord.conf /etc/supervisor/supervisord.conf
@@ -158,7 +156,7 @@ RUN mkdir -p \
     database \
     public/build \
     /home/app/.composer/cache \
-    && chown -R ${UID}:${GID} storage bootstrap/cache database public /home/app/.composer \
+    && chown -R 1000:1000 storage bootstrap/cache database public /home/app/.composer \
     && chmod -R 775 storage bootstrap/cache database public/build
 
 # Copy vendor from composer builder
@@ -191,18 +189,20 @@ FROM production AS development
 
 USER root
 
-# Install development tools and PCOV for code coverage
+# Install development tools
 RUN apt-get update && apt-get install -yqq --no-install-recommends \
     vim \
     git \
     wget \
-    && install-php-extensions pcov \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Add composer and deno for development
-COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
 COPY --from=denoland/deno:bin-2.5.6 /deno /usr/bin/deno
+
+# Copy development PHP config (zzz prefix ensures it loads last and overrides)
+COPY .docker/php.dev.ini ${PHP_INI_DIR}/conf.d/zzz-dev.ini
 
 ENV APP_ENV=local
 
