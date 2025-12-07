@@ -180,7 +180,7 @@ for (const { name, launcher } of BROWSERS) {
                                 "compose",
                                 "exec",
                                 "-T",
-                                "mgd_app",
+                                "app",
                                 "php",
                                 "-r",
                                 `require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); App\\Models\\Media::where('source', 'like', '%${videoId}%')->get()->each->delete();`,

@@ -199,7 +199,7 @@ Add to your Caddyfile:
 
 ```caddyfile
 mgd.example.com {
-    reverse_proxy mgd_app:8080
+    reverse_proxy app:8080
 }
 ```
 
@@ -233,7 +233,8 @@ To download age-restricted YouTube videos, you need to provide authentication co
 1. Install a browser extension like "Get cookies.txt LOCALLY" (available for Chrome and Firefox)
 2. Log into YouTube with your Google account
 3. Navigate to youtube.com
-4. Use the extension to export cookies to a `cookies.txt` file
+4. View an age-restricted video and click through the warning (you might already have done this)
+5. Use the extension to export cookies to a `cookies.txt` file
 
 ### Upload Cookies to the Application
 
@@ -244,7 +245,7 @@ To download age-restricted YouTube videos, you need to provide authentication co
 
 Age-restricted videos should now download successfully.
 
-> **⚠️ Warning**: Using the same browser while downloads are in progress may cause authentication issues. YouTube can detect concurrent sessions and may invalidate cookies or trigger security measures. For best results, avoid using YouTube in the browser you exported cookies from while downloads are running, or use a separate browser profile for cookie export.
+> **⚠️ Warning**: If you continue to use the browser and YouTube account you exported the cookies from, the uploaded cookie will become invalidated quickly. For best results, use a browser and account that you don't normally use and don't use that combination again.
 
 **Note**: Cookies may expire over time. If age-restricted downloads start failing, export fresh cookies from your browser and upload them again.
 
@@ -291,7 +292,7 @@ The `storage/` directory is bind-mounted, so files persist even after `docker co
 Or copy files into the container:
 
 ```bash
-docker cp /path/to/videos/. mgd_app:/app/storage/app/data/import/incoming/
+docker compose cp /path/to/videos/. app:/app/storage/app/data/import/incoming/
 ```
 
 ### Supported Video Formats
@@ -649,16 +650,16 @@ Unit tests are written using Pest PHP and cover services, models, and Filament p
 
 ```bash
 # Run all unit tests
-docker compose exec mgd_app php vendor/bin/pest
+docker compose exec app php vendor/bin/pest
 
 # Run only unit tests
-docker compose exec mgd_app php vendor/bin/pest tests/Unit
+docker compose exec app php vendor/bin/pest tests/Unit
 
 # Run only feature tests
-docker compose exec mgd_app php vendor/bin/pest tests/Feature
+docker compose exec app php vendor/bin/pest tests/Feature
 
 # Run tests with coverage
-docker compose exec mgd_app php vendor/bin/pest --coverage
+docker compose exec app php vendor/bin/pest --coverage
 ```
 
 #### Acceptance Tests
