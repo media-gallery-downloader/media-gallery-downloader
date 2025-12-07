@@ -470,19 +470,39 @@ The Docker stack is designed with security and performance in mind:
 | Path (Production) | Path (Development) | Type | Persists `down -v` | Purpose |
 |-------------------|-------------------|------|-------------------|--------|
 | `./storage` | `./storage` | Bind mount | ✅ Yes | All app data: database, media, logs, cache |
-| `mgd_valkey_data` | `mgd_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
+| `<project>_valkey_data` | `<project>_valkey_data` | Named volume | ❌ No | Session, cache, queue data |
 
 #### Networks
 
 | Network | Type | Purpose |
 |---------|------|---------|
-| `mgd_internal` | Internal bridge | App ↔ Valkey communication (no external access) |
-| `mgd_external` | Bridge | App ↔ Internet (HTTP/HTTPS traffic) |
+| `<project>_internal` | Internal bridge | App ↔ Valkey communication (no external access) |
+| `<project>_external` | Bridge | App ↔ Internet (HTTP/HTTPS traffic) |
 
 #### Services
 
-- **mgd_app** - FrankenPHP application server with Horizon queue workers
-- **mgd_valkey** - Redis-compatible cache/session/queue store (Valkey 9 Alpine, read-only)
+- **app** - FrankenPHP application server with Horizon queue workers
+- **valkey** - Redis-compatible cache/session/queue store (Valkey 9 Alpine, read-only)
+
+#### Running Multiple Instances
+
+You can run multiple independent stacks on the same system. Each stack gets isolated resources (networks, volumes) based on its directory name:
+
+```bash
+# Instance 1 - Personal media
+mkdir mgd-personal && cd mgd-personal
+curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh -o mgd.sh
+chmod +x mgd.sh && ./mgd.sh install
+# Edit .env: HTTP_PORT=8080
+
+# Instance 2 - Family media
+mkdir ../mgd-family && cd ../mgd-family
+curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh -o mgd.sh
+chmod +x mgd.sh && ./mgd.sh install
+# Edit .env: HTTP_PORT=8081
+```
+
+Each directory becomes its own isolated stack with prefixed resources like `mgd-personal_valkey_data`, `mgd-family_valkey_data`, etc.
 
 ### Local Development Setup
 
@@ -508,10 +528,10 @@ The development build:
 
 ```bash
 # View logs
-docker compose -f docker-compose.dev.yml logs -f mgd_app
+docker compose -f docker-compose.dev.yml logs -f app
 
 # Watch for frontend changes (hot reload for CSS/JS)
-docker compose -f docker-compose.dev.yml exec mgd_app deno task dev
+docker compose -f docker-compose.dev.yml exec app deno task dev
 
 # Or run Vite dev server outside container if you have Deno installed
 deno task dev
