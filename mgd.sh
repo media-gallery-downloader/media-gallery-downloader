@@ -6,8 +6,10 @@
 #   ./mgd.sh              # Show available commands
 #   ./mgd.sh install      # Fresh install (downloads docker-compose.yml and .env)
 #   ./mgd.sh update       # Pull latest image and restart
-#   ./mgd.sh start        # Start containers
-#   ./mgd.sh stop         # Stop containers
+#   ./mgd.sh up           # Create and start containers
+#   ./mgd.sh down         # Stop and remove containers
+#   ./mgd.sh start        # Start existing containers
+#   ./mgd.sh stop         # Stop containers (without removing)
 #   ./mgd.sh logs         # View logs
 #   ./mgd.sh fixperms     # Fix storage directory permissions
 #   ./mgd.sh selfupdate   # Update this script to latest version
@@ -112,15 +114,22 @@ create_directories() {
 do_fix_permissions() {
     local data_path=$1
     log "Setting permissions on $data_path..."
+    # Get UID/GID from .env or default to 1000
+    local uid=$(grep -E "^UID=" .env 2>/dev/null | cut -d'=' -f2 || echo "1000")
+    local gid=$(grep -E "^GID=" .env 2>/dev/null | cut -d'=' -f2 || echo "1000")
+    uid=${uid:-1000}
+    gid=${gid:-1000}
+    
+    log "Setting ownership to ${uid}:${gid}..."
     if [ "$(id -u)" = "0" ]; then
-        chown -R 1000:1000 "$data_path"
+        chown -R "${uid}:${gid}" "$data_path"
         chmod -R 755 "$data_path"
     elif command -v sudo >/dev/null 2>&1; then
-        sudo chown -R 1000:1000 "$data_path"
+        sudo chown -R "${uid}:${gid}" "$data_path"
         sudo chmod -R 755 "$data_path"
     else
         warn "Could not set permissions. Run:"
-        warn "  sudo chown -R 1000:1000 $data_path"
+        warn "  sudo chown -R ${uid}:${gid} $data_path"
         warn "  sudo chmod -R 755 $data_path"
         return 1
     fi
@@ -136,9 +145,11 @@ check_and_fix_permissions() {
         do_fix_permissions "$data_path"
     else
         rm -f "$TEST_FILE"
-        # Also check if files are owned by 1000 (for existing installs)
+        # Also check if files are owned correctly (for existing installs)
+        local expected_uid=$(grep -E "^UID=" .env 2>/dev/null | cut -d'=' -f2 || echo "1000")
+        expected_uid=${expected_uid:-1000}
         OWNER=$(stat -c '%u' "$data_path" 2>/dev/null || stat -f '%u' "$data_path" 2>/dev/null)
-        if [ "$OWNER" != "1000" ]; then
+        if [ "$OWNER" != "$expected_uid" ]; then
             do_fix_permissions "$data_path"
         fi
     fi

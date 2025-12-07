@@ -48,8 +48,10 @@ chmod +x mgd.sh
 ./mgd.sh              # Show available commands
 ./mgd.sh install      # Fresh install (downloads docker-compose.yml and .env)
 ./mgd.sh update       # Pull latest image and restart
-./mgd.sh start        # Start containers
-./mgd.sh stop         # Stop containers
+./mgd.sh up           # Create and start containers
+./mgd.sh down         # Stop and remove containers
+./mgd.sh start        # Start existing containers
+./mgd.sh stop         # Stop containers (without removing)
 ./mgd.sh logs         # View logs
 ./mgd.sh fixperms     # Fix storage directory permissions
 ./mgd.sh selfupdate   # Update the mgd.sh script
@@ -125,18 +127,23 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 |----------|---------|-------------|
 | `DATA_PATH` | `./storage` | Path to all persistent data (mounted to /app/storage) |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
+| `UID` | `1000` | User ID for file ownership (used by fixperms) |
+| `GID` | `1000` | Group ID for file ownership (used by fixperms) |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
 | `APP_ENV` | `production` | Laravel environment |
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000`. If you encounter permission errors, fix ownership and permissions of your storage directory:
+> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000` by default. If you encounter permission errors, either:
 >
-> ```bash
-> sudo chown -R 1000:1000 ./storage
-> sudo chmod -R 777 ./storage
-> ```
+> 1. Run `id` to find your user's UID/GID, set them in your `.env` file, then run `./mgd.sh fixperms`
+> 2. Or manually fix permissions:
+>
+>    ```bash
+>    sudo chown -R $(id -u):$(id -g) ./storage
+>    sudo chmod -R 755 ./storage
+>    ```
 
 ### Changing the Default Port
 
