@@ -1,9 +1,8 @@
 name: media-gallery-downloader
 
 services:
-    mgd_app:
+    app:
         image: ghcr.io/media-gallery-downloader/media-gallery-downloader:latest
-        container_name: mgd_app
         restart: unless-stopped
         environment:
             TZ: ${TZ:-UTC}
@@ -11,6 +10,7 @@ services:
             APP_DEBUG: "false"
             LOG_CHANNEL: stack
             LOG_LEVEL: warning
+            REDIS_HOST: valkey
         ports:
             - "${HTTP_PORT:-8080}:8080"
         networks:
@@ -48,18 +48,17 @@ services:
                 reservations:
                     memory: ${MEMORY_RESERVATION:-1G}
         depends_on:
-            mgd_valkey:
+            valkey:
                 condition: service_healthy
 
-    mgd_valkey:
+    valkey:
         image: valkey/valkey:9-alpine
-        container_name: mgd_valkey
         restart: unless-stopped
         command: valkey-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
         networks:
             - mgd_internal
         volumes:
-            - mgd_valkey_data:/data
+            - valkey_data:/data
         security_opt:
             - no-new-privileges:true
         cap_drop:
@@ -90,5 +89,5 @@ networks:
         driver: bridge
 
 volumes:
-    mgd_valkey_data:
+    valkey_data:
         driver: local

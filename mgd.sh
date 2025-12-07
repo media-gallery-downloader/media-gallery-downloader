@@ -40,8 +40,10 @@ show_help() {
     echo "Commands:"
     echo "  install      Fresh install (downloads docker-compose.yml and .env)"
     echo "  update       Pull latest image and restart containers"
-    echo "  start        Start containers"
-    echo "  stop         Stop containers"
+    echo "  up           Create and start containers"
+    echo "  down         Stop and remove containers"
+    echo "  start        Start existing containers"
+    echo "  stop         Stop containers (without removing)"
     echo "  logs         View container logs (follow mode)"
     echo "  fixperms     Fix storage directory permissions"
     echo "  selfupdate   Update this script to the latest version"
@@ -112,10 +114,14 @@ do_fix_permissions() {
     log "Setting permissions on $data_path..."
     if [ "$(id -u)" = "0" ]; then
         chown -R 1000:1000 "$data_path"
+        chmod -R 755 "$data_path"
     elif command -v sudo >/dev/null 2>&1; then
         sudo chown -R 1000:1000 "$data_path"
+        sudo chmod -R 755 "$data_path"
     else
-        warn "Could not set permissions. Run: sudo chown -R 1000:1000 $data_path"
+        warn "Could not set permissions. Run:"
+        warn "  sudo chown -R 1000:1000 $data_path"
+        warn "  sudo chmod -R 755 $data_path"
         return 1
     fi
     log "Permissions fixed!"
@@ -248,11 +254,11 @@ selfupdate() {
     fi
 }
 
-# Start containers
-start() {
+# Up - create and start containers
+up() {
     check_requirements
     require_compose_file
-    log "Starting containers..."
+    log "Creating and starting containers..."
     $COMPOSE_CMD up -d
     log "Started!"
     
@@ -262,12 +268,35 @@ start() {
     log "Access the application at: http://localhost:${HTTP_PORT}"
 }
 
-# Stop containers
+# Down - stop and remove containers
+down() {
+    check_requirements
+    require_compose_file
+    log "Stopping and removing containers..."
+    $COMPOSE_CMD down
+    log "Stopped and removed!"
+}
+
+# Start existing containers
+start() {
+    check_requirements
+    require_compose_file
+    log "Starting containers..."
+    $COMPOSE_CMD start
+    log "Started!"
+    
+    # Show URL
+    HTTP_PORT=$(grep -E "^HTTP_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8080")
+    HTTP_PORT=${HTTP_PORT:-8080}
+    log "Access the application at: http://localhost:${HTTP_PORT}"
+}
+
+# Stop containers (without removing)
 stop() {
     check_requirements
     require_compose_file
     log "Stopping containers..."
-    $COMPOSE_CMD down
+    $COMPOSE_CMD stop
     log "Stopped!"
 }
 
@@ -294,6 +323,12 @@ case "${1:-}" in
         ;;
     update)
         update
+        ;;
+    up)
+        up
+        ;;
+    down)
+        down
         ;;
     start)
         start

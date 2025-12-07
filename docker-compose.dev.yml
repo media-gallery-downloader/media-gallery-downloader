@@ -1,14 +1,13 @@
 name: media-gallery-downloader
 
 services:
-    mgd_app:
+    app:
         build:
             context: .
             dockerfile: .docker/Dockerfile
             target: development
             args:
                 TZ: ${TZ:-UTC}
-        container_name: mgd_app
         restart: unless-stopped
         working_dir: /app
         environment:
@@ -17,6 +16,7 @@ services:
             APP_DEBUG: "true"
             LOG_CHANNEL: stack
             LOG_LEVEL: debug
+            REDIS_HOST: valkey
             # Disable all Laravel caching for development
             CACHE_STORE: array
             VIEW_COMPILED_PATH: /tmp/views
@@ -60,17 +60,16 @@ services:
                 reservations:
                     memory: ${MEMORY_RESERVATION:-2G}
         depends_on:
-            mgd_valkey:
+            valkey:
                 condition: service_healthy
-    mgd_valkey:
+    valkey:
         image: valkey/valkey:9-alpine
-        container_name: mgd_valkey
         restart: unless-stopped
         command: valkey-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
         networks:
             - mgd_internal
         volumes:
-            - mgd_valkey_data:/data
+            - valkey_data:/data
         security_opt:
             - no-new-privileges:true
         cap_drop:
@@ -101,5 +100,5 @@ networks:
         driver: bridge
 
 volumes:
-    mgd_valkey_data:
+    valkey_data:
         driver: local
