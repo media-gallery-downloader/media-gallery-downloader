@@ -19,6 +19,7 @@ class SystemHealthWidget extends Widget
     {
         return Cache::remember('system_health_data', 300, function () {
             return [
+                'app' => $this->getAppInfo(),
                 'ytdlp' => $this->getYtdlpInfo(),
                 'ffmpeg' => $this->getFfmpegInfo(),
                 'php' => $this->getPhpInfo(),
@@ -26,6 +27,41 @@ class SystemHealthWidget extends Widget
                 'last_runs' => $this->getLastRunTimes(),
             ];
         });
+    }
+
+    protected function getAppInfo(): array
+    {
+        $currentVersion = config('app.version');
+        $repository = config('app.repository');
+
+        // Check for latest version from GitHub
+        $latestVersion = null;
+        $isUpToDate = null;
+
+        try {
+            $response = Http::timeout(5)->get($repository.'/releases/latest');
+            if ($response->successful()) {
+                // Extract version from the redirect URL or page
+                $finalUrl = $response->effectiveUri()?->__toString() ?? '';
+                if (preg_match('/\/releases\/tag\/v?([\d.]+)/', $finalUrl, $matches)) {
+                    $latestVersion = $matches[1];
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore network errors
+        }
+
+        if ($currentVersion && $latestVersion) {
+            $isUpToDate = version_compare($currentVersion, $latestVersion, '>=');
+        }
+
+        return [
+            'name' => config('app.name'),
+            'version' => $currentVersion,
+            'latest_version' => $latestVersion,
+            'is_up_to_date' => $isUpToDate,
+            'repository' => $repository,
+        ];
     }
 
     protected function getYtdlpInfo(): array

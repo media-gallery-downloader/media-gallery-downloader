@@ -17,6 +17,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | This value is the version of your application. This is used to display
+    | the current version in the UI and to check for updates.
+    |
+    */
+
+    'version' => '0.1.37',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Repository
+    |--------------------------------------------------------------------------
+    |
+    | The GitHub repository URL for this application. Used for linking to the
+    | project and checking for version updates.
+    |
+    */
+
+    'repository' => 'https://github.com/media-gallery-downloader/media-gallery-downloader',
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

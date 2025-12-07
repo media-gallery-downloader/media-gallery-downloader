@@ -17,7 +17,40 @@ $data = $this->getHealthData();
             </div>
         </x-slot>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {{-- App Info --}}
+            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                <div class="flex items-center gap-2 mb-2">
+                    @if($data['app']['is_up_to_date'] === true)
+                    <x-heroicon-s-check-circle class="w-5 h-5 text-success-500" />
+                    @elseif($data['app']['is_up_to_date'] === false)
+                    <x-heroicon-s-arrow-up-circle class="w-5 h-5 text-warning-500" />
+                    @else
+                    <x-heroicon-s-cube class="w-5 h-5 text-gray-500" />
+                    @endif
+                    <span class="font-medium text-gray-900 dark:text-white">{{ $data['app']['name'] }}</span>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    <div>Version: {{ $data['app']['version'] }}</div>
+                    @if($data['app']['latest_version'])
+                    <div>Latest: {{ $data['app']['latest_version'] }}</div>
+                    @if($data['app']['is_up_to_date'])
+                    <span class="text-success-500">✓ Up to date</span>
+                    @else
+                    <span class="text-warning-500">Update available</span>
+                    @endif
+                    @endif
+                    @if($data['app']['repository'])
+                    <div class="mt-1">
+                        <a href="{{ $data['app']['repository'] }}" target="_blank" rel="noopener noreferrer" class="text-primary-500 hover:text-primary-600 inline-flex items-center gap-1">
+                            <x-heroicon-m-arrow-top-right-on-square class="w-3 h-3" />
+                            GitHub
+                        </a>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
             {{-- yt-dlp Status --}}
             <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
                 <div class="flex items-center gap-2 mb-2">
