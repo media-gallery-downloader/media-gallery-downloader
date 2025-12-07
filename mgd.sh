@@ -3,16 +3,17 @@
 # Media Gallery Downloader - Management Script
 # =============================================================================
 # Usage:
-#   ./mgd.sh              # Install or update
-#   ./mgd.sh install      # Fresh install
-#   ./mgd.sh update       # Update existing installation
+#   ./mgd.sh              # Show available commands
+#   ./mgd.sh install      # Fresh install (downloads docker-compose.yml and .env)
+#   ./mgd.sh update       # Pull latest image and restart
 #   ./mgd.sh start        # Start containers
 #   ./mgd.sh stop         # Stop containers
 #   ./mgd.sh logs         # View logs
+#   ./mgd.sh fixperms     # Fix storage directory permissions
 #   ./mgd.sh selfupdate   # Update this script to latest version
 #
 # One-liner install:
-#   curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh -o mgd.sh && chmod +x mgd.sh && ./mgd.sh install
 # =============================================================================
 
 set -e
@@ -21,11 +22,34 @@ REPO_URL="https://raw.githubusercontent.com/media-gallery-downloader/media-galle
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log() { echo -e "${GREEN}[MGD]${NC} $1"; }
 warn() { echo -e "${YELLOW}[MGD]${NC} $1"; }
 error() { echo -e "${RED}[MGD]${NC} $1"; exit 1; }
+info() { echo -e "${BLUE}[MGD]${NC} $1"; }
+
+# Show usage/help
+show_help() {
+    echo ""
+    echo -e "${GREEN}Media Gallery Downloader - Management Script${NC}"
+    echo ""
+    echo "Usage: ./mgd.sh <command>"
+    echo ""
+    echo "Commands:"
+    echo "  install      Fresh install (downloads docker-compose.yml and .env)"
+    echo "  update       Pull latest image and restart containers"
+    echo "  start        Start containers"
+    echo "  stop         Stop containers"
+    echo "  logs         View container logs (follow mode)"
+    echo "  fixperms     Fix storage directory permissions"
+    echo "  selfupdate   Update this script to the latest version"
+    echo ""
+    echo "One-liner install:"
+    echo "  curl -fsSL $REPO_URL/mgd.sh -o mgd.sh && chmod +x mgd.sh && ./mgd.sh install"
+    echo ""
+}
 
 # Check for required commands
 check_requirements() {
@@ -42,6 +66,22 @@ check_requirements() {
     fi
 }
 
+# Check if docker-compose.yml exists
+require_compose_file() {
+    if [ ! -f "docker-compose.yml" ]; then
+        error "docker-compose.yml not found. Run './mgd.sh install' first."
+    fi
+}
+
+# Get DATA_PATH from .env or use default
+get_data_path() {
+    if [ -f ".env" ]; then
+        DATA_PATH=$(grep -E "^DATA_PATH=" .env 2>/dev/null | cut -d'=' -f2 || echo "./storage")
+    fi
+    DATA_PATH=${DATA_PATH:-./storage}
+    echo "$DATA_PATH"
+}
+
 # Download file from repo
 download_file() {
     local file=$1
@@ -50,82 +90,107 @@ download_file() {
     curl -fsSL "$REPO_URL/$file" -o "$dest"
 }
 
-# Install or update
+# Create storage directories
+create_directories() {
+    local data_path=$1
+    log "Creating storage directory structure at $data_path..."
+    mkdir -p "$data_path/app/db"
+    mkdir -p "$data_path/app/data/import/incoming"
+    mkdir -p "$data_path/app/data/import/failed"
+    mkdir -p "$data_path/app/data/media"
+    mkdir -p "$data_path/app/data/thumbnails"
+    mkdir -p "$data_path/app/data/backups"
+    mkdir -p "$data_path/framework/cache"
+    mkdir -p "$data_path/framework/sessions"
+    mkdir -p "$data_path/framework/views"
+    mkdir -p "$data_path/logs"
+}
+
+# Fix permissions (container runs as UID 1000)
+do_fix_permissions() {
+    local data_path=$1
+    log "Setting permissions on $data_path..."
+    if [ "$(id -u)" = "0" ]; then
+        chown -R 1000:1000 "$data_path"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo chown -R 1000:1000 "$data_path"
+    else
+        warn "Could not set permissions. Run: sudo chown -R 1000:1000 $data_path"
+        return 1
+    fi
+    log "Permissions fixed!"
+}
+
+# Check and fix permissions if needed
+check_and_fix_permissions() {
+    local data_path=$1
+    # Create a test file to check actual write permissions
+    TEST_FILE="$data_path/.permission_test"
+    if ! touch "$TEST_FILE" 2>/dev/null; then
+        do_fix_permissions "$data_path"
+    else
+        rm -f "$TEST_FILE"
+        # Also check if files are owned by 1000 (for existing installs)
+        OWNER=$(stat -c '%u' "$data_path" 2>/dev/null || stat -f '%u' "$data_path" 2>/dev/null)
+        if [ "$OWNER" != "1000" ]; then
+            do_fix_permissions "$data_path"
+        fi
+    fi
+}
+
+# Check if any containers are running
+is_running() {
+    require_compose_file
+    # Get container IDs from compose, don't hardcode names
+    if $COMPOSE_CMD ps -q 2>/dev/null | grep -q .; then
+        return 0
+    fi
+    return 1
+}
+
+# Install (fresh install with confirmation)
 install() {
-    log "Media Gallery Downloader - Install/Update"
+    log "Media Gallery Downloader - Fresh Install"
     echo ""
     
     check_requirements
     
-    # Download docker-compose.yml (always update)
+    # Warn about overwriting files
+    if [ -f "docker-compose.yml" ] || [ -f ".env" ]; then
+        warn "This will overwrite the following files if they exist:"
+        [ -f "docker-compose.yml" ] && echo "  - docker-compose.yml"
+        [ -f ".env" ] && echo "  - .env"
+        echo ""
+        read -p "Continue? [y/N] " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log "Installation cancelled."
+            exit 0
+        fi
+    fi
+    
+    # Download docker-compose.yml
     download_file "docker-compose.yml"
     
-    # Create .env if it doesn't exist
-    if [ ! -f ".env" ]; then
-        log "Creating .env from template..."
-        download_file ".env.docker.example" ".env"
-        warn "Edit .env to customize settings (timezone, port, etc.)"
-    else
-        log ".env already exists, preserving your configuration"
-    fi
+    # Download .env
+    log "Creating .env from template..."
+    download_file ".env.docker.example" ".env"
+    warn "Edit .env to customize settings (timezone, port, etc.)"
     
-    # Get DATA_PATH from .env or use default
-    DATA_PATH=$(grep -E "^DATA_PATH=" .env 2>/dev/null | cut -d'=' -f2 || echo "./storage")
-    DATA_PATH=${DATA_PATH:-./storage}
+    # Get DATA_PATH and create directories
+    DATA_PATH=$(get_data_path)
+    create_directories "$DATA_PATH"
     
-    # Create storage directory structure (required because mount overlays container's /app/storage)
-    log "Creating storage directory structure at $DATA_PATH..."
-    mkdir -p "$DATA_PATH/app/db"
-    mkdir -p "$DATA_PATH/app/data/import/incoming"
-    mkdir -p "$DATA_PATH/app/data/import/failed"
-    mkdir -p "$DATA_PATH/app/data/media"
-    mkdir -p "$DATA_PATH/app/data/thumbnails"
-    mkdir -p "$DATA_PATH/app/data/backups"
-    mkdir -p "$DATA_PATH/framework/cache"
-    mkdir -p "$DATA_PATH/framework/sessions"
-    mkdir -p "$DATA_PATH/framework/views"
-    mkdir -p "$DATA_PATH/logs"
-    
-    # Fix permissions (container runs as UID 1000)
-    fix_permissions() {
-        log "Setting permissions on $DATA_PATH..."
-        if [ "$(id -u)" = "0" ]; then
-            chown -R 1000:1000 "$DATA_PATH"
-        elif command -v sudo >/dev/null 2>&1; then
-            sudo chown -R 1000:1000 "$DATA_PATH"
-        else
-            warn "Could not set permissions. Run: sudo chown -R 1000:1000 $DATA_PATH"
-            return 1
-        fi
-    }
-    
-    # Check if permissions need fixing (test if UID 1000 can write)
-    # Create a test file to check actual write permissions
-    TEST_FILE="$DATA_PATH/.permission_test"
-    if ! touch "$TEST_FILE" 2>/dev/null; then
-        fix_permissions
-    else
-        rm -f "$TEST_FILE"
-        # Also check if files are owned by 1000 (for existing installs)
-        OWNER=$(stat -c '%u' "$DATA_PATH" 2>/dev/null || stat -f '%u' "$DATA_PATH" 2>/dev/null)
-        if [ "$OWNER" != "1000" ]; then
-            fix_permissions
-        fi
-    fi
+    # Fix permissions
+    check_and_fix_permissions "$DATA_PATH"
     
     # Pull latest image
     log "Pulling latest image..."
     $COMPOSE_CMD pull
     
-    # Start or restart
-    if $COMPOSE_CMD ps -q mgd_app >/dev/null 2>&1; then
-        log "Restarting containers..."
-        $COMPOSE_CMD down
-        $COMPOSE_CMD up -d
-    else
-        log "Starting containers..."
-        $COMPOSE_CMD up -d
-    fi
+    # Start containers
+    log "Starting containers..."
+    $COMPOSE_CMD up -d
     
     echo ""
     log "Installation complete!"
@@ -138,17 +203,36 @@ install() {
     log "Access the application at: http://localhost:${HTTP_PORT}"
     echo ""
     log "Useful commands:"
+    echo "  ./mgd.sh start       # Start containers"
+    echo "  ./mgd.sh stop        # Stop containers"
     echo "  ./mgd.sh logs        # View logs"
-    echo "  ./mgd.sh stop        # Stop"
-    echo "  ./mgd.sh start       # Start"
-    echo "  ./mgd.sh update      # Update to latest version"
+    echo "  ./mgd.sh update      # Pull latest image and restart"
+    echo "  ./mgd.sh fixperms    # Fix storage permissions"
     echo "  ./mgd.sh selfupdate  # Update this script"
 }
 
-# Update only (alias for install)
+# Update (pull latest image, don't touch config files)
 update() {
     log "Updating Media Gallery Downloader..."
-    install
+    echo ""
+    
+    check_requirements
+    require_compose_file
+    
+    # Pull latest image
+    log "Pulling latest image..."
+    $COMPOSE_CMD pull
+    
+    # Restart if running
+    if is_running; then
+        log "Restarting containers..."
+        $COMPOSE_CMD down
+        $COMPOSE_CMD up -d
+    else
+        log "Containers not running. Start with './mgd.sh start'"
+    fi
+    
+    log "Update complete!"
 }
 
 # Self-update the mgd.sh script
@@ -167,14 +251,21 @@ selfupdate() {
 # Start containers
 start() {
     check_requirements
+    require_compose_file
     log "Starting containers..."
     $COMPOSE_CMD up -d
     log "Started!"
+    
+    # Show URL
+    HTTP_PORT=$(grep -E "^HTTP_PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "8080")
+    HTTP_PORT=${HTTP_PORT:-8080}
+    log "Access the application at: http://localhost:${HTTP_PORT}"
 }
 
 # Stop containers
 stop() {
     check_requirements
+    require_compose_file
     log "Stopping containers..."
     $COMPOSE_CMD down
     log "Stopped!"
@@ -183,13 +274,26 @@ stop() {
 # View logs
 logs() {
     check_requirements
+    require_compose_file
     $COMPOSE_CMD logs -f
 }
 
+# Fix permissions command
+fixperms() {
+    DATA_PATH=$(get_data_path)
+    if [ ! -d "$DATA_PATH" ]; then
+        error "Data directory '$DATA_PATH' does not exist. Run './mgd.sh install' first."
+    fi
+    do_fix_permissions "$DATA_PATH"
+}
+
 # Main
-case "${1:-install}" in
-    install|update)
+case "${1:-}" in
+    install)
         install
+        ;;
+    update)
+        update
         ;;
     start)
         start
@@ -200,11 +304,13 @@ case "${1:-install}" in
     logs)
         logs
         ;;
+    fixperms)
+        fixperms
+        ;;
     selfupdate)
         selfupdate
         ;;
     *)
-        echo "Usage: $0 [install|update|start|stop|logs|selfupdate]"
-        exit 1
+        show_help
         ;;
 esac

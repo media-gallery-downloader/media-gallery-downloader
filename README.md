@@ -34,22 +34,25 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 
 ## Super Quick Start
 
-One command to install or update:
+Download the management script and install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh | bash
+curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh -o mgd.sh
+chmod +x mgd.sh
+./mgd.sh install
 ```
 
-Or download the script for repeated use:
+### Management Commands
 
 ```bash
-curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh
-chmod +x mgd.sh
-./mgd.sh install   # Install
-./mgd.sh update    # Update to latest
-./mgd.sh logs      # View logs
-./mgd.sh stop      # Stop
-./mgd.sh start     # Start
+./mgd.sh              # Show available commands
+./mgd.sh install      # Fresh install (downloads docker-compose.yml and .env)
+./mgd.sh update       # Pull latest image and restart
+./mgd.sh start        # Start containers
+./mgd.sh stop         # Stop containers
+./mgd.sh logs         # View logs
+./mgd.sh fixperms     # Fix storage directory permissions
+./mgd.sh selfupdate   # Update the mgd.sh script
 ```
 
 ## Quick Start
