@@ -228,13 +228,59 @@ install() {
     echo "  ./mgd.sh selfupdate  # Update this script"
 }
 
-# Update (pull latest image, don't touch config files)
+# Update (pull latest image, optionally update config files)
 update() {
     log "Updating Media Gallery Downloader..."
     echo ""
     
     check_requirements
     require_compose_file
+    
+    # Timestamp for backup files
+    BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    
+    # Prompt for config file updates
+    echo ""
+    info "Would you like to update configuration files?"
+    info "(Your current files will be backed up with a .$BACKUP_TIMESTAMP.backup suffix)"
+    echo ""
+    
+    # Ask about docker-compose.yml
+    read -p "Update docker-compose.yml? [y/N] " -n 1 -r
+    echo
+    UPDATE_COMPOSE=false
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        UPDATE_COMPOSE=true
+    fi
+    
+    # Ask about .env
+    UPDATE_ENV=false
+    if [ -f ".env" ]; then
+        read -p "Update .env (from .env.docker.example template)? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            UPDATE_ENV=true
+        fi
+    fi
+    
+    # Backup and update docker-compose.yml if requested
+    if [ "$UPDATE_COMPOSE" = true ]; then
+        if [ -f "docker-compose.yml" ]; then
+            log "Backing up docker-compose.yml to docker-compose.yml.${BACKUP_TIMESTAMP}.backup"
+            cp docker-compose.yml "docker-compose.yml.${BACKUP_TIMESTAMP}.backup"
+        fi
+        log "Downloading latest docker-compose.yml..."
+        curl -fsSL "$REPO_URL/docker-compose.yml" -o docker-compose.yml
+    fi
+    
+    # Backup and update .env if requested
+    if [ "$UPDATE_ENV" = true ]; then
+        log "Backing up .env to .env.${BACKUP_TIMESTAMP}.backup"
+        cp .env ".env.${BACKUP_TIMESTAMP}.backup"
+        log "Downloading latest .env.docker.example..."
+        curl -fsSL "$REPO_URL/.env.docker.example" -o .env
+        warn "Review your .env file - your previous settings are in .env.${BACKUP_TIMESTAMP}.backup"
+    fi
     
     # Pull latest image
     log "Pulling latest image..."
@@ -246,7 +292,7 @@ update() {
         $COMPOSE_CMD down
         $COMPOSE_CMD up -d
     else
-        log "Containers not running. Start with './mgd.sh start'"
+        log "Containers not running. Start with './mgd.sh up'"
     fi
     
     log "Update complete!"
