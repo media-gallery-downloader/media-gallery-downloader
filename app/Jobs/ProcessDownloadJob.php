@@ -61,6 +61,9 @@ class ProcessDownloadJob implements ShouldQueue
         // Try yt-dlp first
         $ytDlpHandler = new YtDlpDownloadHandler;
         try {
+            // Update method to show we're using yt-dlp
+            $downloadService->updateStatus($this->downloadId, 'downloading', ['method' => 'yt-dlp']);
+
             return $ytDlpHandler->download($this->url, $this->downloadId, $progressCallback);
         } catch (\Exception $e) {
             // If it's a YouTube URL, we trust yt-dlp's failure and do not fallback.
@@ -72,6 +75,7 @@ class ProcessDownloadJob implements ShouldQueue
         }
 
         // Fallback to direct download
+        $downloadService->updateStatus($this->downloadId, 'downloading', ['method' => 'direct']);
         $directHandler = new DirectDownloadHandler;
         $directHandler->setTimeout($this->timeout);
 

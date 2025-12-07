@@ -19,8 +19,8 @@ class DownloadService
             'downloadId' => $downloadId,
         ]);
 
-        // Add to Redis queue
-        $this->addToQueue($downloadId, $url, $this->getDownloadMethod($url));
+        // Add to Redis queue immediately (don't validate method synchronously)
+        $this->addToQueue($downloadId, $url, 'auto');
 
         // Dispatch the download job
         ProcessDownloadJob::dispatch($url, $downloadId)

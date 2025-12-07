@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Services\DownloadService;
+use App\Services\Maintenance\ImportService;
 use App\Services\UploadService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -61,6 +62,13 @@ class Queue extends Page
         // Find current uploading item
         $currentUpload = collect($this->uploadQueue)->firstWhere('status', 'processing');
         $this->currentUploadId = $currentUpload['id'] ?? null;
+
+        $importService = app(ImportService::class);
+        $this->importQueue = $importService->getQueue();
+
+        // Find current importing item
+        $currentImport = collect($this->importQueue)->firstWhere('status', 'importing');
+        $this->currentImportId = $currentImport['id'] ?? null;
     }
 
     #[On('downloadCompleted')]
@@ -133,6 +141,35 @@ class Queue extends Page
             ->send();
 
         $this->dispatch('refresh-upload-queue');
+    }
+
+    public function cancelImport($importId): void
+    {
+        $importService = app(ImportService::class);
+        $importService->removeFromQueue($importId);
+
+        Notification::make()
+            ->title('Import cancelled')
+            ->info()
+            ->send();
+
+        $this->refreshQueue();
+        $this->dispatch('refresh-import-queue');
+    }
+
+    public function clearImportQueue(): void
+    {
+        $importService = app(ImportService::class);
+        $importService->clearQueue();
+
+        $this->refreshQueue();
+
+        Notification::make()
+            ->title('Import queue cleared')
+            ->info()
+            ->send();
+
+        $this->dispatch('refresh-import-queue');
     }
 
     public function getPollingInterval(): ?string

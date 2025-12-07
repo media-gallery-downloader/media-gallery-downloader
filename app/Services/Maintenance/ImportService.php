@@ -7,12 +7,73 @@ use App\Services\UploadService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Handles bulk import operations from the incoming directory
  */
 class ImportService extends BaseMaintenanceService
 {
+    protected const CACHE_KEY = 'import_queue';
+
+    /**
+     * Get the import queue
+     */
+    public function getQueue(): array
+    {
+        return Cache::get(self::CACHE_KEY, []);
+    }
+
+    /**
+     * Add an item to the import queue
+     */
+    public function addToQueue(string $id, string $path, string $filename): void
+    {
+        $queue = $this->getQueue();
+        $queue[] = [
+            'id' => $id,
+            'path' => $path,
+            'filename' => $filename,
+            'status' => 'queued',
+            'added_at' => now()->toISOString(),
+        ];
+        Cache::put(self::CACHE_KEY, $queue);
+    }
+
+    /**
+     * Update the status of a queue item
+     */
+    public function updateStatus(string $id, string $status, array $extra = []): void
+    {
+        $queue = $this->getQueue();
+        foreach ($queue as &$item) {
+            if ($item['id'] === $id) {
+                $item['status'] = $status;
+                $item = array_merge($item, $extra);
+                break;
+            }
+        }
+        Cache::put(self::CACHE_KEY, $queue);
+    }
+
+    /**
+     * Remove an item from the queue
+     */
+    public function removeFromQueue(string $id): void
+    {
+        $queue = $this->getQueue();
+        $queue = array_filter($queue, fn ($item) => $item['id'] !== $id);
+        Cache::put(self::CACHE_KEY, array_values($queue));
+    }
+
+    /**
+     * Clear the import queue
+     */
+    public function clearQueue(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
     /**
      * Scan incoming directory and queue video files for import
      *
@@ -113,10 +174,16 @@ class ImportService extends BaseMaintenanceService
         }
 
         try {
+            // Generate unique import ID
+            $importId = Str::uuid()->toString();
+
             // Dispatch job with delay to spread out processing
             $delay = (int) floor($queuedCount / $batchSize) * 30;
 
-            ProcessDirectImportJob::dispatch($file->getPathname(), $filename)
+            // Add to tracking queue
+            $this->addToQueue($importId, $file->getPathname(), $filename);
+
+            ProcessDirectImportJob::dispatch($importId, $file->getPathname(), $filename)
                 ->onQueue('imports')
                 ->delay(now()->addSeconds($delay));
 
@@ -124,6 +191,7 @@ class ImportService extends BaseMaintenanceService
 
             Log::info('Queued file for import', [
                 'file' => $filename,
+                'importId' => $importId,
                 'delay' => $delay,
             ]);
         } catch (\Exception $e) {

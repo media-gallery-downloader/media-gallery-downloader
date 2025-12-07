@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Services\Maintenance\ImportService;
 use App\Services\ThumbnailService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -35,6 +36,7 @@ class ProcessDirectImportJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
+        public string $importId,
         public string $filePath,
         public string $originalName
     ) {}
@@ -45,11 +47,16 @@ class ProcessDirectImportJob implements ShouldQueue
     public function handle(ThumbnailService $thumbnailService): void
     {
         $failedPath = config('mgd.import.failed_path');
+        $importService = app(ImportService::class);
 
         try {
+            // Update status to importing
+            $importService->updateStatus($this->importId, 'importing');
+
             Log::info('Starting direct import job', [
                 'file' => $this->originalName,
                 'path' => $this->filePath,
+                'importId' => $this->importId,
             ]);
 
             // Verify file still exists
@@ -131,11 +138,18 @@ class ProcessDirectImportJob implements ShouldQueue
                     ]);
                 }
             }
+
+            // Remove from queue on success
+            $importService->removeFromQueue($this->importId);
         } catch (\Exception $e) {
             Log::error('Direct import failed', [
                 'file' => $this->originalName,
+                'importId' => $this->importId,
                 'error' => $e->getMessage(),
             ]);
+
+            // Update queue status to failed
+            $importService->updateStatus($this->importId, 'failed', ['error' => $e->getMessage()]);
 
             $this->moveToFailed($e->getMessage(), $failedPath);
 

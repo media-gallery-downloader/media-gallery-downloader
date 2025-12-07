@@ -380,8 +380,6 @@ describe('MaintenanceService', function () {
     describe('regenerateThumbnails', function () {
         it('returns results array with counts', function () {
             $this->mock(ThumbnailService::class)
-                ->shouldReceive('deleteThumbnail')
-                ->andReturn(true)
                 ->shouldReceive('generateThumbnail')
                 ->andReturn('thumbnails/test.jpg');
 
@@ -392,23 +390,29 @@ describe('MaintenanceService', function () {
             expect($results)->toHaveKeys(['processed', 'success', 'failed']);
         });
 
-        it('processes video media items', function () {
-            // Create a video media item
+        it('only processes video media items missing thumbnails', function () {
+            // Create a video media item without thumbnail (should be processed)
             Media::factory()->create([
                 'mime_type' => 'video/mp4',
                 'thumbnail_path' => null,
             ]);
 
+            // Create a video media item with thumbnail (should be skipped)
+            Media::factory()->create([
+                'mime_type' => 'video/mp4',
+                'thumbnail_path' => 'thumbnails/existing.jpg',
+            ]);
+
             $this->mock(ThumbnailService::class)
-                ->shouldReceive('deleteThumbnail')
-                ->andReturn(true)
                 ->shouldReceive('generateThumbnail')
+                ->once()
                 ->andReturn('thumbnails/new.jpg');
 
             $service = app(MaintenanceService::class);
             $results = $service->regenerateThumbnails();
 
             expect($results['processed'])->toBe(1);
+            expect($results['success'])->toBe(1);
         });
     });
 

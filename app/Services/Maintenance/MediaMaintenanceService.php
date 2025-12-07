@@ -33,7 +33,7 @@ class MediaMaintenanceService extends BaseMaintenanceService
     }
 
     /**
-     * Regenerate all thumbnails
+     * Generate thumbnails for videos/gifs that are missing them
      */
     public function regenerateThumbnails(): array
     {
@@ -43,22 +43,18 @@ class MediaMaintenanceService extends BaseMaintenanceService
             'failed' => 0,
         ];
 
-        $mediaItems = Media::whereIn('mime_type', function ($query) {
-            $query->select('mime_type')
-                ->from('media')
-                ->where('mime_type', 'like', 'video/%')
+        // Only get video/gif media items that are missing thumbnails
+        $mediaItems = Media::where(function ($query) {
+            $query->where('mime_type', 'like', 'video/%')
                 ->orWhere('mime_type', '=', 'image/gif');
-        })->get();
+        })
+            ->whereNull('thumbnail_path')
+            ->get();
 
         foreach ($mediaItems as $media) {
             $results['processed']++;
 
-            // Delete existing thumbnail
-            if ($media->thumbnail_path) {
-                $this->thumbnailService->deleteThumbnail($media->thumbnail_path);
-            }
-
-            // Generate new thumbnail
+            // Generate thumbnail
             $newThumbnail = $this->thumbnailService->generateThumbnail($media->path, $media->mime_type);
 
             if ($newThumbnail) {
@@ -72,7 +68,7 @@ class MediaMaintenanceService extends BaseMaintenanceService
         Cache::put('last_thumbnail_regeneration', now());
         $this->sendNotification(
             'Thumbnail Regeneration',
-            "Processed {$results['processed']}: {$results['success']} success, {$results['failed']} failed",
+            "Generated {$results['success']} missing thumbnails".($results['failed'] > 0 ? ", {$results['failed']} failed" : ''),
             $results['failed'] === 0
         );
 

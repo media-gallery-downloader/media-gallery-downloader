@@ -35,34 +35,27 @@
             <li class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div class="flex justify-between items-start">
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="item.path"></div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="item.filename"></div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            Type: <span x-text="item.type?.replace('_', ' ') || 'unknown'"></span> •
                             Added: <span x-text="new Date(item.added_at).toLocaleString()"></span>
-                            <template x-if="item.total_files > 0">
-                                <span> • Files: <span x-text="item.processed_files + '/' + item.total_files"></span></span>
-                            </template>
                         </div>
                     </div>
                     <div class="ml-4 flex items-center gap-2">
-                        <template x-if="currentImportId === item.id">
+                        <template x-if="currentImportId === item.id || item.status === 'importing'">
                             <div class="flex flex-col items-end">
                                 <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded dark:bg-purple-900 dark:text-purple-300 animate-pulse flex items-center">
                                     <svg class="inline w-3 h-3 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                     </svg>
-                                    Importing <span x-show="item.progress" x-text="'(' + Math.round(item.progress) + '%)'" class="ml-1"></span>
+                                    Importing
                                 </span>
-                                <div class="w-24 h-1 bg-gray-200 rounded-full mt-1 dark:bg-gray-600 overflow-hidden" x-show="item.progress">
-                                    <div class="h-full bg-purple-500 rounded-full transition-all duration-500" :style="'width: ' + (item.progress || 0) + '%'"></div>
-                                </div>
                             </div>
                         </template>
                         <template x-if="item.status === 'failed'">
-                            <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded dark:bg-red-900 dark:text-red-300" title="Error" x-text="'Failed'"></span>
+                            <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded dark:bg-red-900 dark:text-red-300" :title="item.error || 'Unknown error'">Failed</span>
                         </template>
-                        <template x-if="currentImportId !== item.id && item.status !== 'failed'">
-                            <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded dark:bg-gray-600 dark:text-gray-300" x-text="'#' + (index + 1)"></span>
+                        <template x-if="item.status === 'queued'">
+                            <span class="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded dark:bg-gray-600 dark:text-gray-300">Queued</span>
                         </template>
                         <button
                             @click="$wire.cancelImport(item.id)"
