@@ -28,10 +28,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         $tempDir = $this->createTempDirectory('ytdlp');
 
         try {
-            // Verify yt-dlp can handle this URL
-            $this->verifyUrl($url);
-
-            // Get video metadata
+            // Get video metadata (this will fail if yt-dlp can't handle the URL)
             $metadata = $this->fetchMetadata($url);
             $videoTitle = $metadata['fulltitle'] ?? $metadata['title'];
 
@@ -51,28 +48,6 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     }
 
     /**
-     * Verify yt-dlp can handle the URL
-     */
-    protected function verifyUrl(string $url): void
-    {
-        $cookieArgs = $this->getCookieArguments();
-
-        $checkCommand = array_merge(
-            ['yt-dlp', '--simulate'],
-            $cookieArgs,
-            [$url]
-        );
-
-        $checkProcess = new Process($checkCommand);
-        $checkProcess->run();
-
-        if (! $checkProcess->isSuccessful()) {
-            $errorOutput = $checkProcess->getErrorOutput();
-            throw new \Exception($this->parseError($errorOutput));
-        }
-    }
-
-    /**
      * Fetch video metadata from yt-dlp
      */
     protected function fetchMetadata(string $url): array
@@ -86,6 +61,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         );
 
         $metadataProcess = new Process($metadataCommand);
+        $metadataProcess->setTimeout(120); // 2 minute timeout for metadata
         $metadataProcess->run();
 
         if (! $metadataProcess->isSuccessful()) {
