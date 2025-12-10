@@ -130,7 +130,7 @@ RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy dom
     sed -i 's/<policy domain="resource" name="disk" value="1GiB"\/>/<policy domain="resource" name="disk" value="8GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
     sed -i 's/<policy domain="resource" name="area" value="128MB"\/>/<policy domain="resource" name="area" value="1GB"\/>/g' /etc/ImageMagick-6/policy.xml
 
-# Install yt-dlp
+# Install yt-dlp (owned by app user for in-app updates)
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     ln -sf /usr/local/bin/yt-dlp /usr/bin/youtube-dl
@@ -141,7 +141,8 @@ COPY .docker/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
 # Create app user before copying files
 RUN groupadd -g 1000 app && \
-    useradd -u 1000 -g app -m app
+    useradd -u 1000 -g app -m app && \
+    chown app:app /usr/local/bin/yt-dlp
 
 # Copy supervisor configuration
 COPY .docker/supervisord.conf /etc/supervisor/supervisord.conf

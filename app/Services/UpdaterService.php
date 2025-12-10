@@ -74,39 +74,13 @@ class UpdaterService
         try {
             Log::info('Installing yt-dlp...');
 
-            // Determine where to install yt-dlp
-            $installPath = '/usr/local/bin/yt-dlp'; // Default location
+            $installPath = '/usr/local/bin/yt-dlp';
+            $tempFile = storage_path('app/temp/ytdlp_install_'.uniqid());
 
-            // Check if we can write to this location
-            if (! is_writable(dirname($installPath))) {
-                // Try user's local bin directory
-                $userBin = getenv('HOME').'/bin';
-
-                if (! file_exists($userBin)) {
-                    mkdir($userBin, 0755, true);
-                }
-
-                if (is_writable($userBin)) {
-                    $installPath = $userBin.'/yt-dlp';
-
-                    // Add to PATH if not already there
-                    $addToPath = "export PATH=\$PATH:$userBin";
-                    $shellRc = getenv('HOME').'/.bashrc';
-
-                    if (file_exists($shellRc) && is_writable($shellRc)) {
-                        $shellContent = file_get_contents($shellRc);
-                        if (! str_contains($shellContent, $addToPath)) {
-                            file_put_contents($shellRc, "\n".$addToPath."\n", FILE_APPEND);
-                        }
-                    }
-                } else {
-                    Log::warning('No writable location found for yt-dlp installation');
-
-                    return false;
-                }
+            // Ensure temp directory exists
+            if (! is_dir(dirname($tempFile))) {
+                mkdir(dirname($tempFile), 0755, true);
             }
-
-            $tempFile = tempnam(sys_get_temp_dir(), 'ytdlp_install_');
 
             // Download the latest version
             $downloadProcess = new Process([
@@ -128,14 +102,8 @@ class UpdaterService
             }
 
             // Move to install location
-            $moveProcess = new Process(['sudo', 'mv', $tempFile, $installPath]);
+            $moveProcess = new Process(['mv', $tempFile, $installPath]);
             $moveProcess->run();
-
-            if (! $moveProcess->isSuccessful()) {
-                // Try without sudo
-                $moveProcess = new Process(['mv', $tempFile, $installPath]);
-                $moveProcess->run();
-            }
 
             if (! $moveProcess->isSuccessful()) {
                 Log::warning('Failed to install yt-dlp: '.$moveProcess->getErrorOutput());
@@ -145,19 +113,12 @@ class UpdaterService
             }
 
             // Make executable
-            $chmodProcess = new Process(['sudo', 'chmod', 'a+rx', $installPath]);
+            $chmodProcess = new Process(['chmod', 'a+rx', $installPath]);
             $chmodProcess->run();
 
             if (! $chmodProcess->isSuccessful()) {
-                // Try without sudo
-                $chmodProcess = new Process(['chmod', 'a+rx', $installPath]);
-                $chmodProcess->run();
-            }
-
-            if (! $chmodProcess->isSuccessful()) {
                 Log::warning('Failed to make yt-dlp executable: '.$chmodProcess->getErrorOutput());
-
-                return false;
+                // Continue anyway
             }
 
             // Verify installation
@@ -197,7 +158,12 @@ class UpdaterService
         }
 
         $ytdlpPath = trim($whichProcess->getOutput());
-        $tempFile = tempnam(sys_get_temp_dir(), 'ytdlp_update_');
+        $tempFile = storage_path('app/temp/ytdlp_update_'.uniqid());
+
+        // Ensure temp directory exists
+        if (! is_dir(dirname($tempFile))) {
+            mkdir(dirname($tempFile), 0755, true);
+        }
 
         // Download the new version to a temporary file
         $downloadProcess = new Process([
@@ -218,24 +184,13 @@ class UpdaterService
             return false;
         }
 
-        // Try to update using sudo if available
+        // Move to yt-dlp location (app user should own this file)
         $updateProcess = new Process([
-            'sudo',
             'mv',
             $tempFile,
             $ytdlpPath,
         ]);
         $updateProcess->run();
-
-        if (! $updateProcess->isSuccessful()) {
-            // Try without sudo
-            $updateProcess = new Process([
-                'mv',
-                $tempFile,
-                $ytdlpPath,
-            ]);
-            $updateProcess->run();
-        }
 
         if (! $updateProcess->isSuccessful()) {
             Log::warning('Failed to update yt-dlp: '.$updateProcess->getErrorOutput());
@@ -245,13 +200,12 @@ class UpdaterService
         }
 
         // Make executable
-        $chmodProcess = new Process(['sudo', 'chmod', 'a+rx', $ytdlpPath]);
+        $chmodProcess = new Process(['chmod', 'a+rx', $ytdlpPath]);
         $chmodProcess->run();
 
         if (! $chmodProcess->isSuccessful()) {
-            // Try without sudo
-            $chmodProcess = new Process(['chmod', 'a+rx', $ytdlpPath]);
-            $chmodProcess->run();
+            Log::warning('Failed to make yt-dlp executable: '.$chmodProcess->getErrorOutput());
+            // Continue anyway, it might still work
         }
 
         Log::info('Successfully updated yt-dlp');
