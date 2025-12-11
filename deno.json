@@ -8,7 +8,8 @@
         "fmt": "deno fmt resources/js/",
         "fmt:check": "deno fmt --check resources/js/",
         "lint-staged": "deno run -A npm:lint-staged",
-        "prepare": "deno run -A npm:husky"
+        "prepare": "deno run -A npm:husky",
+        "bump-version": "./scripts/bump-version.sh"
     },
     "imports": {
         "vite": "npm:vite@^6.0.0",
