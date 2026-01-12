@@ -20,12 +20,12 @@ class FailedUploadFactory extends Factory
     public function definition(): array
     {
         return [
-            'filename' => fake()->uuid().'.mp4',
+            'filename' => $this->faker->uuid().'.mp4',
             'mime_type' => 'video/mp4',
-            'error_message' => fake()->sentence(),
-            'status' => fake()->randomElement(['pending', 'failed', 'resolved']),
-            'retry_count' => fake()->numberBetween(0, 3),
-            'last_attempt_at' => fake()->optional()->dateTimeThisMonth(),
+            'error_message' => $this->faker->sentence(),
+            'status' => $this->faker->randomElement(['pending', 'failed', 'resolved']),
+            'retry_count' => $this->faker->numberBetween(0, 3),
+            'last_attempt_at' => $this->faker->optional()->dateTimeThisMonth(),
             'created_at' => now(),
             'updated_at' => now(),
         ];

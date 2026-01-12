@@ -38,6 +38,9 @@ class Home extends Page implements HasForms
     #[Url]
     public $sort = 'newest';
 
+    #[Url]
+    public ?string $search = null;
+
     public function mount()
     {
         $this->form->fill();
@@ -193,6 +196,7 @@ class Home extends Page implements HasForms
                         ->viewData([
                             'perPage' => $this->per_page,
                             'sort' => $this->sort,
+                            'search' => $this->search,
                         ]),
                 ])->columnSpan(12)->compact(true),
         ])->statePath('data')->columns(12);

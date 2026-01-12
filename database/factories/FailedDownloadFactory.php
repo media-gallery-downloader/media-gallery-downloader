@@ -20,13 +20,13 @@ class FailedDownloadFactory extends Factory
     public function definition(): array
     {
         return [
-            'url' => fake()->url().'/video.mp4',
-            'method' => fake()->randomElement(['direct', 'yt-dlp', 'auto']),
-            'error_message' => fake()->sentence(),
-            'status' => fake()->randomElement(['pending', 'retrying', 'failed', 'resolved']),
-            'retry_count' => fake()->numberBetween(0, 3),
-            'last_attempt_at' => fake()->optional()->dateTimeThisMonth(),
-            'next_retry_at' => fake()->optional()->dateTimeThisMonth(),
+            'url' => $this->faker->url().'/video.mp4',
+            'method' => $this->faker->randomElement(['direct', 'yt-dlp', 'auto']),
+            'error_message' => $this->faker->sentence(),
+            'status' => $this->faker->randomElement(['pending', 'retrying', 'failed', 'resolved']),
+            'retry_count' => $this->faker->numberBetween(0, 3),
+            'last_attempt_at' => $this->faker->optional()->dateTimeThisMonth(),
+            'next_retry_at' => $this->faker->optional()->dateTimeThisMonth(),
             'created_at' => now(),
             'updated_at' => now(),
         ];

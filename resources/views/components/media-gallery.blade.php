@@ -12,9 +12,18 @@ $sortOptions = [
 
 $sort = $sort ?? request()->query('sort', 'newest');
 $perPage = $perPage ?? request()->query('per_page', 10);
+$search = $search ?? request()->query('search', '');
 
 // Build the query based on sort parameter
 $query = \App\Models\Media::query();
+
+// Apply search filter
+if (!empty($search)) {
+    $query->where(function($q) use ($search) {
+        $q->where('name', 'like', '%' . $search . '%')
+          ->orWhere('file_name', 'like', '%' . $search . '%');
+    });
+}
 
 switch($sort) {
 case 'newest':
@@ -49,7 +58,7 @@ $media = $query->paginate($perPage);
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Sort by:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}`"
+                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}&search={{ urlencode($search) }}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach($sortOptions as $value => $label)
                 <option value="{{ $value }}" {{ $sort === $value ? 'selected' : '' }}>
@@ -57,13 +66,11 @@ $media = $query->paginate($perPage);
                 </option>
                 @endforeach
             </select>
-        </div>
 
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Show:</span>
+            <span class="text-xs font-medium text-gray-700 dark:text-gray-200 ml-2">Show:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}`"
+                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}&search={{ urlencode($search) }}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach([10, 20, 50, 100] as $value)
                 <option value="{{ $value }}" {{ $perPage == $value ? 'selected' : '' }}>
@@ -71,6 +78,22 @@ $media = $query->paginate($perPage);
                 </option>
                 @endforeach
             </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <input
+                type="search"
+                placeholder="Search media..."
+                value="{{ $search }}"
+                x-data="{}"
+                x-on:keyup.enter="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}`"
+                class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-48 sm:w-64"
+            >
+            @if(!empty($search))
+            <a href="?sort={{ $sort }}&per_page={{ $perPage }}" class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <x-heroicon-m-x-mark class="w-4 h-4" />
+            </a>
+            @endif
         </div>
     </div>
 
@@ -87,14 +110,14 @@ $media = $query->paginate($perPage);
                 @mouseenter="overCard = true"
                 @mouseleave="overCard = false; setTimeout(() => { if (!overCard && !overPopup) cardMenuOpen = false }, 50)"
                 x-on:click="$dispatch('open-media-preview', {
-                    url: '{{ $item->url }}', 
-                    name: {{ Js::from($item->name) }}, 
+                    url: '{{ $item->url }}',
+                    name: {{ Js::from($item->name) }},
                     type: '{{ $item->mime_type }}'
                 })">
                 <!-- Info overlays -->
                 <div class="p-1" style="position:absolute;top:0;background:black;margin-right:0px;margin-left:0px;width:100%;opacity:0.8;z-index:15;">
                     <div class="group relative flex overflow-hidden max-w-[60%]"
-                        x-data="{ 
+                        x-data="{
                         shouldScroll: false,
                         init() {
                             this.checkOverflow();
@@ -121,14 +144,14 @@ $media = $query->paginate($perPage);
                             <a
                                 href="#"
                                 @click.stop.prevent="$dispatch('open-info-modal', {
-                                    id: {{ $item->id }}, 
-                                    name: {{ Js::from($item->name) }}, 
-                                    file_name: {{ Js::from($item->file_name) }}, 
-                                    mime_type: '{{ $item->mime_type }}', 
-                                    size: {{ $item->size }}, 
-                                    url: '{{ $item->url }}', 
-                                    created_at: '{{ $item->created_at }}', 
-                                    path: {{ Js::from($item->path ?? '') }}, 
+                                    id: {{ $item->id }},
+                                    name: {{ Js::from($item->name) }},
+                                    file_name: {{ Js::from($item->file_name) }},
+                                    mime_type: '{{ $item->mime_type }}',
+                                    size: {{ $item->size }},
+                                    url: '{{ $item->url }}',
+                                    created_at: '{{ $item->created_at }}',
+                                    path: {{ Js::from($item->path ?? '') }},
                                     source: {{ Js::from($item->source ?? '') }}
                                 })"
                                 class="text-blue-400 hover:text-blue-300">
@@ -188,7 +211,7 @@ $media = $query->paginate($perPage);
                                             <button
                                                 type="button"
                                                 @click.prevent="cardMenuOpen = false; $dispatch('open-delete-modal', {
-                                                    id: {{ $item->id }}, 
+                                                    id: {{ $item->id }},
                                                     name: {{ Js::from($item->name) }}
                                                 })"
                                                 class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none"
@@ -210,7 +233,7 @@ $media = $query->paginate($perPage);
                     @if(Str::contains($item->mime_type, 'video'))
                     <!-- Video thumbnail with hover-to-play -->
                     <div class="absolute inset-0"
-                        x-data="{ 
+                        x-data="{
                             isHovering: false,
                             hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }},
                             videoSrc: '{{ $item->url }}'
@@ -225,7 +248,7 @@ $media = $query->paginate($perPage);
                             $refs.videoElement.play().catch(e => console.log('Could not play video:', e))
                         "
                         @mouseleave="
-                            isHovering = false; 
+                            isHovering = false;
                             $refs.videoElement.pause();
                             $refs.videoElement.currentTime = 0;
                         "
@@ -265,7 +288,7 @@ $media = $query->paginate($perPage);
                     @elseif(Str::contains($item->mime_type, 'image'))
                     <!-- Image thumbnail with GIF hover animation -->
                     <div class="absolute inset-0"
-                        x-data="{ 
+                        x-data="{
                             isHovering: false,
                             isGif: {{ pathinfo($item->file_name, PATHINFO_EXTENSION) === 'gif' ? 'true' : 'false' }},
                             hasThumbnail: {{ $item->thumbnail_path ? 'true' : 'false' }}
