@@ -15,6 +15,49 @@ class SystemHealthWidget extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
+    // Individual data properties for lazy loading
+    public ?array $appData = null;
+
+    public ?array $ytdlpData = null;
+
+    public ?array $ffmpegData = null;
+
+    public ?array $denoData = null;
+
+    public ?array $phpData = null;
+
+    public ?array $diskData = null;
+
+    public ?array $lastRunsData = null;
+
+    public function mount(): void
+    {
+        // Load fast data immediately
+        $this->phpData = $this->getPhpInfo();
+        $this->diskData = $this->getDiskInfo();
+        $this->lastRunsData = $this->getLastRunTimes();
+    }
+
+    public function loadAppData(): void
+    {
+        $this->appData = Cache::remember('health_app_data', 300, fn () => $this->getAppInfo());
+    }
+
+    public function loadYtdlpData(): void
+    {
+        $this->ytdlpData = Cache::remember('health_ytdlp_data', 300, fn () => $this->getYtdlpInfo());
+    }
+
+    public function loadFfmpegData(): void
+    {
+        $this->ffmpegData = Cache::remember('health_ffmpeg_data', 300, fn () => $this->getFfmpegInfo());
+    }
+
+    public function loadDenoData(): void
+    {
+        $this->denoData = Cache::remember('health_deno_data', 300, fn () => $this->getDenoInfo());
+    }
+
     public function getHealthData(): array
     {
         return Cache::remember('system_health_data', 300, function () {
@@ -22,6 +65,7 @@ class SystemHealthWidget extends Widget
                 'app' => $this->getAppInfo(),
                 'ytdlp' => $this->getYtdlpInfo(),
                 'ffmpeg' => $this->getFfmpegInfo(),
+                'deno' => $this->getDenoInfo(),
                 'php' => $this->getPhpInfo(),
                 'disk' => $this->getDiskInfo(),
                 'last_runs' => $this->getLastRunTimes(),
@@ -73,10 +117,10 @@ class SystemHealthWidget extends Widget
 
             $currentVersion = $process->isSuccessful() ? trim($process->getOutput()) : null;
 
-            // Check for latest version
+            // Check for latest nightly version
             $latestVersion = null;
             try {
-                $response = Http::timeout(5)->get('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest');
+                $response = Http::timeout(5)->get('https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest');
                 if ($response->successful()) {
                     $latestVersion = ltrim($response->json()['tag_name'] ?? '', 'v');
                 }
@@ -127,6 +171,53 @@ class SystemHealthWidget extends Widget
         }
     }
 
+    protected function getDenoInfo(): array
+    {
+        try {
+            $process = new Process(['deno', '--version']);
+            $process->setTimeout(5);
+            $process->run();
+
+            $currentVersion = null;
+            if ($process->isSuccessful()) {
+                $output = $process->getOutput();
+                // Output format: "deno 2.5.6 (release, x86_64-unknown-linux-gnu)\nv8 13.0.245.12-rusty\ntypescript 5.6.2"
+                if (preg_match('/deno (\S+)/', $output, $matches)) {
+                    $currentVersion = $matches[1];
+                }
+            }
+
+            // Check for latest version
+            $latestVersion = null;
+            try {
+                $response = Http::timeout(5)->get('https://api.github.com/repos/denoland/deno/releases/latest');
+                if ($response->successful()) {
+                    $latestVersion = ltrim($response->json()['tag_name'] ?? '', 'v');
+                }
+            } catch (\Exception $e) {
+                // Ignore network errors
+            }
+
+            $isUpToDate = $currentVersion && $latestVersion
+                ? version_compare($currentVersion, $latestVersion, '>=')
+                : null;
+
+            return [
+                'installed' => $currentVersion !== null,
+                'current_version' => $currentVersion,
+                'latest_version' => $latestVersion,
+                'is_up_to_date' => $isUpToDate,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'installed' => false,
+                'current_version' => null,
+                'latest_version' => null,
+                'is_up_to_date' => null,
+            ];
+        }
+    }
+
     protected function getPhpInfo(): array
     {
         return [
@@ -157,6 +248,7 @@ class SystemHealthWidget extends Widget
     {
         return [
             'ytdlp_update' => Cache::get('last_ytdlp_update'),
+            'deno_update' => Cache::get('last_deno_update'),
             'duplicate_removal' => Cache::get('last_duplicate_removal'),
             'storage_cleanup' => Cache::get('last_storage_cleanup'),
             'database_backup' => Cache::get('last_database_backup'),
@@ -166,6 +258,22 @@ class SystemHealthWidget extends Widget
     public function refreshHealth(): void
     {
         Cache::forget('system_health_data');
+        Cache::forget('health_app_data');
+        Cache::forget('health_ytdlp_data');
+        Cache::forget('health_ffmpeg_data');
+        Cache::forget('health_deno_data');
+
+        // Reset all data to trigger reload
+        $this->appData = null;
+        $this->ytdlpData = null;
+        $this->ffmpegData = null;
+        $this->denoData = null;
+
+        // Reload fast data immediately
+        $this->phpData = $this->getPhpInfo();
+        $this->diskData = $this->getDiskInfo();
+        $this->lastRunsData = $this->getLastRunTimes();
+
         $this->dispatch('$refresh');
     }
 

@@ -31,7 +31,12 @@ This software automatically downloads the following third-party components:
    - Source: <https://github.com/yt-dlp/yt-dlp>
    - Downloaded automatically from GitHub releases during container startup
 
-2. **FFmpeg**
+2. **Deno**
+   - License: MIT License
+   - Source: <https://github.com/denoland/deno>
+   - Downloaded automatically from GitHub releases during container startup
+
+3. **FFmpeg**
    - License: LGPL v2.1+ (or GPL v2.1+ depending on build configuration)
    - Source: <https://ffmpeg.org>
    - Installed via system package manager during container build

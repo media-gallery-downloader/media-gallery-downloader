@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Handles media-related maintenance tasks like thumbnail regeneration,
- * failed download retry, and yt-dlp updates.
+ * failed download retry, and yt-dlp/Deno updates.
  */
 class MediaMaintenanceService extends BaseMaintenanceService
 {
@@ -28,6 +28,18 @@ class MediaMaintenanceService extends BaseMaintenanceService
         $result = $this->updaterService->checkAndUpdateYtdlp();
         Cache::put('last_ytdlp_update', now());
         $this->sendNotification('yt-dlp Update', $result ? 'yt-dlp is up to date.' : 'yt-dlp update failed.', $result);
+
+        return $result;
+    }
+
+    /**
+     * Update Deno
+     */
+    public function updateDeno(): bool
+    {
+        $result = $this->updaterService->checkAndUpdateDeno();
+        Cache::put('last_deno_update', now());
+        $this->sendNotification('Deno Update', $result ? 'Deno is up to date.' : 'Deno update failed.', $result);
 
         return $result;
     }

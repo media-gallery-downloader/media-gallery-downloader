@@ -2,6 +2,9 @@
     ytdlpHour: '12',
     ytdlpMinute: '00',
     ytdlpPeriod: 'AM',
+    denoHour: '12',
+    denoMinute: '00',
+    denoPeriod: 'AM',
     duplicatesHour: '12',
     duplicatesMinute: '00',
     duplicatesPeriod: 'AM',
@@ -20,19 +23,23 @@
     importHour: '12',
     importMinute: '00',
     importPeriod: 'AM',
-    
+
     init() {
         this.parseTime('ytdlp', $wire.data?.ytdlp_schedule_time);
+        this.parseTime('deno', $wire.data?.deno_schedule_time);
         this.parseTime('duplicates', $wire.data?.duplicates_schedule_time);
         this.parseTime('storage', $wire.data?.storage_cleanup_schedule_time);
         this.parseTime('backup', $wire.data?.database_backup_schedule_time);
         this.parseTime('logRotation', $wire.data?.log_rotation_schedule_time);
         this.parseTime('thumbnail', $wire.data?.thumbnail_regen_schedule_time);
         this.parseTime('import', $wire.data?.import_scan_schedule_time);
-        
+
         $watch('ytdlpHour', () => this.updateTime('ytdlp'));
         $watch('ytdlpMinute', () => this.updateTime('ytdlp'));
         $watch('ytdlpPeriod', () => this.updateTime('ytdlp'));
+        $watch('denoHour', () => this.updateTime('deno'));
+        $watch('denoMinute', () => this.updateTime('deno'));
+        $watch('denoPeriod', () => this.updateTime('deno'));
         $watch('duplicatesHour', () => this.updateTime('duplicates'));
         $watch('duplicatesMinute', () => this.updateTime('duplicates'));
         $watch('duplicatesPeriod', () => this.updateTime('duplicates'));
@@ -52,7 +59,7 @@
         $watch('importMinute', () => this.updateTime('import'));
         $watch('importPeriod', () => this.updateTime('import'));
     },
-    
+
     parseTime(prefix, time) {
         if (!time) return;
         const [hours, minutes] = time.split(':');
@@ -60,24 +67,25 @@
         const period = h >= 12 ? 'PM' : 'AM';
         if (h === 0) h = 12;
         else if (h > 12) h -= 12;
-        
+
         this[prefix + 'Hour'] = h.toString();
         this[prefix + 'Minute'] = minutes;
         this[prefix + 'Period'] = period;
     },
-    
+
     updateTime(prefix) {
         let h = parseInt(this[prefix + 'Hour']);
         const m = this[prefix + 'Minute'];
         const p = this[prefix + 'Period'];
-        
+
         if (p === 'PM' && h !== 12) h += 12;
         if (p === 'AM' && h === 12) h = 0;
-        
+
         const time = h.toString().padStart(2, '0') + ':' + m;
-        
+
         const timeFieldMap = {
             'ytdlp': 'ytdlp_schedule_time',
+            'deno': 'deno_schedule_time',
             'duplicates': 'duplicates_schedule_time',
             'storage': 'storage_cleanup_schedule_time',
             'backup': 'database_backup_schedule_time',
@@ -85,7 +93,7 @@
             'thumbnail': 'thumbnail_regen_schedule_time',
             'import': 'import_scan_schedule_time'
         };
-        
+
         $wire.set('data.' + timeFieldMap[prefix], time);
     }
 }">
@@ -178,18 +186,18 @@
                         <x-filament::button wire:click="saveBackupSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
                         <x-filament::button wire:click="runBackup" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
                         <x-filament::button
-                            x-on:click="$dispatch('open-modal', { id: 'download-backups-modal' })" 
-                            icon="heroicon-m-arrow-down-tray" 
-                            color="gray" 
+                            x-on:click="$dispatch('open-modal', { id: 'download-backups-modal' })"
+                            icon="heroicon-m-arrow-down-tray"
+                            color="gray"
                             size="xs"
                             tooltip="Download Backups"
                         >
                             Download
                         </x-filament::button>
                         <x-filament::button
-                            x-on:click="$dispatch('open-modal', { id: 'restore-backup-modal' })" 
-                            icon="heroicon-m-arrow-up-tray" 
-                            color="warning" 
+                            x-on:click="$dispatch('open-modal', { id: 'restore-backup-modal' })"
+                            icon="heroicon-m-arrow-up-tray"
+                            color="warning"
                             size="xs"
                             tooltip="Restore from Backup"
                         >
@@ -398,6 +406,46 @@
                     </div>
                 </td>
             </tr>
+
+            {{-- Deno Update Row --}}
+            <tr>
+                <td class="align-middle py-3">
+                    <div class="font-medium text-gray-950 dark:text-white">Deno update</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Schedule automatic updates for Deno runtime.</div>
+                </td>
+                @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
+                <td class="text-center align-middle py-3">
+                    <input type="checkbox"
+                        wire:model="data.deno_day_{{ $day }}"
+                        class="fi-checkbox-input rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700">
+                </td>
+                @endforeach
+                <td class="align-middle py-3 px-2">
+                    <div class="flex items-center gap-1">
+                        <select x-model="denoHour" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @for($i = 1; $i <= 12; $i++)
+                                <option value="{{ $i }}">{{ $i }}</option>
+                                @endfor
+                        </select>
+                        <span class="text-gray-500 dark:text-gray-400">:</span>
+                        <select x-model="denoMinute" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @foreach(['00', '15', '30', '45'] as $min)
+                            <option value="{{ $min }}">{{ $min }}</option>
+                            @endforeach
+                        </select>
+                        <select x-model="denoPeriod" class="fi-select-input block w-16 py-2 px-2 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </td>
+                <td class="align-middle py-3">
+                    <div class="flex gap-1">
+                        <x-filament::button wire:click="saveDenoSchedule" icon="heroicon-m-check" color="success" size="xs">Save</x-filament::button>
+                        <x-filament::button wire:click="runDenoUpdate" icon="heroicon-m-play" size="xs">Run Now</x-filament::button>
+                    </div>
+                </td>
+            </tr>
         </tbody>
     </table>
 
@@ -472,8 +520,8 @@
             </div>
 
             <div wire:ignore>
-                <input 
-                    type="file" 
+                <input
+                    type="file"
                     accept=".sqlite,.sql,.db"
                     class="block w-full text-sm text-gray-500 dark:text-gray-400
                         file:mr-4 file:py-2 file:px-4

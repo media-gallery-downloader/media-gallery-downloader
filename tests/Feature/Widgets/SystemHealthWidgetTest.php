@@ -20,6 +20,7 @@ describe('SystemHealthWidget', function () {
         expect($data)->toHaveKey('app');
         expect($data)->toHaveKey('ytdlp');
         expect($data)->toHaveKey('ffmpeg');
+        expect($data)->toHaveKey('deno');
         expect($data)->toHaveKey('php');
         expect($data)->toHaveKey('disk');
         expect($data)->toHaveKey('last_runs');
@@ -52,6 +53,16 @@ describe('SystemHealthWidget', function () {
 
         expect($data['ffmpeg'])->toHaveKey('installed');
         expect($data['ffmpeg'])->toHaveKey('version');
+    });
+
+    it('returns deno info structure', function () {
+        $widget = new SystemHealthWidget;
+        $data = $widget->getHealthData();
+
+        expect($data['deno'])->toHaveKey('installed');
+        expect($data['deno'])->toHaveKey('current_version');
+        expect($data['deno'])->toHaveKey('latest_version');
+        expect($data['deno'])->toHaveKey('is_up_to_date');
     });
 
     it('returns php info structure', function () {

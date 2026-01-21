@@ -702,6 +702,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 This application automatically downloads and utilizes the following third-party software at runtime:
 
 - **yt-dlp**: Licensed under The Unlicense (Public Domain). Automatically downloaded from GitHub releases for media downloading functionality.
+- **Deno**: Licensed under MIT License. Automatically downloaded from GitHub releases for frontend build tooling.
 - **FFmpeg**: Licensed under LGPL v2.1+ (or GPL v2.1+ depending on build configuration). Installed via system package manager during container build.
 
 **Important**: These tools are not distributed with this application but are automatically obtained during installation/runtime. Users are responsible for:

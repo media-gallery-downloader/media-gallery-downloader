@@ -1,5 +1,6 @@
 @php
 $data = $this->getQueueData();
+$hasCompleted = ($data['stats']['completed'] ?? 0) > 0;
 @endphp
 
 <x-filament-widgets::widget>
@@ -7,7 +8,7 @@ $data = $this->getQueueData();
         <x-slot name="heading">
             <div class="flex items-center justify-between">
                 <span>Download Queue</span>
-                @if($data['stats']['completed'] > 0)
+                @if($hasCompleted)
                 <x-filament::button
                     wire:click="clearCompleted"
                     size="sm"
@@ -56,7 +57,7 @@ $data = $this->getQueueData();
                     </div>
                 </div>
                 <div class="flex items-center gap-2 ml-4">
-                    @switch($item['status'])
+                    @switch($item['status'] ?? 'queued')
                     @case('queued')
                     <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                         Queued
@@ -84,6 +85,10 @@ $data = $this->getQueueData();
                         Retry
                     </x-filament::button>
                     @break
+                    @default
+                    <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                        {{ $item['status'] ?? 'Unknown' }}
+                    </span>
                     @endswitch
                 </div>
             </div>

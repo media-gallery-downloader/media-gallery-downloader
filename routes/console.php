@@ -49,6 +49,16 @@ try {
         }
     );
 
+    // Schedule Deno update
+    $scheduleTask(
+        $settings->deno_schedule_days ?? [],
+        $settings->deno_schedule_time,
+        'update-deno',
+        function () {
+            app(MaintenanceService::class)->updateDeno();
+        }
+    );
+
     // Schedule duplicate removal
     $scheduleTask(
         $settings->duplicates_schedule_days ?? [],

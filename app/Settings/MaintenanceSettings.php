@@ -11,6 +11,11 @@ class MaintenanceSettings extends Settings
 
     public ?string $ytdlp_schedule_time;
 
+    // Deno Update Schedule
+    public array $deno_schedule_days;
+
+    public ?string $deno_schedule_time;
+
     // Duplicate Removal Schedule
     public array $duplicates_schedule_days;
 

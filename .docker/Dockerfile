@@ -130,10 +130,16 @@ RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy dom
     sed -i 's/<policy domain="resource" name="disk" value="1GiB"\/>/<policy domain="resource" name="disk" value="8GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
     sed -i 's/<policy domain="resource" name="area" value="128MB"\/>/<policy domain="resource" name="area" value="1GB"\/>/g' /etc/ImageMagick-6/policy.xml
 
-# Install yt-dlp (owned by app user for in-app updates)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+# Install yt-dlp nightly (owned by app user for in-app updates)
+RUN curl -L https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     ln -sf /usr/local/bin/yt-dlp /usr/bin/youtube-dl
+
+# Add deno for runtime use (owned by app user for in-app updates)
+RUN curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o /tmp/deno.zip && \
+    unzip -o /tmp/deno.zip -d /usr/local/bin && \
+    chmod a+rx /usr/local/bin/deno && \
+    rm /tmp/deno.zip
 
 # Copy and configure PHP
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
@@ -142,7 +148,7 @@ COPY .docker/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 # Create app user before copying files
 RUN groupadd -g 1000 app && \
     useradd -u 1000 -g app -m app && \
-    chown app:app /usr/local/bin/yt-dlp
+    chown app:app /usr/local/bin/yt-dlp /usr/local/bin/deno
 
 # Copy supervisor configuration
 COPY .docker/supervisord.conf /etc/supervisor/supervisord.conf
@@ -198,9 +204,8 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Add composer and deno for development
+# Add composer
 COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
-COPY --from=denoland/deno:bin-2.5.6 /deno /usr/bin/deno
 
 # Copy development PHP config (zzz prefix ensures it loads last and overrides)
 COPY .docker/php.dev.ini ${PHP_INI_DIR}/conf.d/zzz-dev.ini

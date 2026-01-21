@@ -1,5 +1,5 @@
 <div
-    x-data="{ 
+    x-data="{
         downloadQueue: @js($downloadQueue),
         currentDownloadId: @js($currentDownloadId)
     }"
@@ -16,14 +16,17 @@
 
     <div class="flex justify-between items-center mb-3">
         <h3 class="text-lg font-medium">Download Queue</h3>
-        <div class="flex gap-2" x-show="downloadQueue.length > 0">
+        @if(count($downloadQueue) > 0)
+        <div class="flex gap-2">
             <button
-                @click="$wire.clearQueue()"
+                wire:click="clearQueue"
                 title="Clear all downloads"
-                class="text-xs px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                style="color: #e5e7eb;"
+                class="text-xs font-medium px-3 py-1.5 rounded border border-gray-500 bg-gray-700 hover:bg-gray-600">
                 Clear All
             </button>
         </div>
+        @endif
     </div>
 
     <div x-show="downloadQueue.length === 0" class="text-sm text-gray-500 dark:text-gray-400 italic">

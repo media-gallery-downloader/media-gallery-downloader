@@ -102,6 +102,11 @@ class MaintenanceService
         return $this->mediaMaintenanceService->updateYtDlp();
     }
 
+    public function updateDeno(): bool
+    {
+        return $this->mediaMaintenanceService->updateDeno();
+    }
+
     public function regenerateThumbnails(): array
     {
         return $this->mediaMaintenanceService->regenerateThumbnails();

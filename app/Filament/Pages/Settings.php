@@ -37,6 +37,7 @@ class Settings extends Page implements HasForms
 
         $data = [
             'ytdlp_schedule_time' => $settings->ytdlp_schedule_time,
+            'deno_schedule_time' => $settings->deno_schedule_time ?? null,
             'duplicates_schedule_time' => $settings->duplicates_schedule_time,
             'storage_cleanup_schedule_time' => $settings->storage_cleanup_schedule_time ?? null,
             'database_backup_schedule_time' => $settings->database_backup_schedule_time ?? null,
@@ -56,6 +57,7 @@ class Settings extends Page implements HasForms
 
         foreach ($days as $day) {
             $data["ytdlp_day_{$day}"] = in_array($day, $settings->ytdlp_schedule_days ?? []);
+            $data["deno_day_{$day}"] = in_array($day, $settings->deno_schedule_days ?? []);
             $data["duplicates_day_{$day}"] = in_array($day, $settings->duplicates_schedule_days ?? []);
             $data["storage_day_{$day}"] = in_array($day, $settings->storage_cleanup_schedule_days ?? []);
             $data["backup_day_{$day}"] = in_array($day, $settings->database_backup_schedule_days ?? []);
@@ -106,6 +108,34 @@ class Settings extends Page implements HasForms
             $result = $service->updateYtDlp();
             if ($result) {
                 Notification::make()->title('yt-dlp is up to date')->success()->send();
+            } else {
+                Notification::make()->title('Update check failed')->warning()->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()->title('Error')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    // Deno methods
+    public function saveDenoSchedule(): void
+    {
+        $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        $settings = app(MaintenanceSettings::class);
+
+        $settings->deno_schedule_days = array_values(array_filter($days, fn ($day) => $this->data["deno_day_{$day}"] ?? false));
+        $settings->deno_schedule_time = $this->data['deno_schedule_time'] ?? null;
+        $settings->save();
+
+        Notification::make()->title('Deno schedule saved')->success()->send();
+    }
+
+    public function runDenoUpdate(): void
+    {
+        try {
+            $service = app(MaintenanceService::class);
+            $result = $service->updateDeno();
+            if ($result) {
+                Notification::make()->title('Deno is up to date')->success()->send();
             } else {
                 Notification::make()->title('Update check failed')->warning()->send();
             }

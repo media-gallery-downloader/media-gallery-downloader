@@ -15,8 +15,8 @@ services:
             LOG_CHANNEL: stack
             LOG_LEVEL: debug
             REDIS_HOST: valkey
-            # Disable all Laravel caching for development
-            CACHE_STORE: array
+            # Use Redis for cache so web and queue worker share state
+            CACHE_STORE: redis
             VIEW_COMPILED_PATH: /tmp/views
             SESSION_DRIVER: file
         extra_hosts:
