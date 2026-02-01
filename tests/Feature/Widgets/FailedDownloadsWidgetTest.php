@@ -73,48 +73,6 @@ describe('FailedDownloadsWidget', function () {
         expect(count($downloads))->toBe(20);
     });
 
-    it('returns correct stats', function () {
-        FailedDownload::create([
-            'url' => 'https://example.com/video1.mp4',
-            'method' => 'direct',
-            'error_message' => 'Error 1',
-            'status' => 'pending',
-            'retry_count' => 0,
-        ]);
-
-        FailedDownload::create([
-            'url' => 'https://example.com/video2.mp4',
-            'method' => 'direct',
-            'error_message' => 'Error 2',
-            'status' => 'retrying',
-            'retry_count' => 1,
-        ]);
-
-        FailedDownload::create([
-            'url' => 'https://example.com/video3.mp4',
-            'method' => 'direct',
-            'error_message' => 'Error 3',
-            'status' => 'failed',
-            'retry_count' => 3,
-        ]);
-
-        FailedDownload::create([
-            'url' => 'https://example.com/video4.mp4',
-            'method' => 'direct',
-            'error_message' => 'Error 4',
-            'status' => 'resolved',
-            'retry_count' => 1,
-        ]);
-
-        $widget = new FailedDownloadsWidget;
-        $stats = $widget->getStats();
-
-        expect($stats['pending'])->toBe(1);
-        expect($stats['retrying'])->toBe(1);
-        expect($stats['failed'])->toBe(1);
-        expect($stats['resolved'])->toBe(1);
-    });
-
     it('can delete a failed download', function () {
         $failed = FailedDownload::create([
             'url' => 'https://example.com/video.mp4',

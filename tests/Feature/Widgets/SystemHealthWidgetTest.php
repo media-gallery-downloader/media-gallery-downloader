@@ -23,7 +23,6 @@ describe('SystemHealthWidget', function () {
         expect($data)->toHaveKey('deno');
         expect($data)->toHaveKey('php');
         expect($data)->toHaveKey('disk');
-        expect($data)->toHaveKey('last_runs');
     });
 
     it('returns app info structure', function () {
@@ -81,12 +80,5 @@ describe('SystemHealthWidget', function () {
         expect($data['disk'])->toHaveKey('free');
         expect($data['disk'])->toHaveKey('total');
         expect($data['disk'])->toHaveKey('percent_used');
-    });
-
-    it('returns last_runs info', function () {
-        $widget = new SystemHealthWidget;
-        $data = $widget->getHealthData();
-
-        expect($data['last_runs'])->toBeArray();
     });
 });

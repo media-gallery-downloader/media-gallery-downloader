@@ -4,6 +4,7 @@ use App\Filament\Pages\Home;
 use App\Models\Media;
 use App\Services\DownloadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -13,6 +14,8 @@ uses(RefreshDatabase::class);
 describe('Home Page', function () {
     beforeEach(function () {
         Storage::fake('public');
+        // Clear download queue cache to ensure test isolation
+        Cache::forget('download_queue');
     });
 
     it('can render the home page', function () {

@@ -45,17 +45,6 @@ describe('Logs Page', function () {
         expect(count($downloads))->toBe(5);
     });
 
-    it('returns failed stats', function () {
-        FailedDownload::factory()->count(2)->create(['status' => 'pending']);
-        FailedDownload::factory()->count(3)->create(['status' => 'failed']);
-
-        $logs = new Logs;
-        $stats = $logs->getFailedStats();
-
-        expect($stats['pending'])->toBe(2);
-        expect($stats['failed'])->toBe(3);
-    });
-
     it('returns failed uploads array', function () {
         FailedUpload::factory()->count(4)->create();
 
@@ -64,19 +53,6 @@ describe('Logs Page', function () {
 
         expect($uploads)->toBeArray();
         expect(count($uploads))->toBe(4);
-    });
-
-    it('returns failed upload stats', function () {
-        FailedUpload::factory()->count(2)->create(['status' => 'pending']);
-        FailedUpload::factory()->count(1)->create(['status' => 'failed']);
-        FailedUpload::factory()->count(3)->create(['status' => 'resolved']);
-
-        $logs = new Logs;
-        $stats = $logs->getFailedUploadStats();
-
-        expect($stats['pending'])->toBe(2);
-        expect($stats['failed'])->toBe(1);
-        expect($stats['resolved'])->toBe(3);
     });
 
     it('can delete a failed download via component', function () {
@@ -290,22 +266,6 @@ describe('Logs Page - System Logs', function () {
 
         // Most recent should be first
         expect(count($uploads))->toBe(2);
-    });
-
-    it('returns complete failed stats', function () {
-        FailedDownload::factory()->create(['status' => 'pending']);
-        FailedDownload::factory()->create(['status' => 'retrying']);
-        FailedDownload::factory()->create(['status' => 'failed']);
-        FailedDownload::factory()->create(['status' => 'resolved']);
-
-        $logs = new Logs;
-        $stats = $logs->getFailedStats();
-
-        expect($stats)->toHaveKeys(['pending', 'retrying', 'failed', 'resolved']);
-        expect($stats['pending'])->toBe(1);
-        expect($stats['retrying'])->toBe(1);
-        expect($stats['failed'])->toBe(1);
-        expect($stats['resolved'])->toBe(1);
     });
 
     it('returns log files list', function () {

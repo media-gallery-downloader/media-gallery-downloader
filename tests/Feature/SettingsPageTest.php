@@ -164,20 +164,11 @@ describe('Settings Page - Run Actions', function () {
     });
 
     it('can run log rotation', function () {
-        // Set retention to 0 days to ensure files get deleted
-        $settings = app(MaintenanceSettings::class);
-        $settings->log_retention_days = 0;
-        $settings->save();
-
-        $logDir = storage_path('logs');
-        if (! File::exists($logDir)) {
-            File::makeDirectory($logDir, 0755, true);
-        }
-
-        // Create an old log file with old modification time
-        $oldLog = $logDir.'/old.log';
-        File::put($oldLog, 'old log content');
-        touch($oldLog, strtotime('-30 days'));
+        // Mock the MaintenanceService to avoid deleting real log files
+        $this->mock(MaintenanceService::class)
+            ->shouldReceive('rotateLogs')
+            ->once()
+            ->andReturn(1);
 
         $component = Livewire::test(Settings::class)
             ->call('runLogRotation');

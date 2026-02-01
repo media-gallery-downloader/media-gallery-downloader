@@ -3,10 +3,16 @@
 use App\Filament\Widgets\DownloadQueueWidget;
 use App\Services\DownloadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // Clear download queue cache to ensure test isolation
+    Cache::forget('download_queue');
+});
 
 describe('DownloadQueueWidget', function () {
     it('renders successfully', function () {
