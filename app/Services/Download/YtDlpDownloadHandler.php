@@ -3,6 +3,7 @@
 namespace App\Services\Download;
 
 use App\Models\Media;
+use App\Settings\MaintenanceSettings;
 use Symfony\Component\Process\Process;
 
 /**
@@ -154,9 +155,44 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
             $command[] = config('mgd.video_quality.sub_lang', 'en');
         }
 
+        // Add user-configured extra arguments from settings
+        $command = array_merge($command, $this->getExtraArguments());
+
         $command[] = $url;
 
         return $command;
+    }
+
+    /**
+     * Get extra arguments configured in settings
+     */
+    protected function getExtraArguments(): array
+    {
+        $args = [];
+
+        try {
+            $settings = app(MaintenanceSettings::class);
+            $extraArgs = $settings->ytdlp_extra_args ?? '';
+
+            if (! empty($extraArgs)) {
+                // Split by newlines and filter empty lines
+                $lines = array_filter(
+                    array_map('trim', explode("\n", $extraArgs)),
+                    fn ($line) => ! empty($line) && ! str_starts_with($line, '#')
+                );
+
+                foreach ($lines as $line) {
+                    // Handle arguments that may contain spaces (e.g., "--output /path/to/file")
+                    // by using preg_split to respect quoted strings
+                    $parts = preg_split('/\s+/', $line, -1, PREG_SPLIT_NO_EMPTY);
+                    $args = array_merge($args, $parts);
+                }
+            }
+        } catch (\Exception $e) {
+            // If settings aren't available, just continue without extra args
+        }
+
+        return $args;
     }
 
     /**

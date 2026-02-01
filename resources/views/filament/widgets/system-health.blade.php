@@ -79,7 +79,15 @@
                     @if($ytdlpData['is_up_to_date'])
                     <span class="text-success-500">✓ Up to date</span>
                     @else
-                    <span class="text-warning-500">Update available</span>
+                    <div class="mt-2">
+                        <x-filament::button
+                            wire:click="updateYtdlp"
+                            size="xs"
+                            color="warning"
+                            icon="heroicon-m-arrow-up-circle">
+                            Update Now
+                        </x-filament::button>
+                    </div>
                     @endif
                     @endif
                 </div>
@@ -148,7 +156,15 @@
                     @if($denoData['is_up_to_date'])
                     <span class="text-success-500">✓ Up to date</span>
                     @else
-                    <span class="text-warning-500">Update available</span>
+                    <div class="mt-2">
+                        <x-filament::button
+                            wire:click="updateDeno"
+                            size="xs"
+                            color="warning"
+                            icon="heroicon-m-arrow-up-circle">
+                            Update Now
+                        </x-filament::button>
+                    </div>
                     @endif
                     @endif
                 </div>
@@ -240,43 +256,5 @@
             </div>
         </div>
 
-        {{-- Last Run Times --}}
-        @if($lastRunsData && array_filter($lastRunsData))
-        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h4 class="font-medium text-gray-900 dark:text-white mb-2">Last Maintenance Runs</h4>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                @if($lastRunsData['ytdlp_update'] ?? null)
-                <div>
-                    <span class="text-gray-500 dark:text-gray-400">yt-dlp Update:</span>
-                    <div class="text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($lastRunsData['ytdlp_update'])->diffForHumans() }}</div>
-                </div>
-                @endif
-                @if($lastRunsData['deno_update'] ?? null)
-                <div>
-                    <span class="text-gray-500 dark:text-gray-400">Deno Update:</span>
-                    <div class="text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($lastRunsData['deno_update'])->diffForHumans() }}</div>
-                </div>
-                @endif
-                @if($lastRunsData['duplicate_removal'] ?? null)
-                <div>
-                    <span class="text-gray-500 dark:text-gray-400">Duplicate Removal:</span>
-                    <div class="text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($lastRunsData['duplicate_removal'])->diffForHumans() }}</div>
-                </div>
-                @endif
-                @if($lastRunsData['storage_cleanup'] ?? null)
-                <div>
-                    <span class="text-gray-500 dark:text-gray-400">Storage Cleanup:</span>
-                    <div class="text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($lastRunsData['storage_cleanup'])->diffForHumans() }}</div>
-                </div>
-                @endif
-                @if($lastRunsData['database_backup'] ?? null)
-                <div>
-                    <span class="text-gray-500 dark:text-gray-400">Database Backup:</span>
-                    <div class="text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($lastRunsData['database_backup'])->diffForHumans() }}</div>
-                </div>
-                @endif
-            </div>
-        </div>
-        @endif
     </x-filament::section>
 </x-filament-widgets::widget>

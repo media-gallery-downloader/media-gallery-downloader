@@ -24,16 +24,6 @@ class FailedDownloadsWidget extends Widget
             ->toArray();
     }
 
-    public function getStats(): array
-    {
-        return [
-            'pending' => FailedDownload::where('status', 'pending')->count(),
-            'retrying' => FailedDownload::where('status', 'retrying')->count(),
-            'failed' => FailedDownload::where('status', 'failed')->count(),
-            'resolved' => FailedDownload::where('status', 'resolved')->count(),
-        ];
-    }
-
     public function retryDownload(int $id): void
     {
         $failed = FailedDownload::find($id);

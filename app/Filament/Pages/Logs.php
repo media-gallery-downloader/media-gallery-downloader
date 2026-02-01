@@ -46,16 +46,6 @@ class Logs extends Page implements HasForms
             ->toArray();
     }
 
-    public function getFailedStats(): array
-    {
-        return [
-            'pending' => FailedDownload::where('status', 'pending')->count(),
-            'retrying' => FailedDownload::where('status', 'retrying')->count(),
-            'failed' => FailedDownload::where('status', 'failed')->count(),
-            'resolved' => FailedDownload::where('status', 'resolved')->count(),
-        ];
-    }
-
     public function retryDownload(int $id): void
     {
         $failed = FailedDownload::find($id);
@@ -134,15 +124,6 @@ class Logs extends Page implements HasForms
             ->take(20)
             ->get()
             ->toArray();
-    }
-
-    public function getFailedUploadStats(): array
-    {
-        return [
-            'pending' => FailedUpload::where('status', 'pending')->count(),
-            'failed' => FailedUpload::where('status', 'failed')->count(),
-            'resolved' => FailedUpload::where('status', 'resolved')->count(),
-        ];
     }
 
     public function deleteUpload(int $id): void

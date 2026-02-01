@@ -19,6 +19,8 @@ class ProcessDownloadJob implements ShouldQueue
 
     public $timeout = 300; // 5 minutes
 
+    public $tries = 1; // Single attempt, failures are logged for manual retry
+
     public function __construct(
         public string $url,
         public string $downloadId
@@ -103,7 +105,7 @@ class ProcessDownloadJob implements ShouldQueue
 
         $downloadService->updateStatus($this->downloadId, 'failed', ['error' => $e->getMessage()]);
 
-        // Log to failed downloads table for retry
+        // Log to failed downloads table for manual retry
         FailedDownload::create([
             'url' => $this->url,
             'method' => 'yt-dlp',

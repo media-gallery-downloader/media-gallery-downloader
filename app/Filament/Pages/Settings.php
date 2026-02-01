@@ -36,6 +36,7 @@ class Settings extends Page implements HasForms
         $days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         $data = [
+            'ytdlp_extra_args' => $settings->ytdlp_extra_args ?? '',
             'ytdlp_schedule_time' => $settings->ytdlp_schedule_time,
             'deno_schedule_time' => $settings->deno_schedule_time ?? null,
             'duplicates_schedule_time' => $settings->duplicates_schedule_time,
@@ -99,6 +100,17 @@ class Settings extends Page implements HasForms
         $settings->save();
 
         Notification::make()->title('yt-dlp schedule saved')->success()->send();
+    }
+
+    // Configuration methods
+    public function saveConfiguration(): void
+    {
+        $settings = app(MaintenanceSettings::class);
+
+        $settings->ytdlp_extra_args = $this->data['ytdlp_extra_args'] ?? '';
+        $settings->save();
+
+        Notification::make()->title('Configuration saved')->success()->send();
     }
 
     public function runYtdlpUpdate(): void
@@ -737,8 +749,29 @@ class Settings extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form->schema([
+            Section::make('Configuration')
+                ->description('Configure download settings.')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\Textarea::make('ytdlp_extra_args')
+                        ->label('yt-dlp Extra Arguments')
+                        ->helperText(new \Illuminate\Support\HtmlString('Additional command line arguments to pass to yt-dlp when downloading. One argument per line (e.g., --geo-bypass or --limit-rate 1M). See <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">yt-dlp documentation</a> for available options.'))
+                        ->placeholder("--geo-bypass\n--limit-rate 1M")
+                        ->rows(4)
+                        ->columnSpanFull(),
+
+                    Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('save_configuration')
+                            ->label('Save Configuration')
+                            ->icon('heroicon-m-check')
+                            ->color('success')
+                            ->action('saveConfiguration'),
+                    ])->alignRight(),
+                ])
+                ->columnSpanFull(),
+
             Section::make('Maintenance')
-                ->description('Schedule system maintenance tasks.')
+                ->description('Run or schedule system maintenance tasks.')
                 ->collapsible()
                 ->collapsed()
                 ->schema([

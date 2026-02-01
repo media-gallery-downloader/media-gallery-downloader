@@ -11,6 +11,9 @@ class MaintenanceSettings extends Settings
 
     public ?string $ytdlp_schedule_time;
 
+    // yt-dlp Extra Arguments
+    public string $ytdlp_extra_args;
+
     // Deno Update Schedule
     public array $deno_schedule_days;
 

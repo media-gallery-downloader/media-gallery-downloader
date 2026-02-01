@@ -151,7 +151,7 @@ class UpdaterService
     /**
      * Download and install the latest version of Deno
      */
-    private function downloadAndInstallDeno(): bool
+    public function downloadAndInstallDeno(): bool
     {
         $denoPath = '/usr/local/bin/deno';
         $tempDir = storage_path('app/temp');
@@ -322,7 +322,7 @@ class UpdaterService
     /**
      * Download and install the latest version of yt-dlp
      */
-    private function downloadAndInstallYtdlp(): bool
+    public function downloadAndInstallYtdlp(): bool
     {
         // Find yt-dlp location
         $whichProcess = new Process(['which', 'yt-dlp']);
@@ -361,20 +361,41 @@ class UpdaterService
             return false;
         }
 
-        // Move to yt-dlp location (app user should own this file)
+        // Make temp file executable first
+        @chmod($tempFile, 0755);
+
+        // Copy contents to yt-dlp location (preserves ownership, works even if owned by root)
         $updateProcess = new Process([
-            'mv',
+            'cp',
+            '--no-preserve=mode,ownership',
             $tempFile,
             $ytdlpPath,
         ]);
         $updateProcess->run();
 
+        // If cp fails (e.g., permission denied), try writing directly
         if (! $updateProcess->isSuccessful()) {
-            Log::warning('Failed to update yt-dlp: '.$updateProcess->getErrorOutput());
-            @unlink($tempFile);
+            Log::info('Standard copy failed, attempting direct file write...');
 
-            return false;
+            $contents = file_get_contents($tempFile);
+            if ($contents === false) {
+                Log::warning('Failed to read downloaded yt-dlp file');
+                @unlink($tempFile);
+
+                return false;
+            }
+
+            $written = @file_put_contents($ytdlpPath, $contents);
+            if ($written === false) {
+                Log::warning('Failed to update yt-dlp: Permission denied. The yt-dlp binary may need to be updated manually or container rebuilt.');
+                @unlink($tempFile);
+
+                return false;
+            }
         }
+
+        // Cleanup temp file
+        @unlink($tempFile);
 
         // Make executable
         $chmodProcess = new Process(['chmod', 'a+rx', $ytdlpPath]);

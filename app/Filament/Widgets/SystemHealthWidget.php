@@ -28,14 +28,11 @@ class SystemHealthWidget extends Widget
 
     public ?array $diskData = null;
 
-    public ?array $lastRunsData = null;
-
     public function mount(): void
     {
         // Load fast data immediately
         $this->phpData = $this->getPhpInfo();
         $this->diskData = $this->getDiskInfo();
-        $this->lastRunsData = $this->getLastRunTimes();
     }
 
     public function loadAppData(): void
@@ -58,6 +55,94 @@ class SystemHealthWidget extends Widget
         $this->denoData = Cache::remember('health_deno_data', 300, fn () => $this->getDenoInfo());
     }
 
+    public function updateYtdlp(): void
+    {
+        try {
+            $updater = app(\App\Services\UpdaterService::class);
+            $previousVersion = $this->ytdlpData['current_version'] ?? null;
+
+            $result = $updater->downloadAndInstallYtdlp();
+
+            if ($result) {
+                // Clear the cache to get fresh version info
+                Cache::forget('health_ytdlp_data');
+                $this->ytdlpData = $this->getYtdlpInfo();
+
+                $newVersion = $this->ytdlpData['current_version'] ?? null;
+
+                if ($previousVersion && $newVersion && $previousVersion !== $newVersion) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('yt-dlp Updated')
+                        ->body("Successfully updated from {$previousVersion} to {$newVersion}")
+                        ->success()
+                        ->send();
+                } else {
+                    \Filament\Notifications\Notification::make()
+                        ->title('yt-dlp Update Complete')
+                        ->body('yt-dlp has been updated successfully.')
+                        ->success()
+                        ->send();
+                }
+            } else {
+                \Filament\Notifications\Notification::make()
+                    ->title('Update Failed')
+                    ->body('Failed to update yt-dlp. Check the logs for more information.')
+                    ->danger()
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            \Filament\Notifications\Notification::make()
+                ->title('Update Error')
+                ->body('An error occurred: '.$e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function updateDeno(): void
+    {
+        try {
+            $updater = app(\App\Services\UpdaterService::class);
+            $previousVersion = $this->denoData['current_version'] ?? null;
+
+            $result = $updater->downloadAndInstallDeno();
+
+            if ($result) {
+                // Clear the cache to get fresh version info
+                Cache::forget('health_deno_data');
+                $this->denoData = $this->getDenoInfo();
+
+                $newVersion = $this->denoData['current_version'] ?? null;
+
+                if ($previousVersion && $newVersion && $previousVersion !== $newVersion) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Deno Updated')
+                        ->body("Successfully updated from {$previousVersion} to {$newVersion}")
+                        ->success()
+                        ->send();
+                } else {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Deno Update Complete')
+                        ->body('Deno has been updated successfully.')
+                        ->success()
+                        ->send();
+                }
+            } else {
+                \Filament\Notifications\Notification::make()
+                    ->title('Update Failed')
+                    ->body('Failed to update Deno. Check the logs for more information.')
+                    ->danger()
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            \Filament\Notifications\Notification::make()
+                ->title('Update Error')
+                ->body('An error occurred: '.$e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
     public function getHealthData(): array
     {
         return Cache::remember('system_health_data', 300, function () {
@@ -68,7 +153,6 @@ class SystemHealthWidget extends Widget
                 'deno' => $this->getDenoInfo(),
                 'php' => $this->getPhpInfo(),
                 'disk' => $this->getDiskInfo(),
-                'last_runs' => $this->getLastRunTimes(),
             ];
         });
     }
@@ -244,17 +328,6 @@ class SystemHealthWidget extends Widget
         ];
     }
 
-    protected function getLastRunTimes(): array
-    {
-        return [
-            'ytdlp_update' => Cache::get('last_ytdlp_update'),
-            'deno_update' => Cache::get('last_deno_update'),
-            'duplicate_removal' => Cache::get('last_duplicate_removal'),
-            'storage_cleanup' => Cache::get('last_storage_cleanup'),
-            'database_backup' => Cache::get('last_database_backup'),
-        ];
-    }
-
     public function refreshHealth(): void
     {
         Cache::forget('system_health_data');
@@ -272,7 +345,6 @@ class SystemHealthWidget extends Widget
         // Reload fast data immediately
         $this->phpData = $this->getPhpInfo();
         $this->diskData = $this->getDiskInfo();
-        $this->lastRunsData = $this->getLastRunTimes();
 
         $this->dispatch('$refresh');
     }

@@ -26,6 +26,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->spa()
             ->sidebarCollapsibleOnDesktop()
+            ->font(false)
             ->colors([
                 'primary' => Color::Blue,
             ])
@@ -43,7 +44,7 @@ class AdminPanelProvider extends PanelProvider
                         background-color: #4b5563 !important;
                         color: white !important;
                     }
-                    
+
                     /* Fix mobile hamburger menu hover states */
                     .fi-sidebar-nav-item:hover,
                     .fi-sidebar-nav-item:focus,
@@ -54,14 +55,14 @@ class AdminPanelProvider extends PanelProvider
                         background-color: #374151 !important;
                         color: white !important;
                     }
-                    
+
                     /* Ensure text is readable on hover in dark mode navigation */
                     .dark .fi-sidebar-nav a:hover,
                     .dark .fi-sidebar a:hover {
                         background-color: #4b5563 !important;
                         color: white !important;
                     }
-                    
+
                     /* Fix dropdown/popover menu items */
                     .fi-dropdown-list-item:hover,
                     .fi-dropdown-list-item:focus,
@@ -70,7 +71,7 @@ class AdminPanelProvider extends PanelProvider
                         background-color: #374151 !important;
                         color: white !important;
                     }
-                    
+
                     /* Ensure child elements also have readable text */
                     .fi-dropdown-list-item:hover *,
                     [role="menuitem"]:hover * {

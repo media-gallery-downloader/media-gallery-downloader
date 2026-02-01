@@ -19,6 +19,8 @@ class ProcessUploadJob implements ShouldQueue
 
     public $timeout = 3600; // 1 hour for large archives
 
+    public $tries = 1; // Single attempt, failures are logged for manual retry
+
     private ?string $extractDir = null;
 
     public function __construct(
