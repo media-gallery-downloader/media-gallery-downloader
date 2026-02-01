@@ -249,6 +249,45 @@ Age-restricted videos should now download successfully.
 
 **Note**: Cookies may expire over time. If age-restricted downloads start failing, export fresh cookies from your browser and upload them again.
 
+## yt-dlp Configuration
+
+The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download media from various online platforms. You can customize the download behavior by passing additional command line arguments.
+
+### Configuring Extra Arguments
+
+1. Navigate to **Settings** in the application
+2. Expand the **Configuration** section
+3. In the **yt-dlp extra arguments** field, enter any additional arguments you want to pass to yt-dlp
+4. Click **Save**
+
+### Example Configurations
+
+**Limit download speed:**
+
+```text
+--limit-rate 5M
+```
+
+**Download specific format:**
+
+```text
+-f "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+```
+
+**Use a proxy:**
+
+```text
+--proxy socks5://127.0.0.1:1080
+```
+
+**Multiple arguments:**
+
+```text
+--limit-rate 5M --sleep-interval 5 --max-sleep-interval 30
+```
+
+For a complete list of available options, see the [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp#usage-and-options).
+
 ## Bulk Import
 
 The bulk import feature allows you to import large numbers of video files directly from a directory, bypassing the web upload interface. This is ideal for migrating existing video collections or importing files that are too large to upload through a browser.
