@@ -58,7 +58,7 @@ $media = $query->paginate($perPage);
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Sort by:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}&search={{ urlencode($search) }}`"
+                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}&search={{ urlencode($search ?? '') }}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach($sortOptions as $value => $label)
                 <option value="{{ $value }}" {{ $sort === $value ? 'selected' : '' }}>
@@ -70,7 +70,7 @@ $media = $query->paginate($perPage);
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200 ml-2">Show:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}&search={{ urlencode($search) }}`"
+                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}&search={{ urlencode($search ?? '') }}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach([10, 20, 50, 100] as $value)
                 <option value="{{ $value }}" {{ $perPage == $value ? 'selected' : '' }}>

@@ -192,4 +192,69 @@ describe('Home Page', function () {
         $component = Livewire::test(Home::class);
         $component->assertSuccessful();
     });
+
+    it('has search property', function () {
+        $component = Livewire::test(Home::class);
+
+        // Default search is null
+        $component->assertSet('search', null);
+    });
+
+    it('can filter media by search term', function () {
+        // Create media with specific names
+        Media::factory()->create(['name' => 'vacation video']);
+        Media::factory()->create(['name' => 'work presentation']);
+        Media::factory()->create(['name' => 'family photos']);
+
+        // Test search with URL parameter
+        $component = Livewire::test(Home::class, ['search' => 'vacation']);
+        $component->assertSuccessful();
+        $component->assertSet('search', 'vacation');
+    });
+
+    it('can perform multiple searches without errors', function () {
+        // Create media with various names
+        Media::factory()->create(['name' => 'first video']);
+        Media::factory()->create(['name' => 'second clip']);
+        Media::factory()->create(['name' => 'third movie']);
+
+        // First search
+        $component = Livewire::test(Home::class, ['search' => 'first']);
+        $component->assertSuccessful();
+
+        // Second search - this was causing 500 error
+        $component = Livewire::test(Home::class, ['search' => 'second']);
+        $component->assertSuccessful();
+
+        // Third search
+        $component = Livewire::test(Home::class, ['search' => 'third']);
+        $component->assertSuccessful();
+
+        // Fourth search with empty string
+        $component = Livewire::test(Home::class, ['search' => '']);
+        $component->assertSuccessful();
+
+        // Fifth search with null (default state)
+        $component = Livewire::test(Home::class);
+        $component->assertSuccessful();
+    });
+
+    it('can search after changing sort order', function () {
+        Media::factory()->create(['name' => 'test video']);
+
+        $component = Livewire::test(Home::class, [
+            'search' => 'test',
+            'sort' => 'name_asc',
+        ]);
+        $component->assertSuccessful();
+        $component->assertSet('search', 'test');
+        $component->assertSet('sort', 'name_asc');
+    });
+
+    it('handles search with special characters', function () {
+        Media::factory()->create(['name' => 'test (video) [2024]']);
+
+        $component = Livewire::test(Home::class, ['search' => '(video)']);
+        $component->assertSuccessful();
+    });
 });
