@@ -1,11 +1,9 @@
 <?php
 
 use App\Services\DownloadService;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-beforeEach(function () {
-    Cache::forget('download_queue');
-});
+uses(RefreshDatabase::class);
 
 describe('DownloadService', function () {
     it('validates valid URLs', function () {

@@ -9,6 +9,9 @@ class ArchiveExtractor
 {
     protected string $extractDir;
 
+    /** Max total uncompressed size in bytes (0 = unlimited). Zip-bomb guard. */
+    protected int $maxBytes = 0;
+
     /**
      * Extract an archive to a directory
      *
@@ -20,6 +23,7 @@ class ArchiveExtractor
     public function extract(string $filePath, string $extractDir): void
     {
         $this->extractDir = $extractDir;
+        $this->maxBytes = (int) config('mgd.downloads.max_archive_bytes', 0);
         $extension = $this->getExtension($filePath);
 
         match ($extension) {
@@ -57,6 +61,18 @@ class ArchiveExtractor
         if ($zip->open($filePath) !== true) {
             throw new \Exception('Failed to open ZIP archive');
         }
+
+        // Zip-bomb guard: the central directory reports uncompressed sizes, so we
+        // can reject before writing anything to disk.
+        $total = 0;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            if ($stat !== false) {
+                $total += (int) $stat['size'];
+            }
+        }
+        $this->assertWithinLimit($total);
+
         $zip->extractTo($this->extractDir);
         $zip->close();
     }
@@ -67,6 +83,7 @@ class ArchiveExtractor
     protected function extractTar(string $filePath): void
     {
         $phar = new \PharData($filePath);
+        $this->assertPharWithinLimit($phar);
         $phar->extractTo($this->extractDir);
     }
 
@@ -82,6 +99,7 @@ class ArchiveExtractor
 
         if (file_exists($tarPath)) {
             $tar = new \PharData($tarPath);
+            $this->assertPharWithinLimit($tar);
             $tar->extractTo($this->extractDir);
             @unlink($tarPath);
         }
@@ -99,6 +117,7 @@ class ArchiveExtractor
 
         if (file_exists($tarPath)) {
             $tar = new \PharData($tarPath);
+            $this->assertPharWithinLimit($tar);
             $tar->extractTo($this->extractDir);
             @unlink($tarPath);
         }
@@ -134,17 +153,24 @@ class ArchiveExtractor
         if ($returnCode !== 0) {
             throw new \Exception('Failed to extract 7z archive: '.implode("\n", $output));
         }
+
+        // External extractors don't expose sizes cheaply up front, so enforce
+        // the limit on the extracted result (the caller cleans up on failure).
+        $this->assertWithinLimit($this->directorySize($this->extractDir));
     }
 
     /**
-     * Extract RAR archive (requires unrar)
+     * Extract RAR archive (requires unar / The Unarchiver)
      */
     protected function extractRar(string $filePath): void
     {
+        // The image installs `unar` (The Unarchiver), not `unrar`. unar handles
+        // RAR (and other formats); -no-directory extracts the contents directly
+        // into the target without an enclosing folder.
         $command = sprintf(
-            'unrar x -o+ %s %s 2>&1',
-            escapeshellarg($filePath),
-            escapeshellarg($this->extractDir.'/')
+            'unar -quiet -no-directory -force-overwrite -output-directory %s %s 2>&1',
+            escapeshellarg($this->extractDir),
+            escapeshellarg($filePath)
         );
 
         exec($command, $output, $returnCode);
@@ -152,6 +178,58 @@ class ArchiveExtractor
         if ($returnCode !== 0) {
             throw new \Exception('Failed to extract RAR archive: '.implode("\n", $output));
         }
+
+        $this->assertWithinLimit($this->directorySize($this->extractDir));
+    }
+
+    /**
+     * Throw if the given byte count exceeds the configured archive size limit.
+     */
+    protected function assertWithinLimit(int $bytes): void
+    {
+        if ($this->maxBytes > 0 && $bytes > $this->maxBytes) {
+            throw new \Exception('Archive exceeds the maximum allowed uncompressed size.');
+        }
+    }
+
+    /**
+     * Sum the uncompressed sizes reported by a PharData archive, aborting as soon
+     * as the limit is exceeded.
+     */
+    protected function assertPharWithinLimit(\PharData $phar): void
+    {
+        if ($this->maxBytes <= 0) {
+            return;
+        }
+
+        $total = 0;
+        foreach (new \RecursiveIteratorIterator($phar) as $file) {
+            $total += $file->getSize();
+            $this->assertWithinLimit($total);
+        }
+    }
+
+    /**
+     * Total size in bytes of all files within a directory tree.
+     */
+    protected function directorySize(string $dir): int
+    {
+        if (! is_dir($dir)) {
+            return 0;
+        }
+
+        $size = 0;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+            }
+        }
+
+        return $size;
     }
 
     /**

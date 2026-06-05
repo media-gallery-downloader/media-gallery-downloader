@@ -17,7 +17,7 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
      */
     protected function createTempDirectory(string $prefix): string
     {
-        $tempDir = storage_path("app/temp/{$prefix}_".uniqid());
+        $tempDir = storage_path("app/temp/{$prefix}_".Str::uuid()->toString());
         if (! file_exists($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
@@ -81,14 +81,10 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
             'source' => $sourceUrl,
         ]);
 
-        // Generate thumbnail if needed
+        // Generate thumbnail off the critical path so a slow ffmpeg run doesn't
+        // hold up download completion.
         if ($media->needsThumbnail()) {
-            $thumbnailService = app(\App\Services\ThumbnailService::class);
-            $thumbnailPath = $thumbnailService->generateThumbnail($path, $mimeType);
-
-            if ($thumbnailPath) {
-                $media->update(['thumbnail_path' => $thumbnailPath]);
-            }
+            \App\Jobs\GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
         }
 
         return $media;

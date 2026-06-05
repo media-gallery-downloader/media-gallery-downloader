@@ -34,6 +34,9 @@ class DirectDownloadHandler extends BaseDownloadHandler
                 throw new \Exception('Invalid URL provided');
             }
 
+            // SSRF guard: reject private/reserved targets before any network call.
+            $this->assertPublicUrl($url);
+
             // Determine filename
             $originalFilename = $this->determineFilename($url);
 
@@ -97,14 +100,109 @@ class DirectDownloadHandler extends BaseDownloadHandler
      */
     protected function downloadFile(string $url, string $outputPath): void
     {
+        $maxBytes = (int) config('mgd.downloads.max_download_bytes', 0);
+
         $response = Http::withOptions([
             'sink' => $outputPath,
             'timeout' => $this->timeout,
+            // Re-validate every redirect hop so a public URL can't bounce us to
+            // an internal address (SSRF via redirect).
+            'allow_redirects' => [
+                'max' => 5,
+                'strict' => true,
+                'referer' => false,
+                'protocols' => ['http', 'https'],
+                'on_redirect' => function ($request, $response, $uri) {
+                    $this->assertPublicUrl((string) $uri);
+                },
+            ],
+            // Abort early if the server advertises a body larger than the cap.
+            'on_headers' => function ($response) use ($maxBytes) {
+                if ($maxBytes > 0) {
+                    $length = (int) ($response->getHeaderLine('Content-Length'));
+                    if ($length > $maxBytes) {
+                        throw new \Exception('File exceeds the maximum allowed download size.');
+                    }
+                }
+            },
         ])->get($url);
 
         if ($response->failed()) {
             throw new \Exception('Error downloading file. Status: '.$response->status());
         }
+
+        // Servers that omit Content-Length can still overshoot the cap.
+        if ($maxBytes > 0 && filesize($outputPath) > $maxBytes) {
+            @unlink($outputPath);
+            throw new \Exception('File exceeds the maximum allowed download size.');
+        }
+    }
+
+    /**
+     * Guard against SSRF: refuse to fetch URLs that resolve to private,
+     * loopback, link-local or otherwise reserved IP ranges (e.g. cloud metadata
+     * endpoints like 169.254.169.254, or internal services on the Docker
+     * network).
+     *
+     * Note: this resolves DNS at check time; it does not fully protect against
+     * DNS-rebinding (a TOCTOU between this check and the connection). For this
+     * app's threat model (admin-entered URLs on a private network) that residual
+     * risk is acceptable.
+     */
+    protected function assertPublicUrl(string $url): void
+    {
+        if (! config('mgd.downloads.block_private_hosts', true)) {
+            return;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+        if (empty($host)) {
+            throw new \Exception('Refusing to download: URL has no host.');
+        }
+
+        $ips = $this->resolveHostIps($host);
+        if (empty($ips)) {
+            throw new \Exception("Refusing to download: could not resolve host '{$host}'.");
+        }
+
+        foreach ($ips as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw new \Exception("Refusing to download from a private or reserved address ({$ip}).");
+            }
+        }
+    }
+
+    /**
+     * Resolve a host to all of its candidate IP addresses (IPv4 + IPv6). If the
+     * host is already an IP literal it is returned as-is.
+     *
+     * @return string[]
+     */
+    protected function resolveHostIps(string $host): array
+    {
+        $host = trim($host, '[]'); // strip brackets from IPv6 literals like [::1]
+
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return [$host];
+        }
+
+        $ips = [];
+
+        $v4 = @gethostbynamel($host);
+        if (is_array($v4)) {
+            $ips = array_merge($ips, $v4);
+        }
+
+        $v6 = @dns_get_record($host, DNS_AAAA);
+        if (is_array($v6)) {
+            foreach ($v6 as $record) {
+                if (! empty($record['ipv6'])) {
+                    $ips[] = $record['ipv6'];
+                }
+            }
+        }
+
+        return array_values(array_unique($ips));
     }
 
     /**

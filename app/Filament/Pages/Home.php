@@ -204,6 +204,19 @@ class Home extends Page implements HasForms
 
     public function getPollingInterval(): ?string
     {
-        return '2s'; // Reduced from 1s to be less aggressive
+        // Each poll re-runs the full gallery query, so only poll quickly while
+        // there is active work; back off substantially when the queues are idle.
+        $items = array_merge(
+            app(DownloadService::class)->getQueue(),
+            app(UploadService::class)->getQueue(),
+        );
+
+        foreach ($items as $item) {
+            if (in_array($item['status'] ?? '', ['queued', 'downloading', 'processing'], true)) {
+                return '3s';
+            }
+        }
+
+        return '15s';
     }
 }

@@ -117,7 +117,7 @@ class ProcessRestoreDownloadJob implements ShouldQueue
     /**
      * Download using yt-dlp
      */
-    private function downloadWithYtdlp(string $url): ?string
+    private function downloadWithYtdlp(string $url): string
     {
         $tempDir = storage_path('app/temp/restore_'.uniqid());
         if (! file_exists($tempDir)) {

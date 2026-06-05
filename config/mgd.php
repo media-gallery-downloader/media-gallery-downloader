@@ -29,18 +29,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | YouTube Authentication
+    | Authentication (cookies)
     |--------------------------------------------------------------------------
     |
-    | For age-restricted videos, you need to provide authentication.
+    | These cookies are passed to yt-dlp for EVERY site, not just YouTube. Use
+    | them for age-restricted YouTube videos and for sites that now require a
+    | login to fetch metadata (e.g. Reddit, which gates posts behind an account).
+    | A single Netscape cookies.txt can hold cookies for multiple domains.
     | Options:
     |   - 'cookies_file': Path to a cookies.txt file (Netscape format)
     |   - 'cookies_from_browser': Browser name (chrome, firefox, edge, safari, opera, brave)
     |
     | To export cookies manually:
     |   1. Install a browser extension like "Get cookies.txt LOCALLY"
-    |   2. Log into YouTube
-    |   3. Export cookies for youtube.com to storage/app/cookies.txt
+    |   2. Log into the site(s) you download from (youtube.com, reddit.com, ...)
+    |   3. Export their cookies to storage/app/cookies.txt
     |
     | Or use browser extraction (requires browser to be closed):
     |   Set YTDLP_COOKIES_FROM_BROWSER=chrome in your .env
@@ -60,7 +63,7 @@ return [
 
     'timeouts' => [
         'download' => 600,  // 10 minutes for video downloads
-        'metadata' => 30,   // 30 seconds for metadata fetching
+        'metadata' => 120,  // 2 minutes for metadata fetching
     ],
 
     /*
@@ -73,6 +76,27 @@ return [
         'disk' => 'public',
         'media_path' => 'media',
         'thumbnail_path' => 'thumbnails',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Download Limits & Security
+    |--------------------------------------------------------------------------
+    |
+    | block_private_hosts: refuse direct (HTTP) downloads from URLs that resolve
+    |   to private/loopback/link-local/reserved IPs (SSRF protection - e.g. the
+    |   cloud metadata endpoint or internal services on the Docker network).
+    |   Disable only if you intentionally download from your own LAN.
+    | max_download_bytes: hard cap on a single direct download (0 = unlimited).
+    | max_archive_bytes: hard cap on total uncompressed size when extracting an
+    |   uploaded archive (0 = unlimited) - guards against zip bombs.
+    |
+    */
+
+    'downloads' => [
+        'block_private_hosts' => env('MGD_BLOCK_PRIVATE_HOSTS', true),
+        'max_download_bytes' => (int) env('MGD_MAX_DOWNLOAD_BYTES', 0),
+        'max_archive_bytes' => (int) env('MGD_MAX_ARCHIVE_BYTES', 0),
     ],
 
     /*

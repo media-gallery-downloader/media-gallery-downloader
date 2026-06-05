@@ -4,6 +4,7 @@ namespace App\Services\Download;
 
 use App\Models\Media;
 use App\Settings\MaintenanceSettings;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 /**
@@ -62,11 +63,11 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         );
 
         $metadataProcess = new Process($metadataCommand);
-        $metadataProcess->setTimeout(120); // 2 minute timeout for metadata
+        $metadataProcess->setTimeout(config('mgd.timeouts.metadata', 120));
         $metadataProcess->run();
 
         if (! $metadataProcess->isSuccessful()) {
-            throw new \Exception('Error fetching video metadata: '.$metadataProcess->getErrorOutput());
+            throw new \Exception($this->parseError($metadataProcess->getErrorOutput()));
         }
 
         $metadata = json_decode($metadataProcess->getOutput(), true);
@@ -102,7 +103,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         });
 
         if (! $process->isSuccessful()) {
-            throw new \Exception('Error executing yt-dlp: '.$process->getErrorOutput());
+            throw new \Exception($this->parseError($process->getErrorOutput()));
         }
 
         $files = glob($tempDir.'/*');
@@ -134,7 +135,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
             '--no-playlist',
             '--no-warnings',
             '--merge-output-format',
-            config('mdg.video_quality.format', 'mp4'),
+            config('mgd.video_quality.format', 'mp4'),
             '-f',
             $preferredFormat,
             '-o',
@@ -150,8 +151,8 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         }
 
         if (config('mgd.video_quality.auto_subs', true)) {
-            $command[] = '--write-auto-sub';
-            $command[] = '--sub-lang';
+            $command[] = '--write-auto-subs';
+            $command[] = '--sub-langs';
             $command[] = config('mgd.video_quality.sub_lang', 'en');
         }
 
@@ -162,6 +163,32 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
 
         return $command;
     }
+
+    /**
+     * yt-dlp flags that are refused in user-supplied extra arguments because
+     * they allow arbitrary command execution, reading/writing arbitrary files,
+     * or escaping the managed output directory.
+     */
+    protected const DISALLOWED_EXTRA_FLAGS = [
+        '--exec',
+        '--exec-before-download',
+        '--config-location',
+        '--config-locations',
+        '--load-info-json',
+        '--load-info',
+        '--batch-file',
+        '-a',
+        '--output',
+        '-o',
+        '--paths',
+        '-P',
+        '--downloader',
+        '--external-downloader',
+        '--use-postprocessor',
+        '--print-to-file',
+        '--cookies',
+        '--cookies-from-browser',
+    ];
 
     /**
      * Get extra arguments configured in settings
@@ -190,9 +217,44 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
             }
         } catch (\Exception $e) {
             // If settings aren't available, just continue without extra args
+            return [];
+        }
+
+        if ($disallowed = $this->findDisallowedFlag($args)) {
+            // Fail safe: drop the entire user-supplied set rather than running a
+            // command with a dangerous flag. Admin-only, but still validated.
+            Log::warning('Ignoring yt-dlp extra arguments: disallowed flag present', [
+                'flag' => $disallowed,
+            ]);
+
+            return [];
         }
 
         return $args;
+    }
+
+    /**
+     * Return the first disallowed flag found in a token list, or null if clean.
+     * Long flags are matched case-insensitively and support the --flag=value
+     * form; short flags are matched exactly (yt-dlp short flags are case
+     * sensitive, e.g. -P differs from -p).
+     */
+    protected function findDisallowedFlag(array $tokens): ?string
+    {
+        foreach ($tokens as $token) {
+            if (! str_starts_with($token, '-')) {
+                continue;
+            }
+
+            $flag = explode('=', $token, 2)[0];
+            $normalized = str_starts_with($flag, '--') ? strtolower($flag) : $flag;
+
+            if (in_array($normalized, self::DISALLOWED_EXTRA_FLAGS, true)) {
+                return $flag;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -230,6 +292,14 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
 
         if (str_contains($errorOutput, 'Sign in to confirm your age')) {
             return 'This video is age-restricted. Please upload valid YouTube cookies in Settings → YouTube Authentication.';
+        }
+
+        // Reddit (and others) now require an authenticated session to fetch
+        // metadata. The cookies.txt configured in Settings → YouTube
+        // Authentication is sent to yt-dlp for every site, so adding this
+        // site's cookies to that file resolves it.
+        if (str_contains($errorOutput, 'authentication is required') || str_contains($errorOutput, 'Account authentication')) {
+            return 'This site requires you to be logged in. Add this site\'s cookies to your cookies.txt (Settings → YouTube Authentication); the same cookies file is used for all sites.';
         }
 
         return 'yt-dlp error: '.($errorOutput ?: 'URL not supported');

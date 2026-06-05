@@ -252,9 +252,8 @@ class BackupService extends BaseMaintenanceService
             $query->where('name', $record['name'])
                 ->where('size', $record['size']);
         })->orWhere(function ($query) use ($record) {
-            if (! empty($record['source'])) {
-                $query->where('source', $record['source']);
-            }
+            // $record['source'] is guaranteed non-empty here (checked above).
+            $query->where('source', $record['source']);
         })->first();
 
         if ($existing) {
@@ -272,7 +271,7 @@ class BackupService extends BaseMaintenanceService
             'file_name' => $record['file_name'] ?? null,
             'path' => $record['path'] ?? null,
             'url' => $record['url'] ?? null,
-            'source' => $record['source'] ?? null,
+            'source' => $record['source'],
             'thumbnail_path' => null,
             'created_at' => $record['created_at'] ?? now(),
             'updated_at' => $record['updated_at'] ?? now(),
@@ -291,8 +290,9 @@ class BackupService extends BaseMaintenanceService
                     $media->update(['thumbnail_path' => $thumbnailPath]);
                 }
             }
-        } elseif (! empty($record['source'])) {
-            // Queue for download
+        } else {
+            // No local file, but $record['source'] is guaranteed (checked above):
+            // queue it for re-download.
             \App\Jobs\ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
             $result['queued'] = 1;
         }
@@ -410,7 +410,8 @@ class BackupService extends BaseMaintenanceService
         // Check if file exists, queue download if not
         $fileExists = ! empty($record['path']) && Storage::disk('public')->exists($record['path']);
 
-        if (! $fileExists && ! empty($record['source'])) {
+        if (! $fileExists) {
+            // $record['source'] is guaranteed non-empty here (checked above).
             \App\Jobs\ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
             $result['queued'] = 1;
         } elseif ($fileExists && $media->needsThumbnail()) {

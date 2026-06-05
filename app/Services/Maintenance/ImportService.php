@@ -3,6 +3,7 @@
 namespace App\Services\Maintenance;
 
 use App\Jobs\ProcessDirectImportJob;
+use App\Models\QueueItem;
 use App\Services\UploadService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -14,14 +15,22 @@ use Illuminate\Support\Str;
  */
 class ImportService extends BaseMaintenanceService
 {
-    protected const CACHE_KEY = 'import_queue';
-
     /**
      * Get the import queue
      */
     public function getQueue(): array
     {
-        return Cache::get(self::CACHE_KEY, []);
+        return QueueItem::where('type', 'import')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (QueueItem $item) => array_merge([
+                'id' => $item->queue_id,
+                'path' => $item->url,
+                'filename' => $item->filename,
+                'status' => $item->status,
+                'added_at' => $item->created_at?->toISOString(),
+            ], $item->meta ?? []))
+            ->all();
     }
 
     /**
@@ -29,15 +38,10 @@ class ImportService extends BaseMaintenanceService
      */
     public function addToQueue(string $id, string $path, string $filename): void
     {
-        $queue = $this->getQueue();
-        $queue[] = [
-            'id' => $id,
-            'path' => $path,
-            'filename' => $filename,
-            'status' => 'queued',
-            'added_at' => now()->toISOString(),
-        ];
-        Cache::put(self::CACHE_KEY, $queue);
+        QueueItem::updateOrCreate(
+            ['queue_id' => $id],
+            ['type' => 'import', 'url' => $path, 'filename' => $filename, 'status' => 'queued'],
+        );
     }
 
     /**
@@ -45,15 +49,16 @@ class ImportService extends BaseMaintenanceService
      */
     public function updateStatus(string $id, string $status, array $extra = []): void
     {
-        $queue = $this->getQueue();
-        foreach ($queue as &$item) {
-            if ($item['id'] === $id) {
-                $item['status'] = $status;
-                $item = array_merge($item, $extra);
-                break;
-            }
+        $item = QueueItem::where('queue_id', $id)->first();
+        if (! $item) {
+            return;
         }
-        Cache::put(self::CACHE_KEY, $queue);
+
+        $item->status = $status;
+        if (! empty($extra)) {
+            $item->meta = array_merge($item->meta ?? [], $extra);
+        }
+        $item->save();
     }
 
     /**
@@ -61,9 +66,7 @@ class ImportService extends BaseMaintenanceService
      */
     public function removeFromQueue(string $id): void
     {
-        $queue = $this->getQueue();
-        $queue = array_filter($queue, fn ($item) => $item['id'] !== $id);
-        Cache::put(self::CACHE_KEY, array_values($queue));
+        QueueItem::where('queue_id', $id)->delete();
     }
 
     /**
@@ -71,7 +74,7 @@ class ImportService extends BaseMaintenanceService
      */
     public function clearQueue(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        QueueItem::where('type', 'import')->delete();
     }
 
     /**

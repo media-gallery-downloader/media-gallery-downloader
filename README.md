@@ -102,6 +102,25 @@ The application will automatically:
 - Run migrations and seeders
 - Start background services
 
+## Security
+
+> [!WARNING]
+> **This application has no built-in authentication.** The admin panel and all of
+> its pages — Home, Settings, Logs, Queue, media management — as well as the
+> media-delete and database-backup-download routes are accessible to anyone who
+> can reach the app over the network. The app is designed to run on a trusted,
+> private network.
+>
+> **Do NOT expose this app directly to the public internet.** Put it behind an
+> authentication layer such as:
+>
+> - Reverse-proxy basic auth (Caddy `basicauth`, nginx `auth_basic`)
+> - An identity-aware proxy (Authelia, Authentik, oauth2-proxy)
+> - A private network / VPN (Tailscale, WireGuard)
+>
+> See [Using a Reverse Proxy](#using-a-reverse-proxy-recommended-for-production)
+> for a starting point.
+
 ## Production Deployment
 
 ### Environment Files

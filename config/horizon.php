@@ -199,7 +199,7 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default', 'downloads', 'uploads', 'imports'],
+            'queue' => ['default', 'downloads', 'uploads', 'imports', 'thumbnails'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,

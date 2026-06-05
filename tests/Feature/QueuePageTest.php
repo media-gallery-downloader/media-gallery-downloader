@@ -3,13 +3,10 @@
 use App\Filament\Pages\Queue;
 use App\Services\DownloadService;
 use App\Services\UploadService;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
-beforeEach(function () {
-    Cache::forget('download_queue');
-    Cache::forget('upload_queue');
-});
+uses(RefreshDatabase::class);
 
 describe('Queue Page', function () {
     it('can render the queue page', function () {

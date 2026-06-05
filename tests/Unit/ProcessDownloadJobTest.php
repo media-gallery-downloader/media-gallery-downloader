@@ -35,4 +35,19 @@ describe('ProcessDownloadJob', function () {
         expect($uses)->toContain(\Illuminate\Queue\InteractsWithQueue::class);
         expect($uses)->toContain(\Illuminate\Foundation\Bus\Dispatchable::class);
     });
+
+    it('reuses an existing unresolved failed-download row instead of duplicating', function () {
+        $job = new ProcessDownloadJob('https://example.com/video.mp4', 'download-123');
+
+        $record = new ReflectionMethod($job, 'recordFailure');
+        $record->setAccessible(true);
+
+        $record->invoke($job, 'first error');
+        $record->invoke($job, 'second error');
+
+        $rows = \App\Models\FailedDownload::where('url', 'https://example.com/video.mp4')->get();
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows->first()->error_message)->toBe('second error');
+    });
 });

@@ -149,6 +149,57 @@ class UpdaterService
     }
 
     /**
+     * Install a downloaded binary by overwriting an existing file's contents
+     * in place.
+     *
+     * The runtime "app" user owns the target binaries (e.g. /usr/local/bin/deno
+     * and /usr/local/bin/yt-dlp) but NOT their parent directory, which is
+     * root-owned. `mv` and creating a brand-new file both require write access
+     * to the directory and therefore fail with a permission error. Overwriting
+     * the contents of the existing file only requires write access to the file
+     * itself, which the app user has.
+     */
+    protected function installBinaryInPlace(string $sourcePath, string $destPath): bool
+    {
+        // Ensure the freshly downloaded binary is readable.
+        @chmod($sourcePath, 0755);
+
+        // Preferred path: copy contents into the existing file without touching
+        // its mode/ownership. This overwrites in place (same inode), so it works
+        // even when the parent directory is not writable by the current user.
+        $copyProcess = new Process(['cp', '--no-preserve=mode,ownership', $sourcePath, $destPath]);
+        $copyProcess->run();
+
+        if (! $copyProcess->isSuccessful()) {
+            Log::info('Standard copy failed, attempting direct file write...');
+
+            $contents = @file_get_contents($sourcePath);
+            if ($contents === false) {
+                Log::warning('Failed to read downloaded binary: '.$sourcePath);
+
+                return false;
+            }
+
+            if (@file_put_contents($destPath, $contents) === false) {
+                Log::warning("Failed to install {$destPath}: permission denied. The binary may need to be updated manually or the container rebuilt.");
+
+                return false;
+            }
+        }
+
+        // Ensure the destination remains executable.
+        $chmodProcess = new Process(['chmod', 'a+rx', $destPath]);
+        $chmodProcess->run();
+
+        if (! $chmodProcess->isSuccessful()) {
+            Log::warning('Failed to mark binary executable: '.$chmodProcess->getErrorOutput());
+            // Continue anyway; the file may already be executable.
+        }
+
+        return true;
+    }
+
+    /**
      * Download and install the latest version of Deno
      */
     public function downloadAndInstallDeno(): bool
@@ -198,28 +249,20 @@ class UpdaterService
             return false;
         }
 
-        // Move to deno location
-        $moveProcess = new Process([
-            'mv',
-            $tempDir.'/deno',
-            $denoPath,
-        ]);
-        $moveProcess->run();
-
-        if (! $moveProcess->isSuccessful()) {
-            Log::warning('Failed to update Deno: '.$moveProcess->getErrorOutput());
+        // Install the new binary by overwriting the existing file in place.
+        // `mv` would fail here because /usr/local/bin is root-owned and not
+        // writable by the app user, even though the app user owns the deno file.
+        $extractedBinary = $tempDir.'/deno';
+        if (! $this->installBinaryInPlace($extractedBinary, $denoPath)) {
             @unlink($tempZip);
-            @unlink($tempDir.'/deno');
+            @unlink($extractedBinary);
 
             return false;
         }
 
-        // Make executable
-        $chmodProcess = new Process(['chmod', 'a+rx', $denoPath]);
-        $chmodProcess->run();
-
         // Cleanup
         @unlink($tempZip);
+        @unlink($extractedBinary);
 
         // Verify installation
         $verifyProcess = new Process([$denoPath, '--version']);
@@ -278,25 +321,15 @@ class UpdaterService
                 return false;
             }
 
-            // Move to install location
-            $moveProcess = new Process(['mv', $tempFile, $installPath]);
-            $moveProcess->run();
-
-            if (! $moveProcess->isSuccessful()) {
-                Log::warning('Failed to install yt-dlp: '.$moveProcess->getErrorOutput());
+            // Install by overwriting the existing binary in place (see
+            // installBinaryInPlace for why `mv` fails under the app user).
+            if (! $this->installBinaryInPlace($tempFile, $installPath)) {
                 @unlink($tempFile);
 
                 return false;
             }
 
-            // Make executable
-            $chmodProcess = new Process(['chmod', 'a+rx', $installPath]);
-            $chmodProcess->run();
-
-            if (! $chmodProcess->isSuccessful()) {
-                Log::warning('Failed to make yt-dlp executable: '.$chmodProcess->getErrorOutput());
-                // Continue anyway
-            }
+            @unlink($tempFile);
 
             // Verify installation
             $verifyProcess = new Process([$installPath, '--version']);
@@ -361,50 +394,15 @@ class UpdaterService
             return false;
         }
 
-        // Make temp file executable first
-        @chmod($tempFile, 0755);
+        // Install by overwriting the existing binary in place (see
+        // installBinaryInPlace for why `mv` fails under the app user).
+        if (! $this->installBinaryInPlace($tempFile, $ytdlpPath)) {
+            @unlink($tempFile);
 
-        // Copy contents to yt-dlp location (preserves ownership, works even if owned by root)
-        $updateProcess = new Process([
-            'cp',
-            '--no-preserve=mode,ownership',
-            $tempFile,
-            $ytdlpPath,
-        ]);
-        $updateProcess->run();
-
-        // If cp fails (e.g., permission denied), try writing directly
-        if (! $updateProcess->isSuccessful()) {
-            Log::info('Standard copy failed, attempting direct file write...');
-
-            $contents = file_get_contents($tempFile);
-            if ($contents === false) {
-                Log::warning('Failed to read downloaded yt-dlp file');
-                @unlink($tempFile);
-
-                return false;
-            }
-
-            $written = @file_put_contents($ytdlpPath, $contents);
-            if ($written === false) {
-                Log::warning('Failed to update yt-dlp: Permission denied. The yt-dlp binary may need to be updated manually or container rebuilt.');
-                @unlink($tempFile);
-
-                return false;
-            }
+            return false;
         }
 
-        // Cleanup temp file
         @unlink($tempFile);
-
-        // Make executable
-        $chmodProcess = new Process(['chmod', 'a+rx', $ytdlpPath]);
-        $chmodProcess->run();
-
-        if (! $chmodProcess->isSuccessful()) {
-            Log::warning('Failed to make yt-dlp executable: '.$chmodProcess->getErrorOutput());
-            // Continue anyway, it might still work
-        }
 
         Log::info('Successfully updated yt-dlp');
 

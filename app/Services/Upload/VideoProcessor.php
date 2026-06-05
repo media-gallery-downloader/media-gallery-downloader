@@ -123,16 +123,16 @@ class VideoProcessor
     }
 
     /**
-     * Generate thumbnail if needed
+     * Queue thumbnail generation if needed.
+     *
+     * Dispatched as a job so that importing an archive with many videos doesn't
+     * run ffmpeg serially inside the upload job (one slow/hung file would stall
+     * the whole import).
      */
     protected function generateThumbnail(Media $media): void
     {
         if ($media->needsThumbnail()) {
-            $thumbnailPath = $this->thumbnailService->generateThumbnail($media->path, $media->mime_type);
-
-            if ($thumbnailPath) {
-                $media->update(['thumbnail_path' => $thumbnailPath]);
-            }
+            \App\Jobs\GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
         }
     }
 }

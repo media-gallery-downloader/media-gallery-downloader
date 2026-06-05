@@ -120,10 +120,19 @@ describe('Home Page', function () {
         $component->assertSuccessful();
     });
 
-    it('has polling interval', function () {
+    it('backs off polling when the queues are idle', function () {
         $home = new Home;
 
-        expect($home->getPollingInterval())->toBe('2s');
+        expect($home->getPollingInterval())->toBe('15s');
+    });
+
+    it('polls quickly while work is active', function () {
+        app(DownloadService::class)->addToQueue('active-1', 'https://example.com/v.mp4', 'auto');
+        app(DownloadService::class)->updateStatus('active-1', 'downloading');
+
+        $home = new Home;
+
+        expect($home->getPollingInterval())->toBe('3s');
     });
 
     it('can set per_page via URL', function () {

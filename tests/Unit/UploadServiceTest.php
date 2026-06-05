@@ -1,11 +1,9 @@
 <?php
 
 use App\Services\UploadService;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-beforeEach(function () {
-    Cache::forget('upload_queue');
-});
+uses(RefreshDatabase::class);
 
 describe('UploadService static methods', function () {
     describe('getSupportedArchiveFormats', function () {

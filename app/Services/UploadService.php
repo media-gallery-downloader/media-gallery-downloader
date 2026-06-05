@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Jobs\ProcessUploadJob;
+use App\Models\QueueItem;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
@@ -71,45 +71,49 @@ class UploadService
 
     public function getQueue(): array
     {
-        return Cache::get('upload_queue', []);
+        return QueueItem::where('type', 'upload')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (QueueItem $item) => array_merge([
+                'id' => $item->queue_id,
+                'filename' => $item->filename,
+                'mime_type' => $item->mime_type,
+                'status' => $item->status,
+                'added_at' => $item->created_at?->toISOString(),
+            ], $item->meta ?? []))
+            ->all();
     }
 
     public function addToQueue(string $id, string $filename, string $mimeType): void
     {
-        $queue = $this->getQueue();
-        $queue[] = [
-            'id' => $id,
-            'filename' => $filename,
-            'mime_type' => $mimeType,
-            'status' => 'queued',
-            'added_at' => now()->toISOString(),
-        ];
-        Cache::put('upload_queue', $queue);
+        QueueItem::updateOrCreate(
+            ['queue_id' => $id],
+            ['type' => 'upload', 'filename' => $filename, 'mime_type' => $mimeType, 'status' => 'queued'],
+        );
     }
 
     public function updateStatus(string $id, string $status, array $extra = []): void
     {
-        $queue = $this->getQueue();
-        foreach ($queue as &$item) {
-            if ($item['id'] === $id) {
-                $item['status'] = $status;
-                $item = array_merge($item, $extra);
-                break;
-            }
+        $item = QueueItem::where('queue_id', $id)->first();
+        if (! $item) {
+            return;
         }
-        Cache::put('upload_queue', $queue);
+
+        $item->status = $status;
+        if (! empty($extra)) {
+            $item->meta = array_merge($item->meta ?? [], $extra);
+        }
+        $item->save();
     }
 
     public function removeFromQueue(string $id): void
     {
-        $queue = $this->getQueue();
-        $queue = array_filter($queue, fn ($item) => $item['id'] !== $id);
-        Cache::put('upload_queue', array_values($queue));
+        QueueItem::where('queue_id', $id)->delete();
     }
 
     public function clearQueue(): void
     {
-        Cache::forget('upload_queue');
+        QueueItem::where('type', 'upload')->delete();
     }
 
     /**

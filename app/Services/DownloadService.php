@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\ProcessDownloadJob;
-use Illuminate\Support\Facades\Cache;
+use App\Models\QueueItem;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
@@ -19,7 +19,7 @@ class DownloadService
             'downloadId' => $downloadId,
         ]);
 
-        // Add to Redis queue immediately (don't validate method synchronously)
+        // Record the queued job (atomic single-row insert) and dispatch.
         $this->addToQueue($downloadId, $url, 'auto');
 
         // Dispatch the download job
@@ -29,45 +29,49 @@ class DownloadService
 
     public function getQueue(): array
     {
-        return Cache::get('download_queue', []);
+        return QueueItem::where('type', 'download')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (QueueItem $item) => array_merge([
+                'id' => $item->queue_id,
+                'url' => $item->url,
+                'method' => $item->method,
+                'status' => $item->status,
+                'added_at' => $item->created_at?->toISOString(),
+            ], $item->meta ?? []))
+            ->all();
     }
 
     public function addToQueue(string $id, string $url, string $method): void
     {
-        $queue = $this->getQueue();
-        $queue[] = [
-            'id' => $id,
-            'url' => $url,
-            'method' => $method,
-            'status' => 'queued',
-            'added_at' => now()->toISOString(),
-        ];
-        Cache::put('download_queue', $queue);
+        QueueItem::updateOrCreate(
+            ['queue_id' => $id],
+            ['type' => 'download', 'url' => $url, 'method' => $method, 'status' => 'queued'],
+        );
     }
 
     public function updateStatus(string $id, string $status, array $extra = []): void
     {
-        $queue = $this->getQueue();
-        foreach ($queue as &$item) {
-            if ($item['id'] === $id) {
-                $item['status'] = $status;
-                $item = array_merge($item, $extra);
-                break;
-            }
+        $item = QueueItem::where('queue_id', $id)->first();
+        if (! $item) {
+            return;
         }
-        Cache::put('download_queue', $queue);
+
+        $item->status = $status;
+        if (! empty($extra)) {
+            $item->meta = array_merge($item->meta ?? [], $extra);
+        }
+        $item->save();
     }
 
     public function removeFromQueue(string $id): void
     {
-        $queue = $this->getQueue();
-        $queue = array_filter($queue, fn ($item) => $item['id'] !== $id);
-        Cache::put('download_queue', array_values($queue));
+        QueueItem::where('queue_id', $id)->delete();
     }
 
     public function clearQueue(): void
     {
-        Cache::forget('download_queue');
+        QueueItem::where('type', 'download')->delete();
     }
 
     /**

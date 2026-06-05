@@ -21,6 +21,9 @@ class ProcessDownloadJob implements ShouldQueue
 
     public $tries = 1; // Single attempt, failures are logged for manual retry
 
+    /** Tracks which handler was actually being used when a failure occurred. */
+    protected string $attemptedMethod = 'yt-dlp';
+
     public function __construct(
         public string $url,
         public string $downloadId
@@ -61,6 +64,7 @@ class ProcessDownloadJob implements ShouldQueue
         };
 
         // Try yt-dlp first
+        $ytDlpError = '';
         $ytDlpHandler = new YtDlpDownloadHandler;
         try {
             // Update method to show we're using yt-dlp
@@ -73,15 +77,32 @@ class ProcessDownloadJob implements ShouldQueue
                 throw $e;
             }
 
-            Log::info('yt-dlp failed, trying direct download', ['error' => $e->getMessage()]);
+            $ytDlpError = $e->getMessage();
+            // Log at warning so the real reason (e.g. "site requires login") is
+            // captured in production, not hidden at info level.
+            Log::warning('yt-dlp failed, trying direct download', [
+                'downloadId' => $this->downloadId,
+                'url' => $this->url,
+                'error' => $ytDlpError,
+            ]);
         }
 
-        // Fallback to direct download
+        // Fallback to direct download (only meaningful for direct media-file URLs).
+        $this->attemptedMethod = 'direct';
         $downloadService->updateStatus($this->downloadId, 'downloading', ['method' => 'direct']);
         $directHandler = new DirectDownloadHandler;
         $directHandler->setTimeout($this->timeout);
 
-        return $directHandler->download($this->url, $this->downloadId, $progressCallback);
+        try {
+            return $directHandler->download($this->url, $this->downloadId, $progressCallback);
+        } catch (\Exception $directError) {
+            // For a page URL (e.g. Reddit), the direct fallback only fetches HTML
+            // and fails with a misleading MIME error. yt-dlp's error is the
+            // actionable one, so surface it as the primary cause.
+            throw new \Exception(
+                $ytDlpError.' (direct-download fallback also failed: '.$directError->getMessage().')'
+            );
+        }
     }
 
     /**
@@ -106,13 +127,37 @@ class ProcessDownloadJob implements ShouldQueue
         $downloadService->updateStatus($this->downloadId, 'failed', ['error' => $e->getMessage()]);
 
         // Log to failed downloads table for manual retry
-        FailedDownload::create([
-            'url' => $this->url,
-            'method' => 'yt-dlp',
-            'error_message' => $e->getMessage(),
+        $this->recordFailure($e->getMessage());
+    }
+
+    /**
+     * Record (or refresh) the failed-download row for this URL.
+     *
+     * Reuses an existing un-resolved row for the same URL instead of inserting a
+     * new one on every attempt, so repeated failures/retries don't accumulate
+     * duplicate rows. The method reflects the handler that was actually in use.
+     */
+    protected function recordFailure(string $message): void
+    {
+        $existing = FailedDownload::where('url', $this->url)
+            ->whereIn('status', ['pending', 'retrying'])
+            ->latest('id')
+            ->first();
+
+        $attributes = [
+            'method' => $this->attemptedMethod,
+            'error_message' => $message,
             'status' => 'pending',
             'last_attempt_at' => now(),
-        ]);
+        ];
+
+        if ($existing) {
+            $existing->update($attributes);
+
+            return;
+        }
+
+        FailedDownload::create(array_merge(['url' => $this->url], $attributes));
     }
 
     /**
@@ -135,13 +180,7 @@ class ProcessDownloadJob implements ShouldQueue
         ]);
 
         // Log to failed downloads table
-        FailedDownload::create([
-            'url' => $this->url,
-            'method' => 'yt-dlp',
-            'error_message' => $exception?->getMessage() ?? 'Job failed unexpectedly',
-            'status' => 'pending',
-            'last_attempt_at' => now(),
-        ]);
+        $this->recordFailure($exception?->getMessage() ?? 'Job failed unexpectedly');
     }
 
     /**
