@@ -287,11 +287,11 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     protected function parseError(string $errorOutput): string
     {
         if (str_contains($errorOutput, 'cookies are no longer valid') || str_contains($errorOutput, 'rotated')) {
-            return 'YouTube cookies have expired. Please upload fresh cookies in Settings → YouTube Authentication.';
+            return 'YouTube cookies have expired. Please upload fresh cookies in Settings → Authentication (Cookies).';
         }
 
         if (str_contains($errorOutput, 'Sign in to confirm your age')) {
-            return 'This video is age-restricted. Please upload valid YouTube cookies in Settings → YouTube Authentication.';
+            return 'This video is age-restricted. Please upload valid YouTube cookies in Settings → Authentication (Cookies).';
         }
 
         // Reddit (and others) now require an authenticated session to fetch
@@ -299,7 +299,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         // Authentication is sent to yt-dlp for every site, so adding this
         // site's cookies to that file resolves it.
         if (str_contains($errorOutput, 'authentication is required') || str_contains($errorOutput, 'Account authentication')) {
-            return 'This site requires you to be logged in. Add this site\'s cookies to your cookies.txt (Settings → YouTube Authentication); the same cookies file is used for all sites.';
+            return 'This site requires you to be logged in. Add this site\'s cookies to your cookies.txt (Settings → Authentication (Cookies)); the same cookies file is used for all sites.';
         }
 
         return 'yt-dlp error: '.($errorOutput ?: 'URL not supported');

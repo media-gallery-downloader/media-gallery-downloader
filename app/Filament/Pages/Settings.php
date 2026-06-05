@@ -821,8 +821,8 @@ class Settings extends Page implements HasForms
                 ])
                 ->columnSpanFull(),
 
-            Section::make('YouTube Authentication')
-                ->description('Upload cookies to download age-restricted YouTube videos.')
+            Section::make('Authentication (Cookies)')
+                ->description('Upload a cookies.txt to download from sites that require a login (e.g. age-restricted YouTube videos, Reddit). The same cookies file is used for every site.')
                 ->collapsible()
                 ->collapsed()
                 ->schema([
@@ -830,7 +830,7 @@ class Settings extends Page implements HasForms
                         ->label('Status')
                         ->content(fn () => $this->hasCookiesFile()
                             ? "✅ Cookies file installed (uploaded {$this->getCookiesFileAge()}) - Use 'Test Cookies' to verify they work"
-                            : '❌ No cookies file - age-restricted videos will fail to download'),
+                            : '❌ No cookies file - downloads from login-required sites will fail'),
 
                     Forms\Components\Placeholder::make('cookies_instructions')
                         ->label('How to export cookies')
@@ -846,11 +846,11 @@ class Settings extends Page implements HasForms
                                 </div>
                                 <div class="flex items-start gap-3">
                                     <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">3</span>
-                                    <span>Log into YouTube with your Google account</span>
+                                    <span>Log into the site(s) you download from (e.g. YouTube, Reddit)</span>
                                 </div>
                                 <div class="flex items-start gap-3">
                                     <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">4</span>
-                                    <span>Click the extension icon and export cookies for youtube.com</span>
+                                    <span>Click the extension icon and export cookies for those sites (e.g. youtube.com, reddit.com)</span>
                                 </div>
                                 <div class="flex items-start gap-3">
                                     <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">5</span>
@@ -888,8 +888,8 @@ class Settings extends Page implements HasForms
                             ->icon('heroicon-m-trash')
                             ->color('danger')
                             ->requiresConfirmation()
-                            ->modalHeading('Delete YouTube Cookies')
-                            ->modalDescription('Are you sure you want to delete the cookies file? Age-restricted videos will no longer be downloadable.')
+                            ->modalHeading('Delete Cookies')
+                            ->modalDescription('Are you sure you want to delete the cookies file? Downloads from login-required sites will no longer work.')
                             ->action('deleteCookies')
                             ->visible(fn () => $this->hasCookiesFile()),
                     ])->alignRight(),

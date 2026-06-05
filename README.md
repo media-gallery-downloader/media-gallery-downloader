@@ -164,6 +164,22 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 >    sudo chmod -R 755 ./storage
 >    ```
 
+### Application Configuration
+
+Optional variables that tune download behaviour, safety limits, and the database.
+All have sensible defaults — you only need to set them to change the defaults.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `YTDLP_COOKIES_FILE` | `storage/app/cookies.txt` | Path to the `cookies.txt` sent to yt-dlp for **all** sites (see [Authentication](#authentication-cookies)) |
+| `YTDLP_COOKIES_FROM_BROWSER` | _(unset)_ | Extract cookies from a local browser instead of a file (`chrome`, `firefox`, `edge`, …) |
+| `MGD_BLOCK_PRIVATE_HOSTS` | `true` | Block direct (non-yt-dlp) downloads whose host resolves to a private/loopback/link-local/reserved IP (SSRF protection). Disable only if you intentionally download from your LAN |
+| `MGD_MAX_DOWNLOAD_BYTES` | `0` | Maximum size of a single direct download, in bytes (`0` = unlimited) |
+| `MGD_MAX_ARCHIVE_BYTES` | `0` | Maximum total **uncompressed** size of an uploaded archive, in bytes (`0` = unlimited; guards against zip bombs) |
+| `DB_JOURNAL_MODE` | `WAL` | SQLite journal mode. WAL allows concurrent reads during writes |
+| `DB_BUSY_TIMEOUT` | `5000` | SQLite busy timeout in ms; waits for a lock instead of failing with "database is locked" |
+| `DB_SYNCHRONOUS` | `NORMAL` | SQLite synchronous setting |
+
 ### Changing the Default Port
 
 By default, the application listens on port 8080 (HTTP). To use a different port:
@@ -243,30 +259,38 @@ This approach lets you:
 - Avoid port conflicts with other services
 - Integrate with your existing reverse proxy setup
 
-## Age-Restricted Videos
+## Authentication (Cookies)
 
-To download age-restricted YouTube videos, you need to provide authentication cookies from a logged-in YouTube session.
+Some sites require a logged-in session before they will hand over media, and the
+application provides those credentials to yt-dlp via a `cookies.txt` file. The
+**same cookies file is used for every site** (not just YouTube), so one file can
+hold cookies for several domains. Common cases:
+
+- **YouTube** — age-restricted videos.
+- **Reddit** — Reddit now requires an account to read post metadata, so Reddit
+  links (including videos hosted on redgifs and other providers embedded in a
+  Reddit post) need cookies. Without them the download fails with a message like
+  _"This site requires you to be logged in."_
+- Any other site that gates content behind a login.
 
 ### Export Cookies from Your Browser
 
 1. Install a browser extension like "Get cookies.txt LOCALLY" (available for Chrome and Firefox)
-2. Log into YouTube with your Google account
-3. Navigate to youtube.com
-4. View an age-restricted video and click through the warning (you might already have done this)
-5. Use the extension to export cookies to a `cookies.txt` file
+2. Log into the site(s) you download from (e.g. youtube.com, reddit.com)
+3. Use the extension to export cookies to a `cookies.txt` file (Netscape format) — a single file can contain cookies for multiple sites
 
 ### Upload Cookies to the Application
 
 1. Open the application and navigate to **Settings**
-2. In the **YouTube Authentication** section, click "Upload Cookies File"
+2. In the **Authentication (Cookies)** section, click "Upload Cookies File"
 3. Select your exported `cookies.txt` file
 4. Click "Upload Cookies"
 
-Age-restricted videos should now download successfully.
+Downloads from authenticated sites should now succeed.
 
-> **⚠️ Warning**: If you continue to use the browser and YouTube account you exported the cookies from, the uploaded cookie will become invalidated quickly. For best results, use a browser and account that you don't normally use and don't use that combination again.
+> **⚠️ Warning**: If you continue to use the browser and account you exported the cookies from, the uploaded cookie may become invalidated quickly. For best results, use a browser and account that you don't normally use and don't use that combination again.
 
-**Note**: Cookies may expire over time. If age-restricted downloads start failing, export fresh cookies from your browser and upload them again.
+**Note**: Cookies expire over time. If downloads from a site start failing with an authentication / login error, export fresh cookies from your browser and upload them again.
 
 ## yt-dlp Configuration
 
@@ -304,6 +328,15 @@ The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download medi
 ```text
 --limit-rate 5M --sleep-interval 5 --max-sleep-interval 30
 ```
+
+> **Restricted arguments**: For safety, a few flags are ignored if you add them
+> here, because they allow arbitrary command/file access or change where files
+> are written: `--exec`, `--exec-before-download`, `--config-location`,
+> `--load-info-json`, `--batch-file`/`-a`, `--output`/`-o`, `--paths`/`-P`,
+> `--downloader`/`--external-downloader`, `--use-postprocessor`,
+> `--print-to-file`, `--cookies`, `--cookies-from-browser`. For authentication,
+> upload a cookies file via Settings (see [Authentication](#authentication-cookies))
+> rather than passing `--cookies` here.
 
 For a complete list of available options, see the [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp#usage-and-options).
 
