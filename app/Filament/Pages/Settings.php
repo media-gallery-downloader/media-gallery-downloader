@@ -434,17 +434,14 @@ class Settings extends Page implements HasForms
 
             Log::info('uploadCookies: Got content', ['size' => strlen($content)]);
 
-            // Basic validation - check if it contains YouTube cookies
-            $hasYoutubeCookies = str_contains($content, '.youtube.com')
-                || str_contains($content, 'youtube.com')
-                || str_contains($content, '.googlevideo.com')
-                || str_contains($content, '.google.com');
-
-            if (! $hasYoutubeCookies) {
-                Log::warning('uploadCookies: File does not contain YouTube cookies');
+            // Validate the file is a Netscape-format cookies.txt (the format
+            // yt-dlp expects) rather than requiring a specific site - the same
+            // file is used for YouTube, Reddit and any other login-gated site.
+            if (! self::looksLikeNetscapeCookies($content)) {
+                Log::warning('uploadCookies: File is not a valid cookies.txt');
                 Notification::make()
                     ->title('Invalid cookies file')
-                    ->body('The file does not appear to contain YouTube cookies. Make sure you exported cookies while on youtube.com.')
+                    ->body('This does not look like a cookies.txt file. Export it in Netscape format (e.g. with the "Get cookies.txt LOCALLY" extension) while logged into the site you want to download from.')
                     ->danger()
                     ->send();
 
@@ -473,7 +470,7 @@ class Settings extends Page implements HasForms
 
             Notification::make()
                 ->title('Cookies uploaded successfully')
-                ->body('Age-restricted videos should now be downloadable.')
+                ->body('Downloads from login-required sites should now work.')
                 ->success()
                 ->send();
 
@@ -517,6 +514,37 @@ class Settings extends Page implements HasForms
                 ->danger()
                 ->send();
         }
+    }
+
+    /**
+     * Heuristically verify uploaded content is a Netscape-format cookies.txt
+     * (the format yt-dlp expects), regardless of which site it is for.
+     */
+    protected static function looksLikeNetscapeCookies(string $content): bool
+    {
+        if (str_contains($content, '# Netscape HTTP Cookie File') || str_contains($content, '# HTTP Cookie File')) {
+            return true;
+        }
+
+        // A cookie line is TAB-separated with 7 fields: domain, include-subdomains,
+        // path, secure, expiry, name, value (i.e. at least 6 tabs).
+        foreach (preg_split('/\r\n|\r|\n/', $content) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            // '#' starts a comment, except the '#HttpOnly_' cookie-line prefix.
+            if (str_starts_with($line, '#') && ! str_starts_with($line, '#HttpOnly_')) {
+                continue;
+            }
+
+            if (substr_count($line, "\t") >= 6) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function testCookies(): void
@@ -877,7 +905,8 @@ class Settings extends Page implements HasForms
 
                     Forms\Components\Actions::make([
                         Forms\Components\Actions\Action::make('test_cookies')
-                            ->label('Test Cookies')
+                            ->label('Test YouTube Cookies')
+                            ->tooltip('Verifies the cookies against YouTube. Other sites (e.g. Reddit) are not tested.')
                             ->icon('heroicon-m-beaker')
                             ->color('info')
                             ->action('testCookies')
