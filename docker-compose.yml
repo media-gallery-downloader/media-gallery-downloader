@@ -10,18 +10,10 @@ services:
             LOG_LEVEL: warning
             REDIS_HOST: valkey
         ports:
-            # Localhost only — LAN access is via the Caddy proxy stack (edge).
-            # Running a second instance? Give it a different HTTP_PORT.
-            - "127.0.0.1:${HTTP_PORT:-8080}:8080"
+            - "${HTTP_PORT:-8080}:8080"
         networks:
-            internal:
-            external:
-            # Shared with the Caddy proxy stack (docker/caddy). The alias is the
-            # hostname Caddy proxies to in conf.d/mgd.caddy. For a second instance,
-            # set EDGE_ALIAS=mgd-xxx (and run it as a separate project).
-            edge:
-                aliases:
-                    - ${EDGE_ALIAS:-mgd}
+            - internal
+            - external
         volumes:
             - ${DATA_PATH:-./storage}:/app/storage:rw
         tmpfs:
@@ -93,9 +85,6 @@ networks:
         internal: true
     external:
         driver: bridge
-    # Shared reverse-proxy network owned by the Caddy stack: docker network create edge
-    edge:
-        external: true
 
 volumes:
     valkey_data:
