@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
 use App\Settings\MaintenanceSettings;
+use App\Support\MediaFilename;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,7 +13,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 
 /**
@@ -69,14 +69,16 @@ class ProcessRestoreDownloadJob implements ShouldQueue
                 throw new \Exception('Download returned no file path');
             }
 
-            // Generate new UUID filename
+            // Build a readable, unique "<title>-<unix-seconds>.<ext>" filename.
+            // Use the record's original download time so a restored file matches
+            // what the rename migration would have produced.
             $extension = pathinfo($downloadedPath, PATHINFO_EXTENSION);
-            $uniqueId = Str::uuid()->toString();
-            $proceduralFilename = $uniqueId.'.'.$extension;
-            $path = 'media/'.$proceduralFilename;
+            $timestamp = $media->created_at->timestamp;
+            $fileName = MediaFilename::generate($media->name, $timestamp, $extension);
+            $path = 'media/'.$fileName;
 
             // Move file to storage
-            Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($downloadedPath), $proceduralFilename);
+            Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($downloadedPath), $fileName);
 
             // Clean up temp file
             @unlink($downloadedPath);
@@ -84,8 +86,8 @@ class ProcessRestoreDownloadJob implements ShouldQueue
             // Update media record
             $media->update([
                 'path' => $path,
-                'file_name' => $proceduralFilename,
-                'url' => Storage::url($path),
+                'file_name' => $fileName,
+                'url' => MediaFilename::urlFor($path),
                 'size' => Storage::disk('public')->size($path),
             ]);
 

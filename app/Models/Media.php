@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaFilename;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,7 @@ class Media extends Model
     public function getThumbnailUrlAttribute(): ?string
     {
         if ($this->thumbnail_path) {
-            return Storage::url($this->thumbnail_path);
+            return MediaFilename::urlFor($this->thumbnail_path);
         }
 
         return null;

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\MediaFilename;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
@@ -44,7 +45,7 @@ class ThumbnailService
         }
 
         // Generate thumbnail filename
-        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME).'_thumb.jpg';
+        $thumbnailFilename = MediaFilename::thumbnailName(basename($sourcePath));
         $thumbnailPath = 'thumbnails/'.$thumbnailFilename;
         $thumbnailFullPath = Storage::disk('public')->path($thumbnailPath);
 
@@ -108,7 +109,7 @@ class ThumbnailService
         $sourceFullPath = Storage::disk('public')->path($sourcePath);
 
         // Generate thumbnail filename
-        $thumbnailFilename = pathinfo($sourcePath, PATHINFO_FILENAME).'_thumb.jpg';
+        $thumbnailFilename = MediaFilename::thumbnailName(basename($sourcePath));
         $thumbnailPath = 'thumbnails/'.$thumbnailFilename;
         $thumbnailFullPath = Storage::disk('public')->path($thumbnailPath);
 

@@ -6,6 +6,7 @@ use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
 use App\Services\Maintenance\ImportService;
 use App\Services\ThumbnailService;
+use App\Support\MediaFilename;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,7 +16,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ProcessDirectImportJob implements ShouldQueue
 {
@@ -83,9 +83,8 @@ class ProcessDirectImportJob implements ShouldQueue
             // Extract display name (filename without extension)
             $displayName = pathinfo($this->originalName, PATHINFO_FILENAME);
 
-            // Generate unique filename using UUID (consistent with upload/download)
-            $uniqueId = Str::uuid()->toString();
-            $finalFileName = $uniqueId.'.'.$extension;
+            // Build a readable, unique "<title>-<unix-seconds>.<ext>" filename.
+            $finalFileName = MediaFilename::generate($displayName, time(), $extension);
             $finalPath = 'media/'.$finalFileName;
 
             // Store file using Storage facade (handles streaming for large files)
@@ -109,7 +108,7 @@ class ProcessDirectImportJob implements ShouldQueue
                 'size' => $fileSize,
                 'file_name' => $finalFileName,
                 'path' => $finalPath,
-                'url' => Storage::url($finalPath),
+                'url' => MediaFilename::urlFor($finalPath),
                 'source' => 'import',
                 'created_at' => $fileModifiedTime,
                 'updated_at' => $fileModifiedTime,

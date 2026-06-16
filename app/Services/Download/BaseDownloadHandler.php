@@ -4,6 +4,7 @@ namespace App\Services\Download;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Support\MediaFilename;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -62,22 +63,21 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
 
         $fileSize = filesize($filePath);
 
-        // Generate procedural filename
-        $uniqueId = Str::uuid()->toString();
-        $proceduralFilename = $uniqueId.'.'.$extension;
-        $path = 'media/'.$proceduralFilename;
+        // Build a readable, unique "<title>-<unix-seconds>.<ext>" filename.
+        $fileName = MediaFilename::generate($displayName, time(), $extension);
+        $path = 'media/'.$fileName;
 
         // Store file using streaming
-        Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($filePath), $proceduralFilename);
+        Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($filePath), $fileName);
 
         // Create media record
         $media = Media::create([
             'name' => $displayName,
             'mime_type' => $mimeType,
             'size' => $fileSize,
-            'file_name' => $proceduralFilename,
+            'file_name' => $fileName,
             'path' => $path,
-            'url' => Storage::url($path),
+            'url' => MediaFilename::urlFor($path),
             'source' => $sourceUrl,
         ]);
 

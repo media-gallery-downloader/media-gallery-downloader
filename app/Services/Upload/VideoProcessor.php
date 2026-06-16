@@ -6,9 +6,9 @@ use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
 use App\Services\ThumbnailService;
 use App\Services\UploadService;
+use App\Support\MediaFilename;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
  * Handles processing of uploaded video files
@@ -46,9 +46,9 @@ class VideoProcessor
             return null;
         }
 
-        // Generate unique filename
-        $uniqueId = Str::uuid()->toString();
-        $fileName = $uniqueId.'.'.$extension;
+        // Build a readable, unique "<title>-<unix-seconds>.<ext>" filename.
+        $displayName = pathinfo($originalName, PATHINFO_FILENAME);
+        $fileName = MediaFilename::generate($displayName, time(), $extension);
 
         if ($updateProgress) {
             $uploadService->updateStatus($uploadId, 'processing', ['progress' => 25]);
@@ -107,7 +107,7 @@ class VideoProcessor
      */
     protected function createMediaRecord(string $path, string $fileName, string $originalName, string $mimeType): Media
     {
-        $fileUrl = Storage::url($path);
+        $fileUrl = MediaFilename::urlFor($path);
         $fileSize = Storage::disk('public')->size($path);
         $displayName = pathinfo($originalName, PATHINFO_FILENAME);
 
