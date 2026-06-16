@@ -26,3 +26,6 @@ yarn-error.log
 storage/caddy/*
 frankenphp
 frankenphp-worker.php
+
+# Local design docs / specs (not tracked)
+/docs/
