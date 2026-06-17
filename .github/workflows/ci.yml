@@ -106,9 +106,10 @@ jobs:
       - name: Lint and analyse
         run: composer lint
 
-      # Fails the job if any installed dependency has a known advisory.
+      # Fails the job only on known security advisories. Abandoned packages are
+      # reported (not failed) — that's a maintenance concern, not a CVE.
       - name: Audit Composer dependencies
-        run: composer audit --no-interaction
+        run: composer audit --no-interaction --abandoned=report
 
   frontend:
     name: Frontend Lint & Build
