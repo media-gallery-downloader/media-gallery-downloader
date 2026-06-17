@@ -28,6 +28,18 @@ describe('MediaFilename::sanitizeTitle', function () {
         expect(MediaFilename::sanitizeTitle('///'))->toBe('video')
             ->and(MediaFilename::sanitizeTitle(''))->toBe('video');
     });
+
+    it('strips zero-width / unicode control characters so paths are Flysystem-safe', function () {
+        // 🏃‍♀️ = runner + ZWJ (U+200D) + female sign + VS16 (U+FE0F).
+        $title = "I made QT sprint for this video \u{1F3C3}\u{200D}\u{2640}\u{FE0F} #maya #beach";
+
+        $clean = MediaFilename::sanitizeTitle($title);
+
+        // Flysystem rejects any path containing \p{C}; none must survive.
+        expect(preg_match('/\p{C}/u', $clean))->toBe(0)
+            ->and($clean)->toContain('QT sprint')
+            ->and($clean)->toContain('#maya');
+    });
 });
 
 describe('MediaFilename::build', function () {

@@ -97,6 +97,19 @@ describe('media:rename-files', function () {
         expect($names)->toBe(['Clip-1749134400-2.mp4', 'Clip-1749134400.mp4']);
     });
 
+    it('handles titles with zero-width emoji joiners without a corrupted-path error', function () {
+        // Regression: Flysystem throws CorruptedPathDetected on paths containing
+        // \p{C} (e.g. the ZWJ in 🏃‍♀️). The fake disk uses Flysystem too.
+        $media = seedUuidMedia("I made QT sprint \u{1F3C3}\u{200D}\u{2640}\u{FE0F} #maya", 1774404799, withThumb: false);
+
+        $this->artisan('media:rename-files')->assertSuccessful();
+
+        $media->refresh();
+        expect(preg_match('/\p{C}/u', $media->file_name))->toBe(0)
+            ->and($media->file_name)->toEndWith('-1774404799.mp4')
+            ->and(Storage::disk('public')->exists($media->path))->toBeTrue();
+    });
+
     it('leaves an already-renamed record alone', function () {
         Storage::disk('public')->put('media/Already Named-1749134400.mp4', 'x');
         $media = Media::factory()->create([

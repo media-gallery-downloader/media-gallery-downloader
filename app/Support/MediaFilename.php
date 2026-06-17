@@ -24,8 +24,12 @@ class MediaFilename
      */
     public static function sanitizeTitle(string $title): string
     {
-        // Path separators, Windows-reserved chars, and control chars -> space.
+        // Path separators, Windows-reserved chars, and ASCII control chars -> space.
         $title = preg_replace('#[/\\\\:*?"<>|\x00-\x1F\x7F]#u', ' ', $title) ?? '';
+        // Remove any remaining Unicode control/format characters (e.g. the
+        // zero-width joiner inside emoji like 🏃‍♀️). League Flysystem rejects
+        // paths matching \p{C}, so these must never survive into a filename.
+        $title = preg_replace('#\p{C}#u', '', $title) ?? '';
         // Collapse any run of whitespace to a single space.
         $title = preg_replace('/\s+/u', ' ', $title) ?? '';
         // Windows strips trailing dots/spaces; trim both ends of either.
