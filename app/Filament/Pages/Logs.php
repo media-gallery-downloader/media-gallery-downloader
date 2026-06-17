@@ -16,7 +16,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\File;
 
 /**
- * @property \Filament\Forms\Form $form
+ * @property Form $form
  */
 class Logs extends Page implements HasForms
 {

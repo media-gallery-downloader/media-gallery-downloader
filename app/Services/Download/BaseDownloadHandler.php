@@ -3,8 +3,10 @@
 namespace App\Services\Download;
 
 use App\Helpers\MimeTypeHelper;
+use App\Jobs\GenerateThumbnailJob;
 use App\Models\Media;
 use App\Support\MediaFilename;
+use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -68,7 +70,7 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
         $path = 'media/'.$fileName;
 
         // Store file using streaming
-        Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($filePath), $fileName);
+        Storage::disk('public')->putFileAs('media', new File($filePath), $fileName);
 
         // Create media record
         $media = Media::create([
@@ -84,7 +86,7 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
         // Generate thumbnail off the critical path so a slow ffmpeg run doesn't
         // hold up download completion.
         if ($media->needsThumbnail()) {
-            \App\Jobs\GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
+            GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
         }
 
         return $media;

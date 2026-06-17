@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Services\MaintenanceService;
 use App\Settings\MaintenanceSettings;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -11,12 +12,16 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\Process\Process;
 
 /**
- * @property \Filament\Forms\Form $form
+ * @property Form $form
  */
 class Settings extends Page implements HasForms
 {
@@ -565,7 +570,7 @@ class Settings extends Page implements HasForms
             // Test with a known age-restricted video
             $testUrl = 'https://www.youtube.com/watch?v=UocjQ5uiucg';
 
-            $process = new \Symfony\Component\Process\Process([
+            $process = new Process([
                 'yt-dlp',
                 '--cookies',
                 $cookiesPath,
@@ -631,25 +636,25 @@ class Settings extends Page implements HasForms
 
         $modified = filemtime($cookiesPath);
 
-        return \Carbon\Carbon::createFromTimestamp($modified)->diffForHumans();
+        return Carbon::createFromTimestamp($modified)->diffForHumans();
     }
 
     // Backup management methods
     public function getBackupFiles(): array
     {
         $backupDir = storage_path('app/data/backups');
-        if (! \Illuminate\Support\Facades\File::exists($backupDir)) {
+        if (! File::exists($backupDir)) {
             return [];
         }
 
         $files = [];
-        foreach (\Illuminate\Support\Facades\File::files($backupDir) as $file) {
+        foreach (File::files($backupDir) as $file) {
             // Accept both .sql (legacy/MySQL) and .sqlite (SQLite) extensions
             if (in_array($file->getExtension(), ['sql', 'sqlite'], true)) {
                 $files[] = [
                     'name' => $file->getFilename(),
                     'size' => $this->formatBytes($file->getSize()),
-                    'date' => \Carbon\Carbon::createFromTimestamp($file->getMTime())->format('M j, Y g:i A'),
+                    'date' => Carbon::createFromTimestamp($file->getMTime())->format('M j, Y g:i A'),
                     'path' => $file->getPathname(),
                 ];
             }
@@ -661,7 +666,7 @@ class Settings extends Page implements HasForms
         return $files;
     }
 
-    public function downloadBackup(string $filename): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function downloadBackup(string $filename): BinaryFileResponse
     {
         $backupDir = storage_path('app/data/backups');
         $filepath = $backupDir.'/'.basename($filename); // basename to prevent directory traversal
@@ -783,7 +788,7 @@ class Settings extends Page implements HasForms
                 ->schema([
                     Forms\Components\Textarea::make('ytdlp_extra_args')
                         ->label('yt-dlp Extra Arguments')
-                        ->helperText(new \Illuminate\Support\HtmlString('Additional command line arguments to pass to yt-dlp when downloading. One argument per line (e.g., --geo-bypass or --limit-rate 1M). See <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">yt-dlp documentation</a> for available options.'))
+                        ->helperText(new HtmlString('Additional command line arguments to pass to yt-dlp when downloading. One argument per line (e.g., --geo-bypass or --limit-rate 1M). See <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">yt-dlp documentation</a> for available options.'))
                         ->placeholder("--geo-bypass\n--limit-rate 1M")
                         ->rows(4)
                         ->columnSpanFull(),
@@ -862,7 +867,7 @@ class Settings extends Page implements HasForms
 
                     Forms\Components\Placeholder::make('cookies_instructions')
                         ->label('How to export cookies')
-                        ->content(new \Illuminate\Support\HtmlString('
+                        ->content(new HtmlString('
                             <div class="text-sm space-y-3">
                                 <div class="flex items-start gap-3">
                                     <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">1</span>

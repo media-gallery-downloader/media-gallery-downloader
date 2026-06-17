@@ -4,11 +4,13 @@ namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Services\ThumbnailService;
 use App\Settings\MaintenanceSettings;
 use App\Support\MediaFilename;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\File;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
@@ -78,7 +80,7 @@ class ProcessRestoreDownloadJob implements ShouldQueue
             $path = 'media/'.$fileName;
 
             // Move file to storage
-            Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($downloadedPath), $fileName);
+            Storage::disk('public')->putFileAs('media', new File($downloadedPath), $fileName);
 
             // Clean up temp file
             @unlink($downloadedPath);
@@ -93,7 +95,7 @@ class ProcessRestoreDownloadJob implements ShouldQueue
 
             // Generate thumbnail if needed
             if ($media->needsThumbnail()) {
-                $thumbnailService = app(\App\Services\ThumbnailService::class);
+                $thumbnailService = app(ThumbnailService::class);
                 $thumbnailPath = $thumbnailService->generateThumbnail($path, $media->mime_type);
 
                 if ($thumbnailPath) {

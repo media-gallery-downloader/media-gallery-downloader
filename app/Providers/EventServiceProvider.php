@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Events\DownloadCompleted;
 use App\Events\DownloadFailed;
+use App\Listeners\HandleDownloadCompleted;
+use App\Listeners\HandleDownloadFailed;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -21,10 +23,10 @@ class EventServiceProvider extends ServiceProvider
             SendEmailVerificationNotification::class,
         ],
         DownloadCompleted::class => [
-            \App\Listeners\HandleDownloadCompleted::class,
+            HandleDownloadCompleted::class,
         ],
         DownloadFailed::class => [
-            \App\Listeners\HandleDownloadFailed::class,
+            HandleDownloadFailed::class,
         ],
     ];
 

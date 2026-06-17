@@ -24,7 +24,7 @@ function storingHandler(): BaseDownloadHandler
 
         public function download(string $url, string $downloadId, ?callable $progressCallback = null): Media
         {
-            throw new \RuntimeException('not used in test');
+            throw new RuntimeException('not used in test');
         }
 
         public function storePublic(string $file, string $name, string $url, ?string $mime): Media

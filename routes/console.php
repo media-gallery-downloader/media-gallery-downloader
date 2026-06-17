@@ -125,6 +125,6 @@ try {
     })
         ->hourly()
         ->name('retry-failed-downloads');
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     // Settings might not be migrated yet or other issues
 }
