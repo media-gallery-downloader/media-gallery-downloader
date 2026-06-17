@@ -347,7 +347,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles ytdlp update exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('updateYtDlp')->once()->andThrow(new \Exception('Update failed'));
+        $mock->shouldReceive('updateYtDlp')->once()->andThrow(new Exception('Update failed'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)
@@ -358,7 +358,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles duplicate removal exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('removeDuplicates')->once()->andThrow(new \Exception('Database error'));
+        $mock->shouldReceive('removeDuplicates')->once()->andThrow(new Exception('Database error'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)
@@ -369,7 +369,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles storage cleanup exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('cleanupOrphanedFiles')->once()->andThrow(new \Exception('Disk error'));
+        $mock->shouldReceive('cleanupOrphanedFiles')->once()->andThrow(new Exception('Disk error'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)
@@ -380,7 +380,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles backup exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('createDatabaseBackup')->once()->andThrow(new \Exception('Backup failed'));
+        $mock->shouldReceive('createDatabaseBackup')->once()->andThrow(new Exception('Backup failed'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)
@@ -391,7 +391,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles log rotation exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('rotateLogs')->once()->andThrow(new \Exception('Log rotation failed'));
+        $mock->shouldReceive('rotateLogs')->once()->andThrow(new Exception('Log rotation failed'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)
@@ -402,7 +402,7 @@ describe('Settings Page - Error Handling', function () {
 
     it('handles thumbnail regeneration exception', function () {
         $mock = Mockery::mock(MaintenanceService::class);
-        $mock->shouldReceive('regenerateThumbnails')->once()->andThrow(new \Exception('FFmpeg not found'));
+        $mock->shouldReceive('regenerateThumbnails')->once()->andThrow(new Exception('FFmpeg not found'));
         app()->instance(MaintenanceService::class, $mock);
 
         $component = Livewire::test(Settings::class)

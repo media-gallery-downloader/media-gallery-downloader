@@ -1,7 +1,12 @@
 <?php
 
 use App\Jobs\ProcessUploadJob;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 
 uses(RefreshDatabase::class);
 
@@ -39,7 +44,7 @@ describe('ProcessUploadJob', function () {
             'upload-123'
         );
 
-        expect($job)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        expect($job)->toBeInstanceOf(ShouldQueue::class);
     });
 
     it('uses expected traits', function () {
@@ -52,9 +57,9 @@ describe('ProcessUploadJob', function () {
 
         $uses = class_uses_recursive(get_class($job));
 
-        expect($uses)->toContain(\Illuminate\Bus\Queueable::class);
-        expect($uses)->toContain(\Illuminate\Queue\SerializesModels::class);
-        expect($uses)->toContain(\Illuminate\Queue\InteractsWithQueue::class);
-        expect($uses)->toContain(\Illuminate\Foundation\Bus\Dispatchable::class);
+        expect($uses)->toContain(Queueable::class);
+        expect($uses)->toContain(SerializesModels::class);
+        expect($uses)->toContain(InteractsWithQueue::class);
+        expect($uses)->toContain(Dispatchable::class);
     });
 });

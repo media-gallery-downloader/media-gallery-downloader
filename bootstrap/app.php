@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use JustBetter\Http3EarlyHints\Middleware\AddHttp3EarlyHints;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->appendToGroup('web', [
-            \JustBetter\Http3EarlyHints\Middleware\AddHttp3EarlyHints::class,
+            AddHttp3EarlyHints::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

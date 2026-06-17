@@ -2,9 +2,11 @@
 
 namespace App\Services\Maintenance;
 
+use App\Jobs\ProcessRestoreDownloadJob;
 use App\Models\Media;
 use App\Services\ThumbnailService;
 use App\Settings\MaintenanceSettings;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -142,7 +144,7 @@ class BackupService extends BaseMaintenanceService
                 'name' => $file->getFilename(),
                 'path' => $file->getPathname(),
                 'size' => $file->getSize(),
-                'created_at' => \Carbon\Carbon::createFromTimestamp($file->getMTime()),
+                'created_at' => Carbon::createFromTimestamp($file->getMTime()),
             ];
         }
 
@@ -293,7 +295,7 @@ class BackupService extends BaseMaintenanceService
         } else {
             // No local file, but $record['source'] is guaranteed (checked above):
             // queue it for re-download.
-            \App\Jobs\ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
+            ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
             $result['queued'] = 1;
         }
 
@@ -412,7 +414,7 @@ class BackupService extends BaseMaintenanceService
 
         if (! $fileExists) {
             // $record['source'] is guaranteed non-empty here (checked above).
-            \App\Jobs\ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
+            ProcessRestoreDownloadJob::dispatch($media->id)->onQueue('imports');
             $result['queued'] = 1;
         } elseif ($fileExists && $media->needsThumbnail()) {
             $thumbnailPath = $this->thumbnailService->generateThumbnail($record['path'], $record['mime_type']);

@@ -1,0 +1,45 @@
+version: 2
+
+updates:
+  # GitHub Actions used by the workflows in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      # "ci(deps): ..." -> patch bump in the release workflow's version logic
+      prefix: ci
+      include: scope
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # PHP / Composer dependencies (Laravel, Filament, dev tooling)
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      # "chore(deps): ..." / "chore(deps-dev): ..." -> patch bump
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      # Collapse the routine minor/patch churn into a single PR; majors stay separate.
+      composer-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Docker base images in .docker/Dockerfile (FrankenPHP, composer, deno)
+  - package-ecosystem: docker
+    directory: /.docker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope

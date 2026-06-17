@@ -3,10 +3,12 @@
 namespace App\Services\Upload;
 
 use App\Helpers\MimeTypeHelper;
+use App\Jobs\GenerateThumbnailJob;
 use App\Models\Media;
 use App\Services\ThumbnailService;
 use App\Services\UploadService;
 use App\Support\MediaFilename;
+use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -55,7 +57,7 @@ class VideoProcessor
         }
 
         // Move to final public location
-        $finalPath = Storage::disk('public')->putFileAs('media', new \Illuminate\Http\File($filePath), $fileName);
+        $finalPath = Storage::disk('public')->putFileAs('media', new File($filePath), $fileName);
 
         if (! $finalPath) {
             throw new \Exception("Failed to store file: {$originalName}");
@@ -132,7 +134,7 @@ class VideoProcessor
     protected function generateThumbnail(Media $media): void
     {
         if ($media->needsThumbnail()) {
-            \App\Jobs\GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
+            GenerateThumbnailJob::dispatch($media)->onQueue('thumbnails');
         }
     }
 }

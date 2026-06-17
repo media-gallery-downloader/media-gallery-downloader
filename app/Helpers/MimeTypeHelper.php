@@ -31,6 +31,15 @@ class MimeTypeHelper
         $mimeTypes = MimeTypes::getDefault();
         $mimes = $mimeTypes->getMimeTypes($extension);
 
+        // Prefer a video/* type when one is available. Symfony lists some video
+        // containers (e.g. mp4) under application/* first, but for a media app
+        // the video/ type is the meaningful one.
+        foreach ($mimes as $mime) {
+            if (str_starts_with($mime, 'video/')) {
+                return $mime;
+            }
+        }
+
         return $mimes[0] ?? '';
     }
 

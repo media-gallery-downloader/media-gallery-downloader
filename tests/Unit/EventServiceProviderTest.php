@@ -2,6 +2,8 @@
 
 use App\Events\DownloadCompleted;
 use App\Events\DownloadFailed;
+use App\Listeners\HandleDownloadCompleted;
+use App\Listeners\HandleDownloadFailed;
 use App\Providers\EventServiceProvider;
 
 describe('EventServiceProvider', function () {
@@ -13,7 +15,7 @@ describe('EventServiceProvider', function () {
         $listeners = $listen->getValue($provider);
 
         expect($listeners)->toHaveKey(DownloadCompleted::class);
-        expect($listeners[DownloadCompleted::class])->toContain(\App\Listeners\HandleDownloadCompleted::class);
+        expect($listeners[DownloadCompleted::class])->toContain(HandleDownloadCompleted::class);
     });
 
     it('registers download failed event listener', function () {
@@ -24,12 +26,12 @@ describe('EventServiceProvider', function () {
         $listeners = $listen->getValue($provider);
 
         expect($listeners)->toHaveKey(DownloadFailed::class);
-        expect($listeners[DownloadFailed::class])->toContain(\App\Listeners\HandleDownloadFailed::class);
+        expect($listeners[DownloadFailed::class])->toContain(HandleDownloadFailed::class);
     });
 
     it('extends base EventServiceProvider', function () {
         $provider = new EventServiceProvider(app());
 
-        expect($provider)->toBeInstanceOf(\Illuminate\Foundation\Support\Providers\EventServiceProvider::class);
+        expect($provider)->toBeInstanceOf(Illuminate\Foundation\Support\Providers\EventServiceProvider::class);
     });
 });

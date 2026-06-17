@@ -8,6 +8,7 @@
         "fmt": "deno fmt resources/js/",
         "fmt:check": "deno fmt --check resources/js/",
         "lint-staged": "deno run -A npm:lint-staged",
+        "commitlint": "deno run -A npm:@commitlint/cli",
         "prepare": "deno run -A npm:husky",
         "bump-version": "./scripts/bump-version.sh"
     },
@@ -20,7 +21,9 @@
         "postcss": "npm:postcss@^8.4.0",
         "axios": "npm:axios@^1.7.0",
         "husky": "npm:husky@^9.1.0",
-        "lint-staged": "npm:lint-staged@^15.2.0"
+        "lint-staged": "npm:lint-staged@^15.2.0",
+        "@commitlint/cli": "npm:@commitlint/cli@^19.0.0",
+        "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^19.0.0"
     },
     "compilerOptions": {
         "lib": ["dom", "dom.iterable", "esnext"],

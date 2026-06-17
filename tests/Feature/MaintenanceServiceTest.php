@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\FailedDownload;
 use App\Models\Media;
 use App\Services\MaintenanceService;
 use App\Services\ThumbnailService;
@@ -366,7 +367,7 @@ describe('MaintenanceService', function () {
                 'Connection refused'
             );
 
-            expect($failed)->toBeInstanceOf(\App\Models\FailedDownload::class);
+            expect($failed)->toBeInstanceOf(FailedDownload::class);
             expect($failed->url)->toBe('https://example.com/video.mp4');
             expect($failed->method)->toBe('direct');
             expect($failed->error_message)->toBe('Connection refused');
@@ -379,7 +380,7 @@ describe('MaintenanceService', function () {
             Queue::fake();
 
             // Create pending failed downloads
-            \App\Models\FailedDownload::create([
+            FailedDownload::create([
                 'url' => 'https://example.com/video1.mp4',
                 'method' => 'direct',
                 'error_message' => 'Error 1',
@@ -396,7 +397,7 @@ describe('MaintenanceService', function () {
             expect($count)->toBe(1);
 
             // The failed download should be resolved (job was dispatched successfully)
-            $failed = \App\Models\FailedDownload::first();
+            $failed = FailedDownload::first();
             expect($failed->status)->toBe('resolved');
         });
     });

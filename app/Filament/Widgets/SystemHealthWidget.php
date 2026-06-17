@@ -2,6 +2,8 @@
 
 namespace App\Filament\Widgets;
 
+use App\Services\UpdaterService;
+use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -58,7 +60,7 @@ class SystemHealthWidget extends Widget
     public function updateYtdlp(): void
     {
         try {
-            $updater = app(\App\Services\UpdaterService::class);
+            $updater = app(UpdaterService::class);
             $previousVersion = $this->ytdlpData['current_version'] ?? null;
 
             $result = $updater->downloadAndInstallYtdlp();
@@ -71,27 +73,27 @@ class SystemHealthWidget extends Widget
                 $newVersion = $this->ytdlpData['current_version'] ?? null;
 
                 if ($previousVersion && $newVersion && $previousVersion !== $newVersion) {
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('yt-dlp Updated')
                         ->body("Successfully updated from {$previousVersion} to {$newVersion}")
                         ->success()
                         ->send();
                 } else {
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('yt-dlp Update Complete')
                         ->body('yt-dlp has been updated successfully.')
                         ->success()
                         ->send();
                 }
             } else {
-                \Filament\Notifications\Notification::make()
+                Notification::make()
                     ->title('Update Failed')
                     ->body('Failed to update yt-dlp. Check the logs for more information.')
                     ->danger()
                     ->send();
             }
         } catch (\Exception $e) {
-            \Filament\Notifications\Notification::make()
+            Notification::make()
                 ->title('Update Error')
                 ->body('An error occurred: '.$e->getMessage())
                 ->danger()
@@ -102,7 +104,7 @@ class SystemHealthWidget extends Widget
     public function updateDeno(): void
     {
         try {
-            $updater = app(\App\Services\UpdaterService::class);
+            $updater = app(UpdaterService::class);
             $previousVersion = $this->denoData['current_version'] ?? null;
 
             $result = $updater->downloadAndInstallDeno();
@@ -115,27 +117,27 @@ class SystemHealthWidget extends Widget
                 $newVersion = $this->denoData['current_version'] ?? null;
 
                 if ($previousVersion && $newVersion && $previousVersion !== $newVersion) {
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Deno Updated')
                         ->body("Successfully updated from {$previousVersion} to {$newVersion}")
                         ->success()
                         ->send();
                 } else {
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Deno Update Complete')
                         ->body('Deno has been updated successfully.')
                         ->success()
                         ->send();
                 }
             } else {
-                \Filament\Notifications\Notification::make()
+                Notification::make()
                     ->title('Update Failed')
                     ->body('Failed to update Deno. Check the logs for more information.')
                     ->danger()
                     ->send();
             }
         } catch (\Exception $e) {
-            \Filament\Notifications\Notification::make()
+            Notification::make()
                 ->title('Update Error')
                 ->body('An error occurred: '.$e->getMessage())
                 ->danger()

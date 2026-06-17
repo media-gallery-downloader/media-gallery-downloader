@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MediaController;
+use App\Models\Media;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
@@ -13,7 +14,7 @@ Route::get('/health', function () {
     try {
         DB::connection()->getPdo();
         $services['database'] = 'ok';
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $services['database'] = 'error: '.$e->getMessage();
         $healthy = false;
     }
@@ -23,7 +24,7 @@ Route::get('/health', function () {
     try {
         Redis::connection()->ping();
         $services['redis'] = 'ok';
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $services['redis'] = 'error: '.$e->getMessage();
         $healthy = false;
     }
@@ -59,8 +60,8 @@ Route::delete('/api/media/{media}', [MediaController::class, 'destroy'])
 
 // API endpoint for smart refresh - returns media count and latest update timestamp
 Route::get('/api/media/stats', function () {
-    $count = \App\Models\Media::count();
-    $latest = \App\Models\Media::latest()->first();
+    $count = Media::count();
+    $latest = Media::latest()->first();
 
     return response()->json([
         'count' => $count,

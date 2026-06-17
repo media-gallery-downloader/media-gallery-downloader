@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Filament\Pages\Home;
 use App\Services\DownloadService;
 use App\Services\UploadService;
 use Filament\Notifications\Notification;
@@ -49,7 +50,7 @@ class QueueNavIcon extends Component
         // If we were active and now we are not, it means a job finished
         if ($this->wasActive && ! $hasActive) {
             $this->dispatch('refresh-gallery');
-            $this->dispatch('refresh-gallery')->to(\App\Filament\Pages\Home::class);
+            $this->dispatch('refresh-gallery')->to(Home::class);
         }
 
         $this->wasActive = $hasActive;

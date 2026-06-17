@@ -6,6 +6,7 @@ use App\Jobs\ProcessUploadJob;
 use App\Models\QueueItem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class UploadService
@@ -15,7 +16,7 @@ class UploadService
      */
     public function enqueueUpload(UploadedFile|TemporaryUploadedFile $file): void
     {
-        $uploadId = \Illuminate\Support\Str::uuid()->toString();
+        $uploadId = Str::uuid()->toString();
         $originalName = $file->getClientOriginalName();
         $mimeType = $file->getMimeType();
 

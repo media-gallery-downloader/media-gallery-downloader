@@ -1,0 +1,2 @@
+# Enforce Conventional Commits so the release workflow can derive the version bump.
+deno task commitlint --edit "$1"

@@ -51,7 +51,7 @@ describe('MimeTypeHelper', function () {
         });
 
         it('returns mime type for mkv', function () {
-            expect(MimeTypeHelper::getMimeTypeFromExtension('mkv'))->toBe('video/x-matroska');
+            expect(MimeTypeHelper::getMimeTypeFromExtension('mkv'))->toBe('video/matroska');
         });
 
         it('returns mime type for jpg', function () {

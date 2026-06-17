@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Media;
 use App\Services\DownloadService;
 use App\Services\UploadService;
 use Filament\Forms;
@@ -16,7 +17,7 @@ use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
 /**
- * @property \Filament\Forms\Form $form
+ * @property Form $form
  */
 class Home extends Page implements HasForms
 {
@@ -76,7 +77,7 @@ class Home extends Page implements HasForms
 
     public function deleteMedia($id): void
     {
-        $media = \App\Models\Media::find($id);
+        $media = Media::find($id);
 
         if ($media) {
             // Delete database record (files will be deleted by model observer)

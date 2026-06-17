@@ -1,0 +1,4 @@
+# Pre-push gate: same PHP lint/static-analysis as CI (Pint --test + PHPStan).
+# Catches style/type errors before the CI round-trip. The full test suite stays
+# in CI — it has host-environment-sensitive cases that shouldn't block pushes.
+composer lint

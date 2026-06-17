@@ -1,7 +1,13 @@
 <?php
 
 use App\Jobs\ProcessDownloadJob;
+use App\Models\FailedDownload;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 
 uses(RefreshDatabase::class);
 
@@ -22,7 +28,7 @@ describe('ProcessDownloadJob', function () {
     it('implements ShouldQueue interface', function () {
         $job = new ProcessDownloadJob('https://example.com/video.mp4', 'download-123');
 
-        expect($job)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+        expect($job)->toBeInstanceOf(ShouldQueue::class);
     });
 
     it('uses expected traits', function () {
@@ -30,10 +36,10 @@ describe('ProcessDownloadJob', function () {
 
         $uses = class_uses_recursive(get_class($job));
 
-        expect($uses)->toContain(\Illuminate\Bus\Queueable::class);
-        expect($uses)->toContain(\Illuminate\Queue\SerializesModels::class);
-        expect($uses)->toContain(\Illuminate\Queue\InteractsWithQueue::class);
-        expect($uses)->toContain(\Illuminate\Foundation\Bus\Dispatchable::class);
+        expect($uses)->toContain(Queueable::class);
+        expect($uses)->toContain(SerializesModels::class);
+        expect($uses)->toContain(InteractsWithQueue::class);
+        expect($uses)->toContain(Dispatchable::class);
     });
 
     it('reuses an existing unresolved failed-download row instead of duplicating', function () {
@@ -45,7 +51,7 @@ describe('ProcessDownloadJob', function () {
         $record->invoke($job, 'first error');
         $record->invoke($job, 'second error');
 
-        $rows = \App\Models\FailedDownload::where('url', 'https://example.com/video.mp4')->get();
+        $rows = FailedDownload::where('url', 'https://example.com/video.mp4')->get();
 
         expect($rows)->toHaveCount(1)
             ->and($rows->first()->error_message)->toBe('second error');
