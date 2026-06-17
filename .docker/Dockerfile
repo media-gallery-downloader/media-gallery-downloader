@@ -21,7 +21,7 @@ RUN deno task build
 # =============================================================================
 # Stage 2: Install PHP dependencies
 # =============================================================================
-FROM composer:2.9 AS composer-builder
+FROM composer:2.10 AS composer-builder
 
 WORKDIR /app
 
