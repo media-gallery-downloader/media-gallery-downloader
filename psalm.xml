@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!--
+    Psalm is used here for TAINT ANALYSIS ONLY (security SAST), not as a second
+    type-checker; PHPStan/Larastan already covers types via "composer lint".
+    Run locally with the taint-analysis flag (see .github/workflows/psalm.yml).
+    errorLevel is intentionally loose (8); taint mode ignores ordinary type
+    issues and only reports tainted-input flows (SQLi / XSS / path traversal...).
+-->
+<psalm
+    errorLevel="8"
+    resolveFromConfigFile="true"
+    findUnusedCode="false"
+    findUnusedBaselineEntry="false"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+>
+    <projectFiles>
+        <directory name="app"/>
+        <directory name="routes"/>
+        <ignoreFiles>
+            <directory name="vendor"/>
+        </ignoreFiles>
+    </projectFiles>
+
+    <!-- Boots the Laravel app to resolve framework types (improves taint precision). -->
+    <plugins>
+        <pluginClass class="Psalm\LaravelPlugin\Plugin"/>
+    </plugins>
+</psalm>
