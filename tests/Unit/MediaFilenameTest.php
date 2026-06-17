@@ -40,6 +40,14 @@ describe('MediaFilename::sanitizeTitle', function () {
             ->and($clean)->toContain('QT sprint')
             ->and($clean)->toContain('#maya');
     });
+
+    it('removes every \p{C} (control/format) character, whatever the source', function () {
+        // ZWJ, zero-width space, bidi mark, soft hyphen, and a C1 control char -
+        // any of these in a path makes Flysystem throw CorruptedPathDetected.
+        $title = "a\u{200D}b\u{200B}c\u{200E}d\u{00AD}e\u{0085}f";
+
+        expect(preg_match('/\p{C}/u', MediaFilename::sanitizeTitle($title)))->toBe(0);
+    });
 });
 
 describe('MediaFilename::build', function () {
