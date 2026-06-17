@@ -58,6 +58,8 @@ jobs:
         continue-on-error: true
 
       - name: Upload analysis results to GitHub
+        # Advisory workflow: a transient SARIF upload error must not fail the job.
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
         with:
           sarif_file: phpmd-results.sarif
