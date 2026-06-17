@@ -9,6 +9,7 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - **Multi-source Media Downloading**: Download content from various online platforms
 - **Direct File Upload**: Upload local media files directly to the gallery
 - **Gallery Management**: Organize downloaded media in a gallery interface
+- **Readable Filenames**: Files are stored as `<title>-<timestamp>.<ext>` (see [Media Filenames](#media-filenames))
 - **High Performance**: Built on FrankenPHP for optimal performance
 - **Secure**: Rootless containerized deployment with proper security headers
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
@@ -223,6 +224,11 @@ docker compose up -d
 The application will automatically run any necessary database migrations on startup.
 
 > **Tip:** Check the [releases page](https://github.com/media-gallery-downloader/media-gallery-downloader/releases) for changelogs before updating.
+>
+> **Upgrading an older library?** New media is now stored with readable
+> `<title>-<timestamp>.<ext>` filenames. To convert previously downloaded files
+> (named with a UUID), run the one-off [`media:rename-files`](#migrating-existing-files)
+> command after updating.
 
 ### Using a Reverse Proxy (Recommended for Production)
 
@@ -339,6 +345,48 @@ The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download medi
 > rather than passing `--cookies` here.
 
 For a complete list of available options, see the [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp#usage-and-options).
+
+## Media Filenames
+
+Media is stored on disk using the item's title plus the unix timestamp (seconds)
+of when it was added, e.g. a video titled "My Day at the Zoo" becomes:
+
+```text
+My Day at the Zoo-1749134400.mkv
+```
+
+This applies to every way media enters the app — downloads, uploads, bulk
+imports, and backup restores. The display name shown in the gallery is unchanged.
+
+Titles are made safe for the filesystem and for serving over HTTP:
+
+- Path separators (`/`, `\`), Windows-reserved characters (`: * ? " < > |`), and
+  control characters are removed; runs of whitespace are collapsed. Unicode
+  letters and emoji are kept.
+- The filename is capped at 255 bytes (Linux `NAME_MAX`), without splitting a
+  multi-byte character.
+- If two items would produce the same name, a `-2`, `-3`, … suffix is added.
+- The on-disk name keeps spaces/readable characters; the URL used to serve the
+  file is URL-encoded, so spaces and special characters work in the browser.
+
+### Migrating existing files
+
+If you have a library that predates this scheme (files named with a UUID), a
+one-off command renames the existing files (and their thumbnails) and updates
+the database records. It is safe to re-run (already-renamed files are skipped).
+
+```bash
+# Preview every planned rename without changing anything
+docker compose exec app php artisan media:rename-files --dry-run
+
+# Apply the renames
+docker compose exec app php artisan media:rename-files
+```
+
+The command moves each file, then updates its record (rolling the file move back
+if the database update fails), and reports how many were renamed, skipped,
+missing, or had collisions resolved. Files whose source is missing on disk are
+left untouched.
 
 ## Bulk Import
 
