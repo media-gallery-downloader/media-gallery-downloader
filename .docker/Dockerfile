@@ -175,9 +175,11 @@ COPY --from=frontend-builder --chown=app:app /app/public/build ./public/build
 # Copy application files
 COPY --chown=app:app . .
 
-# Copy production env and generate APP_KEY
+# Copy production env defaults. APP_KEY is intentionally NOT generated here:
+# a build-time key would differ between image builds and silently invalidate all
+# sessions (CSRF "419") on every update. The key must be supplied at runtime via
+# the APP_KEY environment variable (see the deployment stack's .env).
 COPY --chown=app:app .env.production .env
-RUN php artisan key:generate --force
 
 # Make start script executable
 RUN chmod +x .docker/start.sh

@@ -85,6 +85,16 @@ if [ ! -f .env ]; then
     fi
 fi
 
+# Ensure an APP_KEY is available. Production must supply a STABLE key via the
+# APP_KEY environment variable so sessions (and CSRF tokens) survive image
+# updates. If none is provided, fall back to an ephemeral key so the app still
+# boots — but warn loudly, because it changes on every container recreate.
+if [ -z "${APP_KEY:-}" ] && ! grep -qE '^APP_KEY=.+' .env 2>/dev/null; then
+    warn "No APP_KEY provided via environment — generating an EPHEMERAL key."
+    warn "Sessions will reset (CSRF 419) on each update. Set a stable APP_KEY in your deployment .env."
+    php artisan key:generate --force 2>/dev/null || warn "Could not generate APP_KEY (read-only filesystem?). Set APP_KEY in the environment."
+fi
+
 # Create SQLite database if it doesn't exist
 mkdir -p storage/app/db
 if [ ! -f storage/app/db/database.sqlite ]; then
