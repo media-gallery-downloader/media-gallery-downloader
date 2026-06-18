@@ -167,8 +167,16 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 
 ### Application Configuration
 
-Optional variables that tune download behaviour, safety limits, and the database.
-All have sensible defaults — you only need to set them to change the defaults.
+**Core settings** — set these for any production deployment:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_KEY` | _(none)_ | **Required.** A stable base64 encryption key (generate with `php artisan key:generate --show`). It signs/encrypts sessions and cookies, so it must stay constant — if it changes, everyone is logged out and uploads fail with a `419 CSRF token mismatch`. Supply it via the environment; the image does **not** generate one at build time |
+| `APP_URL` | `http://localhost:8080` | Public URL the app is served at, used for absolute/signed-URL generation. Set it to your real address (e.g. `https://media.example.com`) |
+| `TRUSTED_PROXIES` | `*` | Reverse proxies to trust for `X-Forwarded-*` headers. `*` trusts any proxy (fine when the container is only reachable through your proxy); a comma-separated list of IPs/CIDRs restricts it; an empty value disables proxy trust — see [Running without a reverse proxy](#running-without-a-reverse-proxy) |
+
+The remaining variables are optional — they tune download behaviour, safety
+limits, and the database. Only set them to change the defaults.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -234,6 +242,16 @@ The application will automatically run any necessary database migrations on star
 
 For HTTPS support, place the application behind a reverse proxy like Caddy or Traefik.
 
+The app trusts reverse-proxy `X-Forwarded-*` headers by default (`TRUSTED_PROXIES=*`)
+so it sees the real `https` scheme and host (needed for correct links, signed
+upload URLs, and session cookies). This is safe when the container is only
+reachable through your proxy — e.g. its port is bound to `127.0.0.1` (as in the
+provided compose) or only the proxy shares its network. To restrict it, set
+`TRUSTED_PROXIES` to a comma-separated list of your proxy's IPs/CIDRs.
+
+Also set a real `APP_URL` (e.g. `https://media.example.com`) and a stable
+`APP_KEY` — see [Application Configuration](#application-configuration).
+
 #### Caddy Example
 
 Add to your Caddyfile:
@@ -264,6 +282,21 @@ This approach lets you:
 - Use your existing SSL certificate infrastructure
 - Avoid port conflicts with other services
 - Integrate with your existing reverse proxy setup
+
+#### Running Without a Reverse Proxy
+
+The app can run standalone (exposed directly on its port) without a proxy. In that
+case there is no trusted proxy in front of it, so disable proxy-header trust so
+clients can't spoof their scheme/IP, and point `APP_URL` at the address you serve:
+
+```env
+TRUSTED_PROXIES=
+APP_URL=http://your-host:8080
+```
+
+You'll be serving plain HTTP unless you terminate TLS some other way. The
+[Security](#security) note still applies — the app has no built-in authentication,
+so don't put it on an untrusted network without protecting it.
 
 ## Authentication (Cookies)
 
