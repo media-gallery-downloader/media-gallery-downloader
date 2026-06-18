@@ -86,7 +86,7 @@ $media = $query->paginate($perPage);
                 placeholder="Search media..."
                 value="{{ $search }}"
                 x-data="{}"
-                x-on:keyup.enter="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}`"
+                x-on:keydown.enter.prevent="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-48 sm:w-64"
             >
             @if(!empty($search))

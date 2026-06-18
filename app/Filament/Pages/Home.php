@@ -47,6 +47,18 @@ class Home extends Page implements HasForms
         $this->form->fill();
     }
 
+    /**
+     * The page is rendered inside `<x-filament-panels::form wire:submit="submit">`,
+     * so pressing Enter in any field (e.g. the search box) submits the form.
+     * There is no whole-form action — downloads/uploads run from their own
+     * buttons / afterStateUpdated — so this is intentionally a no-op. Without it,
+     * the form submit throws a MethodNotFoundException (500).
+     */
+    public function submit(): void
+    {
+        //
+    }
+
     #[On('refresh-gallery')]
     public function refreshGallery(): void
     {

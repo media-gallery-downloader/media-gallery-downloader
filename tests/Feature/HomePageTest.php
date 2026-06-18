@@ -141,6 +141,15 @@ describe('Home Page', function () {
         $component->assertSet('per_page', 50);
     });
 
+    it('handles form submit (Enter key) without a missing-method error', function () {
+        // The page is wrapped in <x-filament-panels::form wire:submit="submit">,
+        // so pressing Enter in any field (e.g. the search box) calls submit().
+        Livewire::test(Home::class)
+            ->call('submit')
+            ->assertOk()
+            ->assertHasNoErrors();
+    });
+
     it('can set sort via URL', function () {
         $component = Livewire::test(Home::class, ['sort' => 'oldest']);
 
