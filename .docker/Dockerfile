@@ -121,15 +121,16 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends --show-progre
 # Used by `media:reencode --accel=vaapi` (h264_vaapi / hevc_vaapi) when /dev/dri
 # is passed into the container. The driver is in Debian's non-free component, so
 # enable it first (deb822 sources on modern bookworm; classic list as fallback).
+# Best-effort: if it can't install, the build still succeeds and re-encoding
+# falls back to software (--accel=none, the default) — don't fail the image over
+# an optional GPU optimisation. Run `vainfo` in the container to verify VAAPI.
 RUN sed -i 's/^Components: .*/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
     sed -i 's/\(bookworm[^ ]* main\)$/\1 contrib non-free non-free-firmware/' /etc/apt/sources.list 2>/dev/null || true; \
-    apt-get update && apt-get install -yqq --no-install-recommends \
-    intel-media-va-driver-non-free \
-    libva2 \
-    libva-drm2 \
-    vainfo \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    { apt-get update && apt-get install -yqq --no-install-recommends \
+        intel-media-va-driver-non-free libva2 libva-drm2 vainfo; } \
+      || echo "WARN: VAAPI driver install failed — media:reencode --accel=vaapi unavailable; software encode still works"; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set system timezone from build arg
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
