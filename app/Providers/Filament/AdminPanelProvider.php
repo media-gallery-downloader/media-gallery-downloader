@@ -14,6 +14,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -77,6 +78,12 @@ class AdminPanelProvider extends PanelProvider
                         color: white !important;
                     }
                 </style>'
+            )
+            // Load the bundled Vidstack player (+ its CSS) into every panel page.
+            // Self-hosted via Vite; powers the <media-player> in the media modal.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => Blade::render("@vite('resources/js/app.js')"),
             )
             ->middleware([
                 EncryptCookies::class,

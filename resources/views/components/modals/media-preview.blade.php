@@ -11,27 +11,26 @@
         isOther: false,
         isFullscreen: false,
         stopMedia() {
-            // Pause AND fully detach the source, then call load(). Just pausing
-            // (or seeking to 0) leaves a possibly-stalled range request holding a
-            // connection in the background after the modal closes, which is what
-            // made the whole app unresponsive until a hard refresh. Clearing the
-            // bound url + load() aborts the in-flight request and resets the
-            // element so it releases the connection immediately.
-            if (this.$refs.videoPlayer) this.$refs.videoPlayer.pause();
+            // Detach the source so the player releases the connection. A stalled
+            // range request left holding a connection after the modal closes is
+            // what made the whole app unresponsive until a hard refresh. Vidstack
+            // aborts its in-flight request and tears down as soon as src is
+            // cleared; the native <audio> needs an explicit load() to do the same.
+            if (this.$refs.videoPlayer) this.$refs.videoPlayer.pause?.();
             if (this.$refs.audioPlayer) this.$refs.audioPlayer.pause();
             this.mediaUrl = '';
             this.$nextTick(() => {
-                if (this.$refs.videoPlayer) this.$refs.videoPlayer.load();
                 if (this.$refs.audioPlayer) this.$refs.audioPlayer.load();
             });
         },
         loadAndPlayVideo() {
+            // Vidstack auto-plays via the `autoplay` attribute once it's ready;
+            // this is a best-effort nudge for the user gesture that opened the
+            // modal. Errors (autoplay policy, not-yet-ready) are non-fatal.
             this.$nextTick(() => {
-                if (this.$refs.videoPlayer && this.isVideo) {
-                    this.$refs.videoPlayer.load();
-                    this.$refs.videoPlayer.play().catch(e => {
-                        console.log('Could not auto-play video:', e);
-                    });
+                const player = this.$refs.videoPlayer;
+                if (player && this.isVideo && typeof player.play === 'function') {
+                    player.play().catch(() => {});
                 }
             });
         },
@@ -93,17 +92,22 @@
         <!-- Modal content section -->
         <div class="p-2 overflow-auto" style="max-height: calc(85vh - 110px);">
             <div class="flex items-center justify-center">
-                <!-- Video content -->
+                <!-- Video content (Vidstack web component; wire:ignore so Livewire
+                     doesn't morph the player's internal DOM out from under it). -->
                 <template x-if="isVideo">
-                    <div class="w-full flex items-center justify-center">
-                        <video
+                    <div class="w-full flex items-center justify-center" wire:ignore>
+                        <media-player
                             x-ref="videoPlayer"
-                            style="max-height: calc(80vh - 110px); max-width: 100%;"
-                            controls
-                            @fullscreenchange="isFullscreen = !!document.fullscreenElement">
-                            <source :src="mediaUrl" :type="mediaType">
-                            Your browser does not support video playback.
-                        </video>
+                            :src="mediaUrl"
+                            :title="mediaName"
+                            class="w-full"
+                            style="max-height: calc(80vh - 110px); --media-border-radius: 0.5rem;"
+                            playsinline
+                            autoplay
+                            @fullscreen-change="isFullscreen = !!$event.detail">
+                            <media-provider></media-provider>
+                            <media-video-layout></media-video-layout>
+                        </media-player>
                     </div>
                 </template>
 

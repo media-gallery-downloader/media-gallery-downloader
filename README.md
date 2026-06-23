@@ -421,6 +421,63 @@ if the database update fails), and reports how many were renamed, skipped,
 missing, or had collisions resolved. Files whose source is missing on disk are
 left untouched.
 
+## Video Playback & Media Maintenance
+
+The in-app preview uses a self-hosted [Vidstack](https://vidstack.io) player
+(bundled via Vite — no CDN, no telemetry). It recovers from network stalls and
+errors, and tears its connection down cleanly when the modal closes. Media is
+still stored and served as a **single, plain file** (e.g. `mp4`), so it remains
+directly downloadable and playable from an SMB/NFS share — nothing is repackaged
+into segmented streams.
+
+For smooth seeking over HTTP, downloaded/imported videos are **faststarted** (the
+`moov` atom is moved to the front of the file) automatically on ingestion. Three
+maintenance commands cover existing libraries:
+
+```bash
+# 1. Faststart any pre-existing files (moov atom -> front). Safe, lossless,
+#    in-place; already-optimised files are skipped.
+docker compose exec app php artisan media:remux-faststart --dry-run
+docker compose exec app php artisan media:remux-faststart
+
+# 2. Report files whose video/audio codec is OUTSIDE the browser baseline
+#    (config: config/mgd.php -> codecs, env MGD_BASELINE_VIDEO/AUDIO).
+docker compose exec app php artisan media:probe-codecs
+docker compose exec app php artisan media:probe-codecs --json
+
+# 3. Re-encode. Two modes (always --dry-run first):
+#    a) compatibility (default): non-baseline codec -> H.264/AAC so it plays
+#       everywhere.
+docker compose exec app php artisan media:reencode --dry-run
+docker compose exec app php artisan media:reencode
+
+#    b) --shrink: re-encode large, already-compatible files to a smaller codec
+#       (HEVC by default). LOSSY + CPU-heavy, so it is opt-in and gated by
+#       --min-size. HEVC stays in the baseline because modern clients (incl.
+#       Firefox on Windows) play it.
+docker compose exec app php artisan media:reencode --shrink --min-size=500M --dry-run
+```
+
+`media:reencode` flags: `--id=` (limit to specific media IDs), `--to=h264|hevc`,
+`--min-size=` (e.g. `500M`, `2G`), `--crf=` (quality; lower = better/larger),
+`--accel=none|vaapi`. The re-encoded file replaces the original in place (the
+record's size — and, if the container changed, its name/URL — are updated).
+
+### Hardware-accelerated re-encoding (optional)
+
+The image ships the Intel VAAPI driver (`intel-media-va-driver`). If your host has
+an Intel iGPU and you pass the render device into the container — `/dev/dri` plus
+the host's `render` group GID (see your deployment's `docker-compose.yml` /
+`RENDER_GID`) — you can offload encoding to the GPU:
+
+```bash
+docker compose exec app php artisan media:reencode --shrink --accel=vaapi --min-size=1G
+```
+
+Without `/dev/dri` (the default), re-encoding runs in software (`--accel=none`),
+which is correct but slower. The render node (default `/dev/dri/renderD128`) is
+configurable via `MGD_VAAPI_DEVICE`.
+
 ## Bulk Import
 
 The bulk import feature allows you to import large numbers of video files directly from a directory, bypassing the web upload interface. This is ideal for migrating existing video collections or importing files that are too large to upload through a browser.

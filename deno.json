@@ -20,6 +20,7 @@
         "autoprefixer": "npm:autoprefixer@^10.4.0",
         "postcss": "npm:postcss@^8.4.0",
         "axios": "npm:axios@^1.7.0",
+        "vidstack": "npm:vidstack@^1.15.0",
         "husky": "npm:husky@^9.1.0",
         "lint-staged": "npm:lint-staged@^15.2.0",
         "@commitlint/cli": "npm:@commitlint/cli@^19.0.0",

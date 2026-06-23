@@ -61,9 +61,16 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    'transcode' => [
+        // VAAPI render node for hardware-accelerated re-encoding (media:reencode
+        // --accel=vaapi). Requires /dev/dri passed into the container.
+        'vaapi_device' => env('MGD_VAAPI_DEVICE', '/dev/dri/renderD128'),
+    ],
+
     'timeouts' => [
         'download' => 600,  // 10 minutes for video downloads
         'metadata' => 120,  // 2 minutes for metadata fetching
+        'reencode' => 21600, // 6 hours - re-encoding a large library file is slow
     ],
 
     /*
