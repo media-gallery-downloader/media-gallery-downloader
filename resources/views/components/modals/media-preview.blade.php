@@ -11,14 +11,19 @@
         isOther: false,
         isFullscreen: false,
         stopMedia() {
-            if (this.$refs.videoPlayer) {
-                this.$refs.videoPlayer.pause();
-                this.$refs.videoPlayer.currentTime = 0;
-            }
-            if (this.$refs.audioPlayer) {
-                this.$refs.audioPlayer.pause();
-                this.$refs.audioPlayer.currentTime = 0;
-            }
+            // Pause AND fully detach the source, then call load(). Just pausing
+            // (or seeking to 0) leaves a possibly-stalled range request holding a
+            // connection in the background after the modal closes, which is what
+            // made the whole app unresponsive until a hard refresh. Clearing the
+            // bound url + load() aborts the in-flight request and resets the
+            // element so it releases the connection immediately.
+            if (this.$refs.videoPlayer) this.$refs.videoPlayer.pause();
+            if (this.$refs.audioPlayer) this.$refs.audioPlayer.pause();
+            this.mediaUrl = '';
+            this.$nextTick(() => {
+                if (this.$refs.videoPlayer) this.$refs.videoPlayer.load();
+                if (this.$refs.audioPlayer) this.$refs.audioPlayer.load();
+            });
         },
         loadAndPlayVideo() {
             this.$nextTick(() => {

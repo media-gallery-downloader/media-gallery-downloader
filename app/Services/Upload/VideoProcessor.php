@@ -5,6 +5,7 @@ namespace App\Services\Upload;
 use App\Helpers\MimeTypeHelper;
 use App\Jobs\GenerateThumbnailJob;
 use App\Models\Media;
+use App\Services\FaststartService;
 use App\Services\ThumbnailService;
 use App\Services\UploadService;
 use App\Support\MediaFilename;
@@ -55,6 +56,9 @@ class VideoProcessor
         if ($updateProgress) {
             $uploadService->updateStatus($uploadId, 'processing', ['progress' => 25]);
         }
+
+        // Web-optimise mp4/mov (moov atom to the front) for instant HTTP playback.
+        app(FaststartService::class)->optimize($filePath);
 
         // Move to final public location
         $finalPath = Storage::disk('public')->putFileAs('media', new File($filePath), $fileName);

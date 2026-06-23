@@ -101,6 +101,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Codec Baseline (browser compatibility)
+    |--------------------------------------------------------------------------
+    |
+    | `media:probe-codecs` flags any file whose video/audio codec is NOT in
+    | these lists as potentially-incompatible. Tune them to your clients:
+    | HEVC (h265) is included by default because modern setups (e.g. Firefox on
+    | Windows with the HEVC extension / hardware decode) play it and it's smaller.
+    | Remove `hevc` here if you also serve to devices/browsers that can't decode
+    | it and want those flagged for re-encoding.
+    |
+    */
+
+    'codecs' => [
+        'baseline_video' => array_filter(array_map('trim', explode(',', (string) env('MGD_BASELINE_VIDEO', 'h264,hevc,vp8,vp9,av1')))),
+        'baseline_audio' => array_filter(array_map('trim', explode(',', (string) env('MGD_BASELINE_AUDIO', 'aac,mp3,opus,vorbis,flac')))),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Bulk Import Settings
     |--------------------------------------------------------------------------
     |

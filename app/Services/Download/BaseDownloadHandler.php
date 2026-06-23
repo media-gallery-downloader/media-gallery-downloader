@@ -5,6 +5,7 @@ namespace App\Services\Download;
 use App\Helpers\MimeTypeHelper;
 use App\Jobs\GenerateThumbnailJob;
 use App\Models\Media;
+use App\Services\FaststartService;
 use App\Support\MediaFilename;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
@@ -62,6 +63,10 @@ abstract class BaseDownloadHandler implements DownloadHandlerInterface
         if (! str_starts_with($mimeType, 'video/')) {
             throw new \Exception("Downloaded file is not a video file (MIME: $mimeType)");
         }
+
+        // Web-optimise mp4/mov (moov atom to the front) so it starts and seeks
+        // instantly over HTTP. No-op for other containers / already-faststart.
+        app(FaststartService::class)->optimize($filePath);
 
         $fileSize = filesize($filePath);
 

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Services\FaststartService;
 use App\Services\ThumbnailService;
 use App\Settings\MaintenanceSettings;
 use App\Support\MediaFilename;
@@ -78,6 +79,9 @@ class ProcessRestoreDownloadJob implements ShouldQueue
             $timestamp = $media->created_at->timestamp;
             $fileName = MediaFilename::generate($media->name, $timestamp, $extension);
             $path = 'media/'.$fileName;
+
+            // Web-optimise mp4/mov (moov atom to the front) for instant HTTP playback.
+            app(FaststartService::class)->optimize($downloadedPath);
 
             // Move file to storage
             Storage::disk('public')->putFileAs('media', new File($downloadedPath), $fileName);

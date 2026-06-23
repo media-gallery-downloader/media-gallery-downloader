@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Services\FaststartService;
 use App\Services\Maintenance\ImportService;
 use App\Services\ThumbnailService;
 use App\Support\MediaFilename;
@@ -86,6 +87,9 @@ class ProcessDirectImportJob implements ShouldQueue
             // Build a readable, unique "<title>-<unix-seconds>.<ext>" filename.
             $finalFileName = MediaFilename::generate($displayName, time(), $extension);
             $finalPath = 'media/'.$finalFileName;
+
+            // Web-optimise mp4/mov (moov atom to the front) for instant HTTP playback.
+            app(FaststartService::class)->optimize($this->filePath);
 
             // Store file using Storage facade (handles streaming for large files)
             $stored = Storage::disk('public')->putFileAs(
