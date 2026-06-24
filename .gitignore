@@ -27,5 +27,5 @@ storage/caddy/*
 frankenphp
 frankenphp-worker.php
 
-# Local design docs / specs (not tracked)
-/docs/
+# Local design docs / specs (not tracked); published docs in /docs/*.md ARE tracked
+/docs/superpowers/
