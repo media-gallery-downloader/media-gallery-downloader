@@ -124,8 +124,10 @@ The application will automatically:
 
 ## Documentation
 
-- **[Deployment](docs/DEPLOYMENT.md)** — production setup, environment variables, reverse proxy, updating, backup & restore.
-- **[Configuration](docs/CONFIGURATION.md)** — editing media & tags, authentication cookies, yt-dlp options, filenames, playback & hardware re-encoding, bulk import.
+- **[Deployment](docs/DEPLOYMENT.md)** — production setup, environment variables, reverse proxy, updating.
+- **[Backup & Restore](docs/BACKUP.md)** — creating and downloading backups, restoring, migrating to a new server.
+- **[Configuration](docs/CONFIGURATION.md)** — editing media & tags, authentication cookies, yt-dlp options, filenames, playback & hardware re-encoding.
+- **[Bulk Import](docs/BULK_IMPORT.md)** — importing large numbers of files from a directory.
 - **[Development](docs/DEVELOPMENT.md)** — architecture, local development, frontend build, linting, testing.
 
 ## AI Disclaimer
