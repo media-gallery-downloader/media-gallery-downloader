@@ -100,8 +100,9 @@
                             x-ref="videoPlayer"
                             :src="mediaUrl"
                             :title="mediaName"
+                            view-type="video"
                             class="w-full"
-                            style="max-height: calc(80vh - 110px); --media-border-radius: 0.5rem;"
+                            style="max-height: calc(80vh - 110px); max-width: 100%; --media-border-radius: 0.5rem;"
                             playsinline
                             autoplay
                             @fullscreen-change="isFullscreen = !!$event.detail">
