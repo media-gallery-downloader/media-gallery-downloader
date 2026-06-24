@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Media;
 use App\Services\DownloadService;
 use App\Services\UploadService;
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -15,6 +16,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
+use Spatie\Tags\Tag;
 
 /**
  * @property Form $form
@@ -42,9 +44,85 @@ class Home extends Page implements HasForms
     #[Url]
     public ?string $search = null;
 
+    /** @var array<int, string> Tag names the gallery is filtered by (match all). */
+    #[Url]
+    public array $tags = [];
+
     public function mount()
     {
         $this->form->fill();
+    }
+
+    /**
+     * Edit a media item's title, source and tags. Mounted from the gallery's
+     * info ("i") button via wire:click="mountAction('editMediaInfo', { id })".
+     */
+    public function editMediaInfoAction(): Action
+    {
+        return Action::make('editMediaInfo')
+            ->modalHeading('Edit media')
+            ->modalWidth('lg')
+            ->fillForm(function (array $arguments): array {
+                $media = Media::findOrFail($arguments['id']);
+
+                return [
+                    'name' => $media->name,
+                    'source' => $media->source,
+                    'tags' => $media->tags->map(fn (Tag $tag) => $tag->name)->all(),
+                    'file_name' => $media->file_name,
+                    'size' => $media->size,
+                    'created_at' => $media->created_at?->toDayDateTimeString(),
+                ];
+            })
+            ->form([
+                Forms\Components\TextInput::make('name')
+                    ->label('Title')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('source')
+                    ->label('Source')
+                    ->maxLength(2048)
+                    ->helperText('Where this came from — a URL or a note.'),
+                Forms\Components\TagsInput::make('tags')
+                    ->label('Tags')
+                    ->suggestions($this->tagSuggestions())
+                    ->helperText('Type to search existing tags or add a new one.'),
+                Forms\Components\Placeholder::make('details')
+                    ->label('Details')
+                    ->content(fn (Forms\Get $get): string => trim(sprintf(
+                        '%s · %s · %s',
+                        $get('file_name') ?: '—',
+                        $this->humanSize((int) $get('size')),
+                        $get('created_at') ?: '—',
+                    ))),
+            ])
+            ->action(function (array $data, array $arguments): void {
+                $media = Media::findOrFail($arguments['id']);
+                $media->update([
+                    'name' => $data['name'],
+                    'source' => (string) ($data['source'] ?? ''), // column is NOT NULL
+                ]);
+                $media->syncTags($data['tags'] ?? []);
+
+                Notification::make()->title('Media updated')->success()->send();
+            });
+    }
+
+    /** Existing tag names, most-recent first, for the tags-input autocomplete. */
+    private function tagSuggestions(): array
+    {
+        return Tag::query()->latest('id')->get()->map(fn (Tag $tag) => $tag->name)->unique()->values()->all();
+    }
+
+    private function humanSize(int $bytes): string
+    {
+        if ($bytes <= 0) {
+            return '—';
+        }
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $i = min((int) floor(log($bytes, 1024)), count($units) - 1);
+
+        return round($bytes / (1024 ** $i), 1).' '.$units[$i];
     }
 
     /**
@@ -210,6 +288,7 @@ class Home extends Page implements HasForms
                             'perPage' => $this->per_page,
                             'sort' => $this->sort,
                             'search' => $this->search,
+                            'tags' => $this->tags,
                         ]),
                 ])->columnSpan(12)->compact(true),
         ])->statePath('data')->columns(12);

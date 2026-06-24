@@ -4,14 +4,20 @@ namespace App\Models;
 
 use App\Support\MediaFilename;
 use Database\Factories\MediaFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Tags\HasTags;
+use Spatie\Tags\Tag;
 
+/**
+ * @property-read Collection<int, Tag> $tags
+ */
 class Media extends Model
 {
     /** @use HasFactory<MediaFactory> */
-    use HasFactory;
+    use HasFactory, HasTags;
 
     protected $fillable = [
         'name',

@@ -13,9 +13,28 @@ $sortOptions = [
 $sort = $sort ?? request()->query('sort', 'newest');
 $perPage = $perPage ?? request()->query('per_page', 10);
 $search = $search ?? request()->query('search', '');
+$tags = array_values(array_filter((array) ($tags ?? request()->query('tags', []))));
+
+// Tags for the filter bar + URL helpers that preserve the current state.
+$allTags = \Spatie\Tags\Tag::all()->sortBy(fn ($t) => mb_strtolower((string) $t->name))->values();
+$tagsQs = $tags ? '&' . http_build_query(['tags' => $tags]) : '';
+$baseParams = array_filter(['sort' => $sort, 'per_page' => $perPage, 'search' => $search], fn ($v) => $v !== null && $v !== '');
+$clearTagsUrl = '?' . http_build_query($baseParams);
+$tagToggleUrl = function (string $name) use ($baseParams, $tags) {
+    $next = in_array($name, $tags, true)
+        ? array_values(array_diff($tags, [$name]))
+        : array_values(array_merge($tags, [$name]));
+
+    return '?' . http_build_query($next ? $baseParams + ['tags' => $next] : $baseParams);
+};
 
 // Build the query based on sort parameter
 $query = \App\Models\Media::query();
+
+// Apply tag filter (match all selected tags)
+if (! empty($tags)) {
+    $query->withAllTags($tags);
+}
 
 // Apply search filter
 if (!empty($search)) {
@@ -58,7 +77,7 @@ $media = $query->paginate($perPage);
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200">Sort by:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}&search={{ urlencode($search ?? '') }}`"
+                x-on:change="window.location = `?sort=${$event.target.value}&per_page={{ $perPage }}&search={{ urlencode($search ?? '') }}{!! $tagsQs !!}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach($sortOptions as $value => $label)
                 <option value="{{ $value }}" {{ $sort === $value ? 'selected' : '' }}>
@@ -70,7 +89,7 @@ $media = $query->paginate($perPage);
             <span class="text-xs font-medium text-gray-700 dark:text-gray-200 ml-2">Show:</span>
             <select
                 x-data="{}"
-                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}&search={{ urlencode($search ?? '') }}`"
+                x-on:change="window.location = `?sort={{ $sort }}&per_page=${$event.target.value}&search={{ urlencode($search ?? '') }}{!! $tagsQs !!}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500">
                 @foreach([10, 20, 50, 100] as $value)
                 <option value="{{ $value }}" {{ $perPage == $value ? 'selected' : '' }}>
@@ -86,16 +105,35 @@ $media = $query->paginate($perPage);
                 placeholder="Search media..."
                 value="{{ $search }}"
                 x-data="{}"
-                x-on:keydown.enter.prevent="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}`"
+                x-on:keydown.enter.prevent="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}{!! $tagsQs !!}`"
                 class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-48 sm:w-64"
             >
             @if(!empty($search))
-            <a href="?sort={{ $sort }}&per_page={{ $perPage }}" class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <a href="?sort={{ $sort }}&per_page={{ $perPage }}{!! $tagsQs !!}" class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <x-heroicon-m-x-mark class="w-4 h-4" />
             </a>
             @endif
         </div>
     </div>
+
+    <!-- Tag filter bar -->
+    @if($allTags->isNotEmpty())
+    <div class="flex flex-wrap items-center gap-1.5 px-1">
+        <span class="text-xs font-medium text-gray-700 dark:text-gray-200 mr-1">Tags:</span>
+        @foreach($allTags as $tag)
+        @php $active = in_array($tag->name, $tags, true); @endphp
+        <a href="{{ $tagToggleUrl($tag->name) }}"
+            class="text-xs px-2 py-0.5 rounded-full border transition {{ $active ? 'bg-primary-600 text-white border-primary-600' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600' }}">
+            {{ $tag->name }}
+        </a>
+        @endforeach
+        @if(!empty($tags))
+        <a href="{{ $clearTagsUrl }}" class="text-xs px-2 py-0.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline">
+            Clear
+        </a>
+        @endif
+    </div>
+    @endif
 
     <!-- Gallery Grid - Flexbox Approach -->
     <div class="w-full overflow-hidden">
@@ -141,22 +179,14 @@ $media = $query->paginate($perPage);
                     <div class="flex justify-between items-center">
                         <span class="text-xs text-white truncate max-w-[60%]">{{ $item->created_at->toDayDateTimeString() }}</span>
                         <div class="flex space-x-1">
-                            <a
-                                href="#"
-                                @click.stop.prevent="$dispatch('open-info-modal', {
-                                    id: {{ $item->id }},
-                                    name: {{ Js::from($item->name) }},
-                                    file_name: {{ Js::from($item->file_name) }},
-                                    mime_type: '{{ $item->mime_type }}',
-                                    size: {{ $item->size }},
-                                    url: '{{ $item->url }}',
-                                    created_at: '{{ $item->created_at }}',
-                                    path: {{ Js::from($item->path ?? '') }},
-                                    source: {{ Js::from($item->source ?? '') }}
-                                })"
+                            <button
+                                type="button"
+                                wire:click.stop="mountAction('editMediaInfo', { id: {{ $item->id }} })"
+                                @click.stop
+                                title="Edit title, source & tags"
                                 class="text-blue-400 hover:text-blue-300">
                                 <x-heroicon-m-information-circle class="w-5 h-5" />
-                            </a>
+                            </button>
                             <!-- Hamburger menu -->
                             <div class="relative" x-data="{
                                 menuPosition: { top: 0, left: 0 },
@@ -412,14 +442,13 @@ $media = $query->paginate($perPage);
             Showing {{ $media->firstItem() ?? 0 }} to {{ $media->lastItem() ?? 0 }} of {{ $media->total() }} results
         </div>
         <div>
-            {{ $media->appends(['sort' => $sort, 'per_page' => $perPage, 'page' => $media->currentPage()])->onEachSide(1)->links('vendor.pagination.tailwind-no-info') }}
+            {{ $media->appends(array_filter(['sort' => $sort, 'per_page' => $perPage, 'search' => $search, 'tags' => $tags], fn ($v) => $v !== null && $v !== '' && $v !== []))->onEachSide(1)->links('vendor.pagination.tailwind-no-info') }}
         </div>
     </div>
 </div>
 
 <!-- Modal Components -->
 <x-modals.media-preview />
-<x-modals.media-info />
 <x-modals.delete-confirmation />
 
 <script>
