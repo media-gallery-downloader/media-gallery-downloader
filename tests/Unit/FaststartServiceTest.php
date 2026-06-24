@@ -68,5 +68,5 @@ describe('FaststartService::optimize', function () {
 
         array_map('unlink', glob($dir.'/*') ?: []);
         @rmdir($dir);
-    })->skip(! (bool) (new Process(['which', 'ffmpeg']))->mustRun()->getOutput(), 'ffmpeg not available');
+    })->skip(! @is_executable(trim((string) shell_exec('command -v ffmpeg'))), 'ffmpeg not available');
 });
