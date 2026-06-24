@@ -30,7 +30,7 @@ class Reencode extends Command
         {--shrink : Size mode: re-encode large baseline files to a smaller codec}
         {--to= : Target video codec (default: h264 for compatibility, hevc for --shrink)}
         {--min-size=0 : Skip files smaller than this (e.g. 500M, 2G)}
-        {--accel=none : Hardware acceleration: none|vaapi}
+        {--accel=none : Hardware acceleration: none|vaapi|nvenc (see media:encoders)}
         {--crf= : Quality (lower = better/larger); codec default otherwise}';
 
     protected $description = 'Re-encode media for compatibility (->h264) or size (--shrink, ->hevc)';

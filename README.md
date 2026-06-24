@@ -33,9 +33,9 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - Docker and Docker Compose
 - Linux/macOS/Windows with WSL2
 
-## Super Quick Start
+## Quick Start
 
-Download the management script and install:
+The fastest way — download the management script and install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/media-gallery-downloader/media-gallery-downloader/master/mgd.sh -o mgd.sh
@@ -58,7 +58,7 @@ chmod +x mgd.sh
 ./mgd.sh selfupdate   # Update the mgd.sh script
 ```
 
-## Quick Start
+## Manual Setup
 
 The manual way to run Media Gallery Downloader using the pre-built Docker image from GitHub Container Registry.
 
@@ -460,23 +460,34 @@ docker compose exec app php artisan media:reencode --shrink --min-size=500M --dr
 
 `media:reencode` flags: `--id=` (limit to specific media IDs), `--to=h264|hevc`,
 `--min-size=` (e.g. `500M`, `2G`), `--crf=` (quality; lower = better/larger),
-`--accel=none|vaapi`. The re-encoded file replaces the original in place (the
-record's size — and, if the container changed, its name/URL — are updated).
+`--accel=none|vaapi|nvenc`. The re-encoded file replaces the original in place
+(its size — and, if the container changed, its name/URL — are updated).
 
 ### Hardware-accelerated re-encoding (optional)
 
-The image ships the Intel VAAPI driver (`intel-media-va-driver`). If your host has
-an Intel iGPU and you pass the render device into the container — `/dev/dri` plus
-the host's `render` group GID (see your deployment's `docker-compose.yml` /
-`RENDER_GID`) — you can offload encoding to the GPU:
+Re-encoding runs in **software by default** (`--accel=none`) and works on any
+host. The published `latest` image is GPU-neutral — hardware encode is opt-in, so
+it never assumes a particular vendor. First see what's actually available inside
+the container:
+
+```bash
+docker compose exec app php artisan media:encoders
+```
+
+Then enable your GPU:
+
+- **Intel / AMD (VAAPI):** use the `latest-vaapi` image tag (it bundles VAAPI
+  drivers for both Intel and AMD) and pass `/dev/dri` into the container via your
+  compose (the homelab stacks ship a `docker-compose.override.yml.example`). Then
+  run with `--accel=vaapi`. The render node (default `/dev/dri/renderD128`) is set
+  by `MGD_VAAPI_DEVICE`.
+- **NVIDIA (NVENC):** works on the plain image — `ffmpeg`'s `*_nvenc` encoders
+  load the host driver at runtime via the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+  Add the toolkit on the host + a GPU reservation in compose, then `--accel=nvenc`.
 
 ```bash
 docker compose exec app php artisan media:reencode --shrink --accel=vaapi --min-size=1G
 ```
-
-Without `/dev/dri` (the default), re-encoding runs in software (`--accel=none`),
-which is correct but slower. The render node (default `/dev/dri/renderD128`) is
-configurable via `MGD_VAAPI_DEVICE`.
 
 ## Bulk Import
 

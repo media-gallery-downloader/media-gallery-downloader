@@ -7,9 +7,9 @@ use Symfony\Component\Process\Process;
 
 /**
  * Re-encodes a video to a target codec (H.264 or HEVC) + AAC audio, in a
- * faststarted mp4. Supports software (libx264/libx265) and VAAPI hardware
- * encoding. Used by `media:reencode` for compatibility re-encodes (non-baseline
- * codec -> h264) and size-optimisation (large h264 -> hevc).
+ * faststarted mp4. Supports software (libx264/libx265), VAAPI (Intel/AMD) and
+ * NVENC (NVIDIA) hardware encoding. Used by `media:reencode` for compatibility
+ * re-encodes (non-baseline codec -> h264) and size-optimisation (h264 -> hevc).
  */
 class MediaTranscoder
 {
@@ -18,7 +18,7 @@ class MediaTranscoder
      * (and removes any partial output).
      *
      * @param  string  $targetVideo  'h264' | 'hevc'
-     * @param  string  $accel  'none' | 'vaapi'
+     * @param  string  $accel  'none' | 'vaapi' | 'nvenc'
      */
     public function transcode(string $inputPath, string $outputPath, string $targetVideo, string $accel = 'none', ?int $crf = null): bool
     {
@@ -52,31 +52,50 @@ class MediaTranscoder
             $device = (string) config('mgd.transcode.vaapi_device', '/dev/dri/renderD128');
             $encoder = $targetVideo === 'hevc' ? 'hevc_vaapi' : 'h264_vaapi';
 
-            return [
+            return array_merge([
                 'ffmpeg', '-y',
                 '-hwaccel', 'vaapi', '-hwaccel_device', $device, '-hwaccel_output_format', 'vaapi',
                 '-i', $input,
                 '-map', '0:v:0?', '-map', '0:a:0?',
                 '-vf', 'format=nv12|vaapi,hwupload',
                 '-c:v', $encoder,
-                '-c:a', 'aac', '-b:a', '192k',
-                '-movflags', '+faststart',
-                $output,
-            ];
+            ], $this->tail($targetVideo, $output));
+        }
+
+        if ($accel === 'nvenc') {
+            $encoder = $targetVideo === 'hevc' ? 'hevc_nvenc' : 'h264_nvenc';
+            $cq = $crf ?? ($targetVideo === 'hevc' ? 26 : 21); // NVENC quality (-cq), akin to CRF
+
+            return array_merge([
+                'ffmpeg', '-y', '-i', $input,
+                '-map', '0:v:0?', '-map', '0:a:0?',
+                '-c:v', $encoder, '-preset', 'p5', '-rc', 'vbr', '-cq', (string) $cq, '-pix_fmt', 'yuv420p',
+            ], $this->tail($targetVideo, $output));
         }
 
         // Software encode.
         $encoder = $targetVideo === 'hevc' ? 'libx265' : 'libx264';
         $crf ??= $targetVideo === 'hevc' ? 26 : 21;
 
-        $args = [
+        return array_merge([
             'ffmpeg', '-y', '-i', $input,
             '-map', '0:v:0?', '-map', '0:a:0?',
             '-c:v', $encoder, '-crf', (string) $crf, '-preset', 'medium', '-pix_fmt', 'yuv420p',
-        ];
+        ], $this->tail($targetVideo, $output));
+    }
+
+    /**
+     * Shared output tail: HEVC-in-mp4 tag (broad player compatibility), AAC
+     * audio, faststart, then the output path.
+     *
+     * @return list<string>
+     */
+    private function tail(string $targetVideo, string $output): array
+    {
+        $args = [];
         if ($targetVideo === 'hevc') {
             $args[] = '-tag:v';
-            $args[] = 'hvc1'; // broad player compatibility for HEVC-in-mp4
+            $args[] = 'hvc1';
         }
 
         return array_merge($args, [

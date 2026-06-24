@@ -369,6 +369,39 @@ jobs:
             APP_ENV=production
             APP_DEBUG=false
 
+      # Opt-in hardware-encode variant: same image + Intel/AMD VAAPI drivers,
+      # published as `<tag>-vaapi`. amd64 only (the VAAPI drivers are x86).
+      - name: Extract metadata for Docker (VAAPI variant)
+        id: meta_vaapi
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+            suffix=-vaapi
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.released == 'true' }}
+
+      - name: Build and push Docker image (VAAPI variant)
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: .docker/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta_vaapi.outputs.tags }}
+          labels: ${{ steps.meta_vaapi.outputs.labels }}
+          target: production
+          cache-from: type=gha
+          provenance: false
+          sbom: false
+          outputs: type=image,compression=zstd,compression-level=3,force-compression=true
+          build-args: |
+            APP_ENV=production
+            APP_DEBUG=false
+            INSTALL_VAAPI=true
+
       - name: Generate build summary
         run: |
           echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
@@ -381,3 +414,6 @@ jobs:
           echo "### Platforms" >> $GITHUB_STEP_SUMMARY
           echo "- linux/amd64" >> $GITHUB_STEP_SUMMARY
           echo "- linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Variants" >> $GITHUB_STEP_SUMMARY
+          echo "- \`*-vaapi\` (linux/amd64): adds Intel + AMD VAAPI drivers for \`media:reencode --accel=vaapi\`" >> $GITHUB_STEP_SUMMARY
