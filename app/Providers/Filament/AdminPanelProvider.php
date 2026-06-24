@@ -81,9 +81,14 @@ class AdminPanelProvider extends PanelProvider
             )
             // Load the bundled Vidstack player (+ its CSS) into every panel page.
             // Self-hosted via Vite; powers the <media-player> in the media modal.
+            // Only emit the tags when the assets exist — the built manifest
+            // (production image) or the dev-server hot file — so page renders
+            // don't 500 in contexts without a build (e.g. the test suite).
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn (): string => Blade::render("@vite('resources/js/app.js')"),
+                fn (): string => (is_file(public_path('build/manifest.json')) || is_file(public_path('hot')))
+                    ? Blade::render("@vite('resources/js/app.js')")
+                    : '',
             )
             ->middleware([
                 EncryptCookies::class,
