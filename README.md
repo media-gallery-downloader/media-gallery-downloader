@@ -145,6 +145,7 @@ This application automatically downloads and utilizes the following third-party 
 - **yt-dlp**: Licensed under The Unlicense (Public Domain). Automatically downloaded from GitHub releases for media downloading functionality.
 - **Deno**: Licensed under MIT License. Automatically downloaded from GitHub releases for frontend build tooling.
 - **FFmpeg**: Licensed under LGPL v2.1+ (or GPL v2.1+ depending on build configuration). Installed via system package manager during container build.
+- **VAAPI GPU drivers** (optional `-vaapi` image only): the `latest-vaapi` image variant additionally installs the Intel Media Driver (`intel-media-va-driver-non-free`, from Debian's **non-free** component) and the AMD Mesa VAAPI drivers to enable GPU-accelerated re-encoding. The default image does **not** include these. Hardware H.264/HEVC encoding is subject to the same codec patent considerations noted for FFmpeg below.
 
 **Important**: These tools are not distributed with this application but are automatically obtained during installation/runtime. Users are responsible for:
 
