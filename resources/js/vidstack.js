@@ -5,6 +5,7 @@
 // HLS-ready for future sidecar streams. Everything is bundled locally — no CDN,
 // no telemetry, nothing phones home.
 import 'vidstack/player';
+import 'vidstack/player/ui';
 import 'vidstack/player/layouts/default';
 
 import 'vidstack/player/styles/default/theme.css';
