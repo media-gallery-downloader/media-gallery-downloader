@@ -75,8 +75,14 @@
     x-transition:leave.duration.200ms
     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
     x-cloak
+    {{-- Dismiss on a genuine backdrop click only (@click.self = target is the overlay
+         itself). NOT @click.away on the content box: Vidstack portals its settings/speed
+         menu to <body> (outside this subtree), so @click.away treated menu clicks as
+         "outside" and closed the modal — clicking a playback-speed option just dismissed
+         the player. --}}
+    @click.self="if (open && !isFullscreen) { stopMedia(); open = false; }"
     @keydown.escape.window="if (open && !isFullscreen) { stopMedia(); open = false; }">
-    <div @click.away="if (open && !isFullscreen) { stopMedia(); open = false; }" class="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden flex flex-col border border-white dark:border-gray-700">
+    <div class="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden flex flex-col border border-white dark:border-gray-700">
         <!-- Modal header -->
         <div class="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-base font-medium text-gray-900 dark:text-white truncate" x-text="mediaName"></h3>
