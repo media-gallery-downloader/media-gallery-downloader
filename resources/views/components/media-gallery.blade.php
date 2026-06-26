@@ -14,6 +14,9 @@ $sort = $sort ?? request()->query('sort', 'newest');
 $perPage = $perPage ?? request()->query('per_page', 10);
 $search = $search ?? request()->query('search', '');
 $tags = array_values(array_filter((array) ($tags ?? request()->query('tags', []))));
+// Page comes from the component (#[Url] $page) so it survives Livewire updates;
+// fall back to the request only on a non-Livewire render.
+$page = (int) ($page ?? request()->query('page', 1));
 
 // Tags for the filter bar + URL helpers that preserve the current state.
 $allTags = \Spatie\Tags\Tag::all()->sortBy(fn ($t) => mb_strtolower((string) $t->name))->values();
@@ -67,7 +70,10 @@ default:
 $query->latest();
 }
 
-$media = $query->paginate($perPage);
+// Pass the page explicitly (4th arg) instead of letting the paginator read it
+// from the request — during a Livewire update the request has no ?page, which is
+// what made the gallery snap back to page 1 when the edit modal opened.
+$media = $query->paginate($perPage, ['*'], 'page', $page);
 @endphp
 
 <div class="space-y-4 pt-0 pb-2 px-2 container mx-auto">
@@ -442,7 +448,11 @@ $media = $query->paginate($perPage);
             Showing {{ $media->firstItem() ?? 0 }} to {{ $media->lastItem() ?? 0 }} of {{ $media->total() }} results
         </div>
         <div>
-            {{ $media->appends(array_filter(['sort' => $sort, 'per_page' => $perPage, 'search' => $search, 'tags' => $tags], fn ($v) => $v !== null && $v !== '' && $v !== []))->onEachSide(1)->links('vendor.pagination.tailwind-no-info') }}
+            {{-- withPath('') makes the page links relative (?page=N&…) so the browser
+                 resolves them against the address bar. Without it the paginator bakes in
+                 the current request path, which during a Livewire render is the POST-only
+                 /livewire/update endpoint — a GET there returned 405. --}}
+            {{ $media->withPath('')->appends(array_filter(['sort' => $sort, 'per_page' => $perPage, 'search' => $search, 'tags' => $tags], fn ($v) => $v !== null && $v !== '' && $v !== []))->onEachSide(1)->links('vendor.pagination.tailwind-no-info') }}
         </div>
     </div>
 </div>

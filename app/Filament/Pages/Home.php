@@ -48,6 +48,14 @@ class Home extends Page implements HasForms
     #[Url]
     public array $tags = [];
 
+    /**
+     * Current gallery page. Kept in the URL (and thus in Livewire state) so it
+     * survives round-trips like opening the edit modal — without this the plain
+     * paginator re-resolves to page 1 on every Livewire update.
+     */
+    #[Url]
+    public ?int $page = 1;
+
     public function mount()
     {
         $this->form->fill();
@@ -289,6 +297,7 @@ class Home extends Page implements HasForms
                             'sort' => $this->sort,
                             'search' => $this->search,
                             'tags' => $this->tags,
+                            'page' => $this->page,
                         ]),
                 ])->columnSpan(12)->compact(true),
         ])->statePath('data')->columns(12);
