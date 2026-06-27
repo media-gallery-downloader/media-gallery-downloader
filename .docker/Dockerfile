@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build frontend assets
 # =============================================================================
-FROM denoland/deno:2.8.3 AS frontend-builder
+FROM denoland/deno:2.9.0 AS frontend-builder
 
 WORKDIR /app
 
