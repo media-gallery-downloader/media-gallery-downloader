@@ -18,12 +18,20 @@ class MediaActivityChart extends ChartWidget
 
     protected function getData(): array
     {
-        $data = collect(range(29, 0))->map(function ($daysAgo) {
+        // One grouped query for the whole window instead of a COUNT per day.
+        // date() matches the semantics of the whereDate() calls this replaced.
+        $counts = Media::query()
+            ->where('created_at', '>=', Carbon::today()->subDays(29))
+            ->selectRaw('date(created_at) as day, count(*) as aggregate')
+            ->groupBy('day')
+            ->pluck('aggregate', 'day');
+
+        $data = collect(range(29, 0))->map(function ($daysAgo) use ($counts) {
             $date = Carbon::today()->subDays($daysAgo);
 
             return [
                 'date' => $date->format('M j'),
-                'count' => Media::whereDate('created_at', $date)->count(),
+                'count' => (int) ($counts[$date->toDateString()] ?? 0),
             ];
         });
 

@@ -13,6 +13,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -35,8 +36,11 @@ class Home extends Page implements HasForms
 
     public ?array $data = [];
 
+    /** Allowed page sizes — must match the gallery's per-page <select>. */
+    public const PER_PAGE_OPTIONS = [10, 20, 50, 100];
+
     #[Url]
-    public $per_page = 100;
+    public $per_page = 20;
 
     #[Url]
     public $sort = 'newest';
@@ -58,6 +62,20 @@ class Home extends Page implements HasForms
 
     public function mount()
     {
+        // Persist an explicit per-page choice across visits (no accounts, so a
+        // long-lived cookie). A ?per_page in the URL is the user picking a size —
+        // remember it; a bare URL restores the remembered size over the default.
+        // Must run before form->fill(): building the form captures per_page into
+        // the gallery's viewData.
+        $fromUrl = request()->query('per_page');
+        if ($fromUrl !== null) {
+            if (in_array((int) $fromUrl, self::PER_PAGE_OPTIONS, true)) {
+                Cookie::queue('gallery_per_page', (string) (int) $fromUrl, 60 * 24 * 365);
+            }
+        } elseif (in_array((int) request()->cookie('gallery_per_page'), self::PER_PAGE_OPTIONS, true)) {
+            $this->per_page = (int) request()->cookie('gallery_per_page');
+        }
+
         $this->form->fill();
     }
 

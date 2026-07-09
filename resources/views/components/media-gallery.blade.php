@@ -11,7 +11,7 @@ $sortOptions = [
 ];
 
 $sort = $sort ?? request()->query('sort', 'newest');
-$perPage = $perPage ?? request()->query('per_page', 10);
+$perPage = $perPage ?? request()->query('per_page', 20);
 $search = $search ?? request()->query('search', '');
 $tags = array_values(array_filter((array) ($tags ?? request()->query('tags', []))));
 // Page comes from the component (#[Url] $page) so it survives Livewire updates;

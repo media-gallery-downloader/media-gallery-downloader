@@ -51,8 +51,8 @@ describe('Home Page', function () {
     it('has per_page property', function () {
         $component = Livewire::test(Home::class);
 
-        // Default per_page is 100
-        $component->assertSet('per_page', 100);
+        // Default per_page is 20 (an explicit choice persists via cookie)
+        $component->assertSet('per_page', 20);
     });
 
     it('has sort property', function () {

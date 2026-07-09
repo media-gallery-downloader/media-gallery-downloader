@@ -3,6 +3,7 @@
 use App\Filament\Widgets\MediaActivityChart;
 use App\Models\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -74,6 +75,34 @@ describe('MediaActivityChart', function () {
         foreach ($counts as $count) {
             expect($count)->toBe(0);
         }
+    });
+
+    it('excludes media older than the 30-day window', function () {
+        Media::factory()->create(['created_at' => now()]);
+        Media::factory()->create(['created_at' => now()->subDays(40)]);
+
+        $widget = new MediaActivityChart;
+        $reflection = new ReflectionMethod($widget, 'getData');
+        $reflection->setAccessible(true);
+
+        $counts = $reflection->invoke($widget)['datasets'][0]['data'];
+
+        expect(array_sum($counts))->toBe(1);
+    });
+
+    it('uses a single grouped query, not one count per day', function () {
+        Media::factory()->count(3)->create();
+
+        DB::enableQueryLog();
+        $widget = new MediaActivityChart;
+        $reflection = new ReflectionMethod($widget, 'getData');
+        $reflection->setAccessible(true);
+        $reflection->invoke($widget);
+        $mediaQueries = collect(DB::getQueryLog())
+            ->filter(fn ($q) => str_contains($q['query'], 'media'));
+        DB::disableQueryLog();
+
+        expect($mediaQueries)->toHaveCount(1);
     });
 
     it('has correct dataset structure', function () {
