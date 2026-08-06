@@ -65,13 +65,14 @@ describe('gallery media connection hygiene', function () {
         expect($html)->not->toMatch('/<img[^>]*src="'.preg_quote($media->url, '/').'"/');
     });
 
-    it('uses the custom below-video control bar, not the default overlay layout', function () {
+    it('uses the stock layout with the below-video band override', function () {
         Media::factory()->create(['mime_type' => 'video/mp4']);
         $html = Livewire::test(Home::class)->html();
 
-        // controls sit below the video so burned-in captions stay visible
-        expect($html)->toContain('mgd-vds-bar')
-            ->and($html)->toContain('media-speed-radio-group')
-            ->and($html)->not->toContain('<media-video-layout');
+        // stock overlay layout + the mgd-player padding band (captions visible);
+        // the abandoned hand-rolled control bar must not come back
+        expect($html)->toContain('<media-video-layout')
+            ->and($html)->toContain('mgd-player')
+            ->and($html)->not->toContain('mgd-vds-bar');
     });
 });

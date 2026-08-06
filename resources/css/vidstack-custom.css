@@ -1,175 +1,22 @@
-/* Custom "controls below the video" player chrome for the media-preview modal.
-   The default <media-video-layout> overlays its control bar ON the video, which
-   obstructs burned-in/embedded captions at the bottom of the frame. This bar
-   sits in normal flow BELOW the video instead. Components still lean on the
-   default theme (theme.css) for button/slider/menu styling via vds-* classes. */
+/* Stock Vidstack video layout, with one adjustment: bottom padding on the
+   player. Absolutely-positioned children (the .vds-controls overlay, inset: 0)
+   anchor to the player's PADDING box, so the stock control bar lands in a
+   black letterbox band BELOW the video pixels — burned-in captions are never
+   covered. Auto-hide, progress fill, menus, time display all remain stock
+   (Vidstack ships its rules in zero-specificity :where() selectors so this
+   kind of override is supported usage). */
 
-media-player.mgd-player {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    background: #000;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    /* theme.css gives video players a 16:9 box; ours is video + bar, so the
-       player must size to its content or the bar overlaps the video. */
+media-player.mgd-player[data-view-type='video'] {
+    padding-bottom: 80px; /* fits the stock time-slider row + buttons row */
+    background-color: #000;
+}
+
+/* Fit the video inside the padded content box (letterbox) — by default it
+   sizes to the player's full 16:9 and the band would clip its bottom. */
+media-player.mgd-player[data-view-type='video'] media-provider video {
+    height: 100%;
     aspect-ratio: auto;
+    object-fit: contain;
 }
 
-/* --- video stage (video + gestures + buffering overlay) --- */
-.mgd-vds-stage {
-    position: relative;
-    min-height: 0;
-}
-
-.mgd-player media-provider {
-    display: block;
-    height: auto;          /* theme: 100% of the (16:9) player — undo */
-    aspect-ratio: auto;    /* theme: inherit — undo */
-}
-
-.mgd-player media-provider video {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: auto;    /* natural video proportions */
-    max-height: calc(80vh - 170px); /* header + control bar stay on screen */
-    background: #000;
-}
-
-.mgd-player media-gesture {
-    position: absolute;
-    inset: 0;
-}
-
-.mgd-vds-buffering {
-    position: absolute;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    color: #fff;
-}
-
-media-player[data-waiting] .mgd-vds-buffering,
-media-player[data-buffering] .mgd-vds-buffering {
-    display: flex;
-}
-
-.mgd-vds-buffering svg {
-    width: 56px;
-    height: 56px;
-    animation: mgd-spin 1s linear infinite;
-}
-
-@keyframes mgd-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* --- the control bar --- */
-.mgd-vds-bar {
-    display: block;
-    background: #101010;
-    color: #f5f5f5;
-    padding: 0.125rem 0.5rem 0.375rem;
-    user-select: none;
-}
-
-.mgd-vds-row {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.mgd-vds-bar .vds-button {
-    color: #f5f5f5;
-}
-
-.mgd-vds-time {
-    display: inline-flex;
-    gap: 4px;
-    margin: 0 6px;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: #d4d4d4;
-    white-space: nowrap;
-}
-
-.mgd-vds-spacer {
-    flex: 1;
-}
-
-.mgd-vds-bar media-volume-slider {
-    width: 90px;
-}
-
-/* fullscreen: fill the screen minus the bar (video stays letterboxed) */
-.mgd-player[data-fullscreen] media-provider video {
-    max-height: none;
-    height: calc(100vh - 52px);
-}
-
-/* --- speed menu popup (panel chrome was part of the removed default layout,
-       so it's styled + anchored here, deterministically above the button) --- */
-.mgd-vds-bar media-menu {
-    position: relative;
-    display: inline-flex;
-}
-
-.mgd-vds-bar .vds-menu-items {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    right: 0;
-    min-width: 130px;
-    max-height: 280px;
-    overflow-y: auto;
-    padding: 6px;
-    background: rgba(16, 16, 16, 0.97);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    z-index: 60;
-}
-
-.mgd-vds-bar .vds-menu-items[aria-hidden='true'] {
-    display: none;
-}
-
-.mgd-vds-bar media-radio {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    color: #eee;
-    white-space: nowrap;
-}
-
-.mgd-vds-bar media-radio:hover {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.mgd-vds-bar media-radio[data-checked] {
-    background: rgba(255, 255, 255, 0.14);
-}
-
-.mgd-vds-bar .vds-radio-check {
-    display: none;
-}
-
-.mgd-vds-bar svg.mgd-icon {
-    width: 22px;
-    height: 22px;
-}
-
-/* icon swapping driven by component state attributes */
-.mgd-vds-bar media-play-button .mgd-i-pause { display: none; }
-.mgd-vds-bar media-play-button:not([data-paused]) .mgd-i-play { display: none; }
-.mgd-vds-bar media-play-button:not([data-paused]) .mgd-i-pause { display: block; }
-
-.mgd-vds-bar media-mute-button .mgd-i-muted { display: none; }
-.mgd-vds-bar media-mute-button[data-muted] .mgd-i-vol { display: none; }
-.mgd-vds-bar media-mute-button[data-muted] .mgd-i-muted { display: block; }
+/* The band exists in fullscreen too, keeping captions clear there as well. */
