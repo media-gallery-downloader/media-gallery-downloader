@@ -30,6 +30,23 @@ class Logs extends Page implements HasForms
 
     public ?array $data = [];
 
+    /**
+     * Badge on the Logs nav item: number of failed downloads/uploads needing
+     * attention (anything not resolved). Null hides the badge entirely.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = FailedDownload::where('status', '!=', 'resolved')->count()
+            + FailedUpload::where('status', '!=', 'resolved')->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): string|array|null
+    {
+        return 'danger';
+    }
+
     public function mount()
     {
         $this->form->fill([
@@ -58,11 +75,11 @@ class Logs extends Page implements HasForms
         $failed->markRetrying();
 
         try {
+            // Queues the job; the job's outcome resolves or re-fails the row.
             $downloadService->downloadFromUrl($failed->url, uniqid('retry_'));
-            $failed->markResolved();
 
             Notification::make()
-                ->title('Download retried')
+                ->title('Download queued for retry')
                 ->success()
                 ->send();
         } catch (\Exception $e) {
@@ -113,6 +130,28 @@ class Logs extends Page implements HasForms
 
         Notification::make()
             ->title("Retrying {$count} downloads")
+            ->success()
+            ->send();
+    }
+
+    /** Clear the whole failed-downloads log (every status). */
+    public function clearAllDownloads(): void
+    {
+        FailedDownload::query()->delete();
+
+        Notification::make()
+            ->title('Failed downloads log cleared')
+            ->success()
+            ->send();
+    }
+
+    /** Clear the whole failed-uploads log (every status). */
+    public function clearAllUploads(): void
+    {
+        FailedUpload::query()->delete();
+
+        Notification::make()
+            ->title('Failed uploads log cleared')
             ->success()
             ->send();
     }

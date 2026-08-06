@@ -396,9 +396,31 @@ describe('MaintenanceService', function () {
             // Should return 1 since we retried 1 download
             expect($count)->toBe(1);
 
-            // The failed download should be resolved (job was dispatched successfully)
+            // Dispatching must NOT resolve the row — the job's outcome decides.
+            // (Resolving here made every failure spawn a fresh row that retried
+            // immediately, forever.) The row stays 'retrying' with the attempt
+            // counted until the queued job succeeds or fails.
             $failed = FailedDownload::first();
-            expect($failed->status)->toBe('resolved');
+            expect($failed->status)->toBe('retrying')
+                ->and($failed->retry_count)->toBe(1);
+        });
+
+        it('does not pick up rows whose backoff has not elapsed', function () {
+            Queue::fake();
+
+            FailedDownload::create([
+                'url' => 'https://example.com/video2.mp4',
+                'method' => 'direct',
+                'error_message' => 'Error',
+                'status' => 'pending',
+                'retry_count' => 1,
+                'next_retry_at' => now()->addMinutes(15),
+            ]);
+
+            $count = app(MaintenanceService::class)->retryFailedDownloads();
+
+            expect($count)->toBe(0)
+                ->and(FailedDownload::first()->status)->toBe('pending');
         });
     });
 

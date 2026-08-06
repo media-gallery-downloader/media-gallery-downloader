@@ -24,14 +24,24 @@
             });
         },
         loadAndPlayVideo() {
-            // Vidstack auto-plays via the `autoplay` attribute once it's ready;
-            // this is a best-effort nudge for the user gesture that opened the
-            // modal. Errors (autoplay policy, not-yet-ready) are non-fatal.
+            // Start playback from the tap that opened the modal. Mobile
+            // browsers only allow unmuted play() within the tap's transient
+            // activation, so try immediately AND once the player reports
+            // can-play (the source loads async). If sound autoplay is still
+            // refused, fall back to muted playback rather than sitting paused —
+            // the user can unmute from the controls.
             this.$nextTick(() => {
                 const player = this.$refs.videoPlayer;
-                if (player && this.isVideo && typeof player.play === 'function') {
-                    player.play().catch(() => {});
-                }
+                if (!player || !this.isVideo) return;
+                const attempt = () => {
+                    if (typeof player.play !== 'function') return;
+                    Promise.resolve(player.play()).catch(() => {
+                        player.muted = true;
+                        Promise.resolve(player.play()).catch(() => {});
+                    });
+                };
+                attempt();
+                player.addEventListener('can-play', attempt, { once: true });
             });
         },
         setupFullscreenListeners() {

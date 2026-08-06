@@ -72,7 +72,8 @@ class FailedDownload extends Model
                 'next_retry_at' => null,
             ]);
         } else {
-            // Exponential backoff: 5min, 30min, 2hr, 8hr, 24hr
+            // Exponential backoff: 10min, 20min, 40min, 80min — then the 5th
+            // failure marks the row permanently 'failed' (no more auto-retries).
             $delayMinutes = pow(2, $newRetryCount) * 5;
 
             $this->update([

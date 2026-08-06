@@ -49,9 +49,22 @@ class ProcessDownloadJob implements ShouldQueue
             ]);
 
             $downloadService->removeFromQueue($this->downloadId);
+            $this->resolveFailureRecords();
         } catch (\Exception $e) {
             $this->handleFailure($e, $downloadService);
         }
+    }
+
+    /**
+     * A successful download resolves any open failed-download rows for this
+     * URL — the job outcome, not the dispatcher, decides resolution.
+     */
+    protected function resolveFailureRecords(): void
+    {
+        FailedDownload::where('url', $this->url)
+            ->whereIn('status', ['pending', 'retrying'])
+            ->get()
+            ->each(fn (FailedDownload $row) => $row->markResolved());
     }
 
     /**
@@ -131,11 +144,13 @@ class ProcessDownloadJob implements ShouldQueue
     }
 
     /**
-     * Record (or refresh) the failed-download row for this URL.
+     * Record (or advance) the failed-download row for this URL.
      *
-     * Reuses an existing un-resolved row for the same URL instead of inserting a
-     * new one on every attempt, so repeated failures/retries don't accumulate
-     * duplicate rows. The method reflects the handler that was actually in use.
+     * Reuses the existing un-resolved row so retries don't accumulate
+     * duplicates, and ALWAYS goes through markFailed() so every failure
+     * advances the exponential backoff and the 5-attempt cap. (Previously the
+     * row was reset to a fresh 'pending' with no next_retry_at, so the hourly
+     * retry task re-queued it immediately, forever.)
      */
     protected function recordFailure(string $message): void
     {
@@ -144,20 +159,20 @@ class ProcessDownloadJob implements ShouldQueue
             ->latest('id')
             ->first();
 
-        $attributes = [
-            'method' => $this->attemptedMethod,
-            'error_message' => $message,
-            'status' => 'pending',
-            'last_attempt_at' => now(),
-        ];
-
-        if ($existing) {
-            $existing->update($attributes);
-
-            return;
+        if (! $existing) {
+            $existing = FailedDownload::create([
+                'url' => $this->url,
+                'method' => $this->attemptedMethod,
+                'error_message' => $message,
+                'status' => 'pending',
+                'retry_count' => 0,
+                'last_attempt_at' => now(),
+            ]);
+        } else {
+            $existing->method = $this->attemptedMethod;
         }
 
-        FailedDownload::create(array_merge(['url' => $this->url], $attributes));
+        $existing->markFailed($message);
     }
 
     /**

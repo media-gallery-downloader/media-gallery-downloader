@@ -19,4 +19,25 @@ media-player.mgd-player[data-view-type='video'] media-provider video {
     object-fit: contain;
 }
 
+/* Phones: drop the 16:9 shell so the video takes its natural aspect at full
+   modal width — portrait videos get tall instead of tiny — capped so the
+   header and control band stay on screen. */
+@media (max-width: 639.98px) {
+    media-player.mgd-player[data-view-type='video'] {
+        aspect-ratio: auto;
+    }
+
+    media-player.mgd-player[data-view-type='video'] media-provider {
+        height: auto;
+        aspect-ratio: auto;
+    }
+
+    media-player.mgd-player[data-view-type='video'] media-provider video {
+        height: auto;
+        /* modal content area is 85vh-110px; leave room for the 80px control
+           band so the controls are visible without scrolling the modal */
+        max-height: calc(85dvh - 200px);
+    }
+}
+
 /* The band exists in fullscreen too, keeping captions clear there as well. */

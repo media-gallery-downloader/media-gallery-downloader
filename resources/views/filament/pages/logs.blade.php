@@ -4,6 +4,17 @@
         <x-slot name="heading">
             Failed Downloads Log
         </x-slot>
+        <x-slot name="headerEnd">
+            <x-filament::button
+                wire:click="clearAllDownloads"
+                wire:confirm="Clear the entire failed downloads log?"
+                color="danger"
+                size="xs"
+                outlined
+                icon="heroicon-m-trash">
+                Clear all
+            </x-filament::button>
+        </x-slot>
 
         @php $downloads = $this->getFailedDownloads(); @endphp
         @if(count($downloads) > 0)
@@ -48,6 +59,17 @@
     <x-filament::section collapsible>
         <x-slot name="heading">
             Failed Uploads Log
+        </x-slot>
+        <x-slot name="headerEnd">
+            <x-filament::button
+                wire:click="clearAllUploads"
+                wire:confirm="Clear the entire failed uploads log?"
+                color="danger"
+                size="xs"
+                outlined
+                icon="heroicon-m-trash">
+                Clear all
+            </x-filament::button>
         </x-slot>
 
         @php $uploads = $this->getFailedUploads(); @endphp

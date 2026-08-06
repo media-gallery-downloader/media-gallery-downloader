@@ -90,6 +90,19 @@ class AdminPanelProvider extends PanelProvider
                     ? Blade::render("@vite('resources/js/app.js')")
                     : '',
             )
+            // Filament's sidebar store defaults (and persists) isOpen=true, so
+            // on phones the nav drawer covers the page on first load. Start it
+            // closed on small screens; the hamburger still opens it.
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): string => '<script>
+                    document.addEventListener("alpine:initialized", () => {
+                        if (window.matchMedia("(max-width: 1023.98px)").matches) {
+                            window.Alpine?.store("sidebar")?.close?.();
+                        }
+                    });
+                </script>',
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
