@@ -77,6 +77,40 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
 @endphp
 
 <div class="space-y-4 pt-0 pb-2 px-2 container mx-auto">
+    {{-- Scoped layout CSS. The Filament panel loads only its own compiled
+         Tailwind (plus the app.js chunk) — resources/css/app.css is never
+         injected here, so new utility classes (grid-cols-*, aspect-*, sm:*)
+         silently do nothing. This component therefore carries its own
+         responsive rules, matching its existing inline-style approach. --}}
+    <style>
+        .mgd-gallery-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+        .mgd-card-media { position: relative; aspect-ratio: 16 / 9; }
+        .mgd-overlay-title { display: none; }
+        .mgd-card-caption { padding: 0.5rem; }
+        .mgd-caption-date { max-width: 60%; }
+        @media (max-width: 639.98px) {
+            .mgd-search-wrap { order: -1; width: 100%; }
+            .mgd-search-input { width: 100%; }
+            .mgd-card-caption .mgd-menu-btn { color: rgb(107 114 128); }
+            .dark .mgd-card-caption .mgd-menu-btn { color: rgb(209 213 219); }
+        }
+        @media (min-width: 640px) {
+            .mgd-gallery-grid { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+            .mgd-card-media { aspect-ratio: 1 / 1; }
+            .mgd-overlay-title { display: block; }
+            .mgd-caption-title { display: none; }
+            .mgd-search-input { width: 16rem; }
+            /* caption becomes the translucent bottom overlay (original look) */
+            .mgd-card-caption {
+                position: absolute; left: 0; right: 0; bottom: 0; z-index: 15;
+                background: black; opacity: 0.8; color: #fff; padding: 0.25rem;
+            }
+            .mgd-card-caption .mgd-caption-date { color: #fff; }
+        }
+        @media (min-width: 1024px) {
+            .mgd-gallery-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+    </style>
     <!-- Controls Section -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2 rounded-lg shadow bg-white dark:bg-gray-800 z-10">
         <div class="flex items-center gap-2">
@@ -105,14 +139,15 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
             </select>
         </div>
 
-        <div class="flex items-center gap-2">
+        {{-- Search: full-width and first on phones, right-aligned fixed width on sm+. --}}
+        <div class="flex items-center gap-2 mgd-search-wrap">
             <input
                 type="search"
                 placeholder="Search media..."
                 value="{{ $search }}"
                 x-data="{}"
                 x-on:keydown.enter.prevent="window.location = `?search=${encodeURIComponent($event.target.value)}&sort={{ $sort }}&per_page={{ $perPage }}{!! $tagsQs !!}`"
-                class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-48 sm:w-64"
+                class="text-xs text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm focus:border-primary-500 focus:ring-primary-500 mgd-search-input"
             >
             @if(!empty($search))
             <a href="?sort={{ $sort }}&per_page={{ $perPage }}{!! $tagsQs !!}" class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
@@ -141,14 +176,13 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
     </div>
     @endif
 
-    <!-- Gallery Grid - Flexbox Approach -->
-    <div class="w-full overflow-hidden">
-        <div class="flex flex-wrap" style="margin: -4px;">
+    <!-- Gallery grid: 1-column 16:9 feed on phones, 3-across on tablets, 5-across on desktop -->
+    <div class="w-full">
+        <div class="mgd-gallery-grid">
             @forelse($media as $item)
             <div
                 wire:key="media-{{ $item->id }}-{{ $item->updated_at->timestamp }}"
-                class="relative cursor-pointer p-0 overflow-hidden rounded-lg shadow"
-                style="width: calc(20% - 8px); margin: 4px; aspect-ratio: 1/1;"
+                class="relative cursor-pointer overflow-hidden rounded-lg shadow bg-white dark:bg-gray-800"
                 data-media-url="/admin/view/{{ $item->id }}"
                 x-data="{ cardMenuOpen: false, overCard: false, overPopup: false }"
                 @mouseenter="overCard = true"
@@ -158,8 +192,13 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                     name: {{ Js::from($item->name) }},
                     type: '{{ $item->mime_type }}'
                 })">
-                <!-- Info overlays -->
-                <div class="p-1" style="position:absolute;top:0;background:black;margin-right:0px;margin-left:0px;width:100%;opacity:0.8;z-index:15;">
+                <!-- Media region: 16:9 feed tile on phones, square from sm up.
+                     Title overlay + content are absolutely positioned within it;
+                     the date/buttons bar lives AFTER it (caption on phones,
+                     bottom overlay on sm+). -->
+                <div class="mgd-card-media">
+                <!-- Title overlay (sm+ only — phones put the title in the caption bar) -->
+                <div class="p-1 mgd-overlay-title" style="position:absolute;top:0;background:black;margin-right:0px;margin-left:0px;width:100%;opacity:0.8;z-index:15;">
                     <div class="group relative flex overflow-hidden max-w-[60%]"
                         x-data="{
                         shouldScroll: false,
@@ -181,89 +220,6 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                         </span>
                     </div>
                 </div>
-                <div class="p-1" style="position:absolute;bottom:0;background:black;margin-right:0px;margin-left:0px;width:100%;opacity:0.8;z-index:15;">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-white truncate max-w-[60%]">{{ $item->created_at->toDayDateTimeString() }}</span>
-                        <div class="flex space-x-1">
-                            <button
-                                type="button"
-                                wire:click.stop="mountAction('editMediaInfo', { id: {{ $item->id }} })"
-                                @click.stop
-                                title="Edit title, source & tags"
-                                class="text-blue-400 hover:text-blue-300">
-                                <x-heroicon-m-information-circle class="w-5 h-5" />
-                            </button>
-                            <!-- Hamburger menu -->
-                            <div class="relative" x-data="{
-                                menuPosition: { top: 0, left: 0 },
-                                updatePosition() {
-                                    const rect = this.$refs.menuBtn.getBoundingClientRect();
-                                    this.menuPosition = {
-                                        top: rect.top - 8,
-                                        left: rect.right - 144
-                                    };
-                                }
-                            }" @click.stop>
-                                <button
-                                    type="button"
-                                    x-ref="menuBtn"
-                                    @click.prevent="updatePosition(); cardMenuOpen = !cardMenuOpen"
-                                    class="text-gray-300 hover:text-white">
-                                    <x-heroicon-m-bars-3 class="w-5 h-5" />
-                                </button>
-                                <template x-teleport="body">
-                                    <div
-                                        x-show="cardMenuOpen"
-                                        x-transition:enter="transition ease-out duration-100"
-                                        x-transition:enter-start="transform opacity-0 scale-95"
-                                        x-transition:enter-end="transform opacity-100 scale-100"
-                                        x-transition:leave="transition ease-in duration-75"
-                                        x-transition:leave-start="transform opacity-100 scale-100"
-                                        x-transition:leave-end="transform opacity-0 scale-95"
-                                        @mouseenter="overPopup = true"
-                                        @mouseleave="overPopup = false; setTimeout(() => { if (!overCard && !overPopup) cardMenuOpen = false }, 50)"
-                                        class="fixed w-36 rounded-md shadow-lg z-[9999]"
-                                        :style="'top: ' + menuPosition.top + 'px; left: ' + menuPosition.left + 'px; transform: translateY(-100%); background-color: #2d2d2d; border: 1px solid #000000;'">
-                                        <div class="py-1">
-                                            <button
-                                                type="button"
-                                                @click.stop.prevent="
-                                                    cardMenuOpen = false;
-                                                    const link = document.createElement('a');
-                                                    link.href = '{{ $item->url }}';
-                                                    link.download = '{{ $item->file_name }}';
-                                                    link.style.display = 'none';
-                                                    document.body.appendChild(link);
-                                                    link.click();
-                                                    document.body.removeChild(link);
-                                                "
-                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none text-left"
-                                                style="color: #e5e7eb;"
-                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#ffffff';"
-                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#e5e7eb';">
-                                                <x-heroicon-m-arrow-down-tray class="w-4 h-4" />
-                                                Download
-                                            </button>
-                                            <button
-                                                type="button"
-                                                @click.prevent="cardMenuOpen = false; $dispatch('open-delete-modal', {
-                                                    id: {{ $item->id }},
-                                                    name: {{ Js::from($item->name) }}
-                                                })"
-                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none"
-                                                style="color: #f87171;"
-                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#fca5a5';"
-                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#f87171';">
-                                                <x-heroicon-m-trash class="w-4 h-4" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <!-- Content container inside your gallery grid item -->
                 <div class="absolute inset-0 bg-gray-200 dark:bg-gray-700">
                     @if(Str::contains($item->mime_type, 'video'))
@@ -275,6 +231,7 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                             videoSrc: '{{ $item->url }}'
                         }"
                         @mouseenter="
+                            if (!window.matchMedia('(hover: hover)').matches) return; // touch: no preview, save bandwidth
                             isHovering = true;
                             if ($refs.videoElement.src !== videoSrc) {
                                 $refs.videoElement.src = videoSrc;
@@ -432,6 +389,94 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                         </span>
                     </div>
                     @endif
+                </div>
+                </div>
+
+                <!-- Caption bar: static under the thumbnail on phones; the
+                     translucent bottom overlay from sm up (the original look). -->
+                <div class="mgd-card-caption">
+                    <div class="mgd-caption-title text-sm font-medium text-gray-900 dark:text-white truncate mb-1" title="{{ $item->name }}">{{ $item->name }}</div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-500 dark:text-gray-400 truncate mgd-caption-date">{{ $item->created_at->toDayDateTimeString() }}</span>
+                        <div class="flex space-x-1">
+                            <button
+                                type="button"
+                                wire:click.stop="mountAction('editMediaInfo', { id: {{ $item->id }} })"
+                                @click.stop
+                                title="Edit title, source & tags"
+                                class="text-blue-400 hover:text-blue-300">
+                                <x-heroicon-m-information-circle class="w-5 h-5" />
+                            </button>
+                            <!-- Hamburger menu -->
+                            <div class="relative" x-data="{
+                                menuPosition: { top: 0, left: 0 },
+                                updatePosition() {
+                                    const rect = this.$refs.menuBtn.getBoundingClientRect();
+                                    this.menuPosition = {
+                                        top: rect.top - 8,
+                                        left: rect.right - 144
+                                    };
+                                }
+                            }" @click.stop>
+                                <button
+                                    type="button"
+                                    x-ref="menuBtn"
+                                    @click.prevent="updatePosition(); cardMenuOpen = !cardMenuOpen"
+                                    class="text-gray-300 hover:text-white mgd-menu-btn">
+                                    <x-heroicon-m-bars-3 class="w-5 h-5" />
+                                </button>
+                                <template x-teleport="body">
+                                    <div
+                                        x-show="cardMenuOpen"
+                                        x-transition:enter="transition ease-out duration-100"
+                                        x-transition:enter-start="transform opacity-0 scale-95"
+                                        x-transition:enter-end="transform opacity-100 scale-100"
+                                        x-transition:leave="transition ease-in duration-75"
+                                        x-transition:leave-start="transform opacity-100 scale-100"
+                                        x-transition:leave-end="transform opacity-0 scale-95"
+                                        @mouseenter="overPopup = true"
+                                        @mouseleave="overPopup = false; setTimeout(() => { if (!overCard && !overPopup) cardMenuOpen = false }, 50)"
+                                        class="fixed w-36 rounded-md shadow-lg z-[9999]"
+                                        :style="'top: ' + menuPosition.top + 'px; left: ' + menuPosition.left + 'px; transform: translateY(-100%); background-color: #2d2d2d; border: 1px solid #000000;'">
+                                        <div class="py-1">
+                                            <button
+                                                type="button"
+                                                @click.stop.prevent="
+                                                    cardMenuOpen = false;
+                                                    const link = document.createElement('a');
+                                                    link.href = '{{ $item->url }}';
+                                                    link.download = '{{ $item->file_name }}';
+                                                    link.style.display = 'none';
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                "
+                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none text-left"
+                                                style="color: #e5e7eb;"
+                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#ffffff';"
+                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#e5e7eb';">
+                                                <x-heroicon-m-arrow-down-tray class="w-4 h-4" />
+                                                Download
+                                            </button>
+                                            <button
+                                                type="button"
+                                                @click.prevent="cardMenuOpen = false; $dispatch('open-delete-modal', {
+                                                    id: {{ $item->id }},
+                                                    name: {{ Js::from($item->name) }}
+                                                })"
+                                                class="flex items-center gap-2 w-full px-3 py-2 text-sm focus:outline-none"
+                                                style="color: #f87171;"
+                                                onmouseover="this.style.backgroundColor='#404040'; this.style.color='#fca5a5';"
+                                                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#f87171';">
+                                                <x-heroicon-m-trash class="w-4 h-4" />
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             @empty

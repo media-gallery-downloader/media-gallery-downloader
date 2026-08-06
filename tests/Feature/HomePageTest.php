@@ -206,9 +206,15 @@ describe('Home Page', function () {
         expect(Media::count())->toBe(0);
     });
 
-    it('has download and upload sections in form', function () {
-        $component = Livewire::test(Home::class);
-        $component->assertSuccessful();
+    it('has a tabbed intake section with Download first (default) and Upload second', function () {
+        $html = Livewire::test(Home::class)->assertSuccessful()->html();
+
+        expect($html)->toContain('fi-tabs');
+        $downloadPos = strpos($html, 'Download');
+        $uploadPos = strpos($html, 'Upload');
+        expect($downloadPos)->not->toBeFalse()
+            ->and($uploadPos)->not->toBeFalse()
+            ->and($downloadPos)->toBeLessThan($uploadPos);
     });
 
     it('has search property', function () {
