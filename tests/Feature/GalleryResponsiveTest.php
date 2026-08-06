@@ -43,3 +43,35 @@ describe('gallery responsive layout', function () {
         expect($this->html)->not->toContain('calc(20% - 8px)');
     });
 });
+
+/**
+ * Regression: hover previews must RELEASE their media stream on mouseleave.
+ * pause() alone left the connection attached; with ~6 per-origin browser
+ * connections, a few hovered cards starved the preview modal's own video
+ * request forever (endless spinner until refresh).
+ */
+describe('gallery media connection hygiene', function () {
+    it('releases the hover-preview stream on mouseleave', function () {
+        Media::factory()->create(['mime_type' => 'video/mp4']);
+        $html = Livewire::test(Home::class)->html();
+
+        expect($html)->toContain("removeAttribute('src')");
+    });
+
+    it('never renders an <img> pointing at a video file (broken + downloads the video)', function () {
+        $media = Media::factory()->create(['mime_type' => 'video/mp4', 'thumbnail_path' => null]);
+        $html = Livewire::test(Home::class)->html();
+
+        expect($html)->not->toMatch('/<img[^>]*src="'.preg_quote($media->url, '/').'"/');
+    });
+
+    it('uses the custom below-video control bar, not the default overlay layout', function () {
+        Media::factory()->create(['mime_type' => 'video/mp4']);
+        $html = Livewire::test(Home::class)->html();
+
+        // controls sit below the video so burned-in captions stay visible
+        expect($html)->toContain('mgd-vds-bar')
+            ->and($html)->toContain('media-speed-radio-group')
+            ->and($html)->not->toContain('<media-video-layout');
+    });
+});

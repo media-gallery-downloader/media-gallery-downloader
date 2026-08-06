@@ -243,7 +243,15 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                         @mouseleave="
                             isHovering = false;
                             $refs.videoElement.pause();
-                            $refs.videoElement.currentTime = 0;
+                            {{-- Release the media resource: pause() alone leaves the
+                                 stream attached, and each hovered card then holds one
+                                 of the browser's ~6 per-origin connections open. With
+                                 enough hovered cards the preview-modal's own video
+                                 request queues forever (endless spinner until a page
+                                 refresh aborts everything). removeAttribute+load() is
+                                 the spec'd way to abort the fetch and free the slot. --}}
+                            $refs.videoElement.removeAttribute('src');
+                            $refs.videoElement.load();
                         "
                         @click="$dispatch('open-media-preview', {
                             url: '{{ $item->url }}',
@@ -251,13 +259,19 @@ $media = $query->paginate($perPage, ['*'], 'page', $page);
                             type: '{{ $item->mime_type }}'
                         })">
 
+                        @if($item->thumbnail_url)
                         <!-- Static thumbnail -->
                         <img
-                            src="{{ $item->thumbnail_url ?: $item->url }}"
+                            src="{{ $item->thumbnail_url }}"
                             alt="{{ $item->name }}"
                             class="w-full h-full object-cover"
                             x-show="!isHovering"
                             loading="lazy">
+                        @else
+                        {{-- No thumbnail: leave the gray region — an <img> can't
+                             decode a video, so pointing it at the file just made
+                             every pageview download the video for a broken icon. --}}
+                        @endif
 
                         <!-- Video preview on hover -->
                         <video

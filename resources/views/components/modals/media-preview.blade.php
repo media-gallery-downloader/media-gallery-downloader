@@ -102,18 +102,77 @@
                      doesn't morph the player's internal DOM out from under it). -->
                 <template x-if="isVideo">
                     <div class="w-full flex items-center justify-center" wire:ignore>
+                        {{-- Custom chrome: controls sit BELOW the video (never over
+                             burned-in captions). Styles: resources/css/vidstack-custom.css --}}
                         <media-player
                             x-ref="videoPlayer"
                             :src="mediaUrl"
                             :title="mediaName"
                             view-type="video"
-                            class="w-full"
-                            style="max-height: calc(80vh - 110px); max-width: 100%; --media-border-radius: 0.5rem;"
+                            class="mgd-player w-full"
+                            style="max-width: 100%;"
                             playsinline
                             autoplay
                             @fullscreen-change="isFullscreen = !!$event.detail">
-                            <media-provider></media-provider>
-                            <media-video-layout></media-video-layout>
+                            <div class="mgd-vds-stage">
+                                <media-provider></media-provider>
+                                <media-gesture event="pointerup" action="toggle:paused"></media-gesture>
+                                <div class="mgd-vds-buffering">
+                                    <svg fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"></circle><path stroke="currentColor" stroke-linecap="round" stroke-width="3" d="M12 2a10 10 0 0 1 10 10"></path></svg>
+                                </div>
+                            </div>
+                            <media-controls class="mgd-vds-bar">
+                                <media-controls-group class="mgd-vds-row">
+                                    <media-time-slider class="vds-time-slider vds-slider">
+                                        <div class="vds-slider-track"></div>
+                                        <div class="vds-slider-track-fill vds-slider-track"></div>
+                                        <div class="vds-slider-progress vds-slider-track"></div>
+                                        <div class="vds-slider-thumb"></div>
+                                    </media-time-slider>
+                                </media-controls-group>
+                                <media-controls-group class="mgd-vds-row">
+                                    <media-play-button class="vds-button" aria-label="Play">
+                                        <svg class="mgd-icon mgd-i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72c0 .8.87 1.3 1.56.9l11-6.86a1.05 1.05 0 0 0 0-1.8l-11-6.86c-.69-.4-1.56.1-1.56.9Z"/></svg>
+                                        <svg class="mgd-icon mgd-i-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+                                    </media-play-button>
+                                    <media-mute-button class="vds-button" aria-label="Mute">
+                                        <svg class="mgd-icon mgd-i-vol" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a3.5 3.5 0 0 0-1.8-3.06v6.11A3.5 3.5 0 0 0 16.5 12Zm-1.8-7.35v2.1a5.5 5.5 0 0 1 0 10.5v2.1a7.6 7.6 0 0 0 0-14.7Z"/></svg>
+                                        <svg class="mgd-icon mgd-i-muted" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4Zm14.6 3 2.2-2.2-1.4-1.4-2.2 2.2-2.2-2.2-1.4 1.4L15.8 12l-2.2 2.2 1.4 1.4 2.2-2.2 2.2 2.2 1.4-1.4L18.6 12Z"/></svg>
+                                    </media-mute-button>
+                                    <media-volume-slider class="vds-slider" aria-label="Volume">
+                                        <div class="vds-slider-track"></div>
+                                        <div class="vds-slider-track-fill vds-slider-track"></div>
+                                        <div class="vds-slider-thumb"></div>
+                                    </media-volume-slider>
+                                    <div class="mgd-vds-time">
+                                        <media-time type="current"></media-time>
+                                        <span>/</span>
+                                        <media-time type="duration"></media-time>
+                                    </div>
+                                    <div class="mgd-vds-spacer"></div>
+                                    <media-menu>
+                                        <media-menu-button class="vds-button" aria-label="Playback speed">
+                                            <svg class="mgd-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v2.02A8 8 0 0 1 13 20v2.02A10 10 0 0 0 13 2.05ZM11 2.05A10 10 0 0 0 4.7 5.1L6.12 6.5A8 8 0 0 1 11 4.07V2.05ZM4.07 11H2.05a9.95 9.95 0 0 0 0 2h2.02a8.06 8.06 0 0 1 0-2ZM6.12 17.5 4.7 18.9A10 10 0 0 0 11 21.95v-2.02a8 8 0 0 1-4.88-2.43ZM12 7l-1 5.5 4 2.5 1-1.5-2.7-1.7L14 7.3 12 7Z"/></svg>
+                                        </media-menu-button>
+                                        <media-menu-items class="vds-menu-items" placement="top end">
+                                            <media-speed-radio-group normal-label="Normal">
+                                                <template>
+                                                    <media-radio class="vds-radio">
+                                                        <div class="vds-radio-check"></div>
+                                                        <span data-part="label"></span>
+                                                    </media-radio>
+                                                </template>
+                                            </media-speed-radio-group>
+                                        </media-menu-items>
+                                    </media-menu>
+                                    <media-pip-button class="vds-button" aria-label="Picture in picture">
+                                        <svg class="mgd-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1Zm-1 14H4V6h16v12Zm-2-7h-6v5h6v-5Z"/></svg>
+                                    </media-pip-button>
+                                    <media-fullscreen-button class="vds-button" aria-label="Fullscreen">
+                                        <svg class="mgd-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/></svg>
+                                    </media-fullscreen-button>
+                                </media-controls-group>
+                            </media-controls>
                         </media-player>
                     </div>
                 </template>

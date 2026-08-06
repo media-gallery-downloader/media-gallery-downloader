@@ -6,7 +6,8 @@
 // no telemetry, nothing phones home.
 import 'vidstack/player';
 import 'vidstack/player/ui';
-import 'vidstack/player/layouts/default';
 
 import 'vidstack/player/styles/default/theme.css';
-import 'vidstack/player/styles/default/layouts/video.css';
+// Custom below-the-video control bar (replaces the default overlay layout,
+// which covered burned-in captions). Markup lives in the media-preview modal.
+import '../css/vidstack-custom.css';
