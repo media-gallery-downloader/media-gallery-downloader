@@ -102,6 +102,17 @@ The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download medi
 
 For a complete list of available options, see the [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp#usage-and-options).
 
+## Failed Downloads & Retries
+
+Downloads that fail are recorded on the **Logs** page, and a red badge on its
+nav item shows how many failed downloads/uploads are outstanding (it disappears
+at zero). Failures retry automatically with exponential backoff — 10, 20, 40,
+then 80 minutes (an hourly task re-queues anything whose window has passed) —
+up to **5 attempts** in total, after which the item is marked permanently
+failed and left for manual retry from the Logs page. A later successful
+download of the same URL resolves its failure record, and each Logs section has
+a **Clear all** action.
+
 ## Media Filenames
 
 Media is stored on disk using the item's title plus the unix timestamp (seconds)
@@ -148,7 +159,9 @@ left untouched.
 
 The in-app preview uses a self-hosted [Vidstack](https://vidstack.io) player
 (bundled via Vite — no CDN, no telemetry). It recovers from network stalls and
-errors, and tears its connection down cleanly when the modal closes. Media is
+errors, and tears its connection down cleanly when the modal closes. Its
+controls sit in a black band below the video instead of overlaying it, so
+burned-in subtitles are never covered. Media is
 still stored and served as a **single, plain file** (e.g. `mp4`), so it remains
 directly downloadable and playable from an SMB/NFS share — nothing is repackaged
 into segmented streams.

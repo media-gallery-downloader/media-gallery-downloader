@@ -14,6 +14,7 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - **Secure**: Rootless containerized deployment with proper security headers
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Background Processing**: Queue-based processing for downloads and uploads
+- **Resilient Downloads**: Failed downloads retry automatically with exponential backoff (up to 5 attempts); the Logs page tracks outstanding failures
 - **SQLite Database**: Lightweight, file-based database for easy deployment
 
 ## Technology Stack
