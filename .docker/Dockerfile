@@ -1,7 +1,9 @@
 # =============================================================================
 # Stage 1: Build frontend assets
 # =============================================================================
-FROM denoland/deno:2.9.0 AS frontend-builder
+# Built assets are arch-independent, so this stage always runs natively on the
+# build host — deno (V8) can SIGILL under qemu when emulating the arm64 leg.
+FROM --platform=$BUILDPLATFORM denoland/deno:2.9.0 AS frontend-builder
 
 WORKDIR /app
 
