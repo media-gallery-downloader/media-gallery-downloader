@@ -206,15 +206,24 @@ describe('Home Page', function () {
         expect(Media::count())->toBe(0);
     });
 
-    it('has a tabbed intake section with Download first (default) and Upload second', function () {
+    it('has a compact intake bar with Download mode (default) before Upload', function () {
         $html = Livewire::test(Home::class)->assertSuccessful()->html();
 
-        expect($html)->toContain('fi-tabs');
         $downloadPos = strpos($html, 'Download');
         $uploadPos = strpos($html, 'Upload');
         expect($downloadPos)->not->toBeFalse()
             ->and($uploadPos)->not->toBeFalse()
-            ->and($downloadPos)->toBeLessThan($uploadPos);
+            ->and($downloadPos)->toBeLessThan($uploadPos)
+            // Download mode shows the URL field by default…
+            ->and($html)->toContain('Enter video URL');
+    });
+
+    it('switches the intake bar to Upload mode', function () {
+        $html = Livewire::test(Home::class)->set('intakeMode', 'upload')->html();
+
+        // …and Upload mode swaps in the file dropzone.
+        expect($html)->toContain('file-upload')
+            ->and($html)->not->toContain('Enter video URL');
     });
 
     it('has search property', function () {

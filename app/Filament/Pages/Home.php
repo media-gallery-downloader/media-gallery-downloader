@@ -60,6 +60,19 @@ class Home extends Page implements HasForms
     #[Url]
     public ?int $page = 1;
 
+    /** Which intake the Add Media bar shows: 'download' (default) or 'upload'. */
+    public string $intakeMode = 'download';
+
+    /**
+     * No page header: the "Home" heading only repeated the nav label and cost
+     * ~100px of gallery space (worse on phones). Empty string skips Filament's
+     * whole header block; getTitle() still names the browser tab.
+     */
+    public function getHeading(): string
+    {
+        return '';
+    }
+
     public function mount()
     {
         // Persist an explicit per-page choice across visits (no accounts, so a
@@ -211,108 +224,124 @@ class Home extends Page implements HasForms
         $uploadService = app(UploadService::class);
 
         return $form->schema([
-            // Download + Upload share one tabbed, collapsible bar. Download is
-            // the default (first) tab; Upload is rarely used. Reclaims the
-            // space the two side-by-side sections took — matters most on phones.
+            // Download + Upload share one compact, collapsible bar: the mode
+            // pills sit in the section header and the body is a single row,
+            // reclaiming vertical space for the gallery — matters most on
+            // phones. Download is the default; Upload is rarely used.
             Section::make('Add Media')
                 ->collapsible()
                 ->compact(true)
+                ->headerActions([
+                    Forms\Components\Actions\Action::make('downloadMode')
+                        ->label('Download')
+                        ->icon('heroicon-m-cloud-arrow-down')
+                        // Closure: resolved at render, AFTER a pill click mutates
+                        // $intakeMode. An eager value is baked into the schema
+                        // before the action runs, leaving the highlight one
+                        // click behind.
+                        ->color(fn (): string => $this->intakeMode === 'download' ? 'primary' : 'gray')
+                        // Bubbles to the section root's x-on:expand listener, so
+                        // a pill tap also reopens a manually collapsed bar.
+                        ->extraAttributes(['x-on:click' => '$dispatch(`expand`)'])
+                        ->action(fn () => $this->intakeMode = 'download'),
+                    Forms\Components\Actions\Action::make('uploadMode')
+                        ->label('Upload')
+                        ->icon('heroicon-m-cloud-arrow-up')
+                        ->color(fn (): string => $this->intakeMode === 'upload' ? 'primary' : 'gray')
+                        ->extraAttributes(['x-on:click' => '$dispatch(`expand`)'])
+                        ->action(fn () => $this->intakeMode = 'upload'),
+                ])
                 ->schema([
-                    Forms\Components\Tabs::make('intake')
-                        ->contained(false)
-                        ->tabs([
-                            Forms\Components\Tabs\Tab::make('Download')
-                                ->icon('heroicon-m-cloud-arrow-down')
-                                ->schema([
-                                    Forms\Components\TextInput::make('url')
-                                        ->label('URL')
-                                        ->placeholder('Enter video URL')
-                                        ->url()
-                                        ->required(),
-                                    Forms\Components\Actions::make([
-                                        Forms\Components\Actions\Action::make('download')
-                                            ->icon('heroicon-m-cloud-arrow-down')
-                                            ->action(function (Forms\Get $get, Forms\Set $set) {
-                                                $url = $get('url');
+                    Forms\Components\Grid::make(['default' => 1, 'sm' => 12])
+                        ->visible(fn (): bool => $this->intakeMode === 'download')
+                        ->schema([
+                            Forms\Components\TextInput::make('url')
+                                ->hiddenLabel()
+                                ->placeholder('Enter video URL')
+                                ->url()
+                                ->required()
+                                ->columnSpan(['sm' => 10]),
+                            Forms\Components\Actions::make([
+                                Forms\Components\Actions\Action::make('download')
+                                    ->label('Start Download')
+                                    ->icon('heroicon-m-cloud-arrow-down')
+                                    ->action(function (Forms\Get $get, Forms\Set $set) {
+                                        $url = $get('url');
 
-                                                // Validate URL
-                                                if (empty($url)) {
-                                                    Notification::make()
-                                                        ->title('Error')
-                                                        ->body('URL is required')
-                                                        ->danger()
-                                                        ->send();
+                                        // Validate URL
+                                        if (empty($url)) {
+                                            Notification::make()
+                                                ->title('Error')
+                                                ->body('URL is required')
+                                                ->danger()
+                                                ->send();
 
-                                                    return;
-                                                }
+                                            return;
+                                        }
 
-                                                if (! filter_var($url, FILTER_VALIDATE_URL)) {
-                                                    Notification::make()
-                                                        ->title('Error')
-                                                        ->body('Please enter a valid URL')
-                                                        ->danger()
-                                                        ->send();
+                                        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+                                            Notification::make()
+                                                ->title('Error')
+                                                ->body('Please enter a valid URL')
+                                                ->danger()
+                                                ->send();
 
-                                                    return;
-                                                }
+                                            return;
+                                        }
 
-                                                // Add to download queue
-                                                $this->addToDownloadQueue($url);
+                                        // Add to download queue
+                                        $this->addToDownloadQueue($url);
 
-                                                // Clear the input field immediately
-                                                $set('url', null);
+                                        // Clear the input field immediately
+                                        $set('url', null);
 
-                                                // Notify user
-                                                Notification::make()
-                                                    ->title('Added to download queue')
-                                                    ->body('URL: '.$url)
-                                                    ->info()
-                                                    ->send();
-                                            })
-                                            ->requiresConfirmation(false),
-                                    ])->alignRight(),
-                                ]),
-                            Forms\Components\Tabs\Tab::make('Upload')
-                                ->icon('heroicon-m-cloud-arrow-up')
-                                ->schema([
-                                    Forms\Components\FileUpload::make('file')
-                                        ->label('File')
-                                        ->placeholder('Upload video or archive file')
-                                        ->acceptedFileTypes([
-                                            'video/*',
-                                            'application/zip',
-                                            'application/x-zip-compressed',
-                                            'application/x-tar',
-                                            'application/gzip',
-                                            'application/x-gzip',
-                                            'application/x-bzip2',
-                                            'application/x-7z-compressed',
-                                            'application/x-rar-compressed',
-                                            'application/vnd.rar',
-                                        ])
-                                        ->live()
-                                        ->afterStateUpdated(function ($state, $set) use ($uploadService) {
-                                            if (! empty($state)) {
-                                                try {
-                                                    $uploadService->enqueueUpload($state);
-                                                    $set('file', null);
-
-                                                    Notification::make()
-                                                        ->title('Upload queued')
-                                                        ->body('File is being processed in the background')
-                                                        ->success()
-                                                        ->send();
-                                                } catch (\Exception $e) {
-                                                    Notification::make()
-                                                        ->title('Error queuing file')
-                                                        ->body($e->getMessage())
-                                                        ->danger()
-                                                        ->send();
-                                                }
-                                            }
-                                        }),
-                                ]),
+                                        // Notify user
+                                        Notification::make()
+                                            ->title('Added to download queue')
+                                            ->body('URL: '.$url)
+                                            ->info()
+                                            ->send();
+                                    })
+                                    ->requiresConfirmation(false),
+                            ])->fullWidth()->columnSpan(['sm' => 2]),
                         ]),
+                    Forms\Components\FileUpload::make('file')
+                        ->hiddenLabel()
+                        ->visible(fn (): bool => $this->intakeMode === 'upload')
+                        ->placeholder('Upload video or archive file')
+                        ->acceptedFileTypes([
+                            'video/*',
+                            'application/zip',
+                            'application/x-zip-compressed',
+                            'application/x-tar',
+                            'application/gzip',
+                            'application/x-gzip',
+                            'application/x-bzip2',
+                            'application/x-7z-compressed',
+                            'application/x-rar-compressed',
+                            'application/vnd.rar',
+                        ])
+                        ->live()
+                        ->afterStateUpdated(function ($state, $set) use ($uploadService) {
+                            if (! empty($state)) {
+                                try {
+                                    $uploadService->enqueueUpload($state);
+                                    $set('file', null);
+
+                                    Notification::make()
+                                        ->title('Upload queued')
+                                        ->body('File is being processed in the background')
+                                        ->success()
+                                        ->send();
+                                } catch (\Exception $e) {
+                                    Notification::make()
+                                        ->title('Error queuing file')
+                                        ->body($e->getMessage())
+                                        ->danger()
+                                        ->send();
+                                }
+                            }
+                        }),
                 ])->columnSpan(12),
 
             // Media Gallery section
