@@ -139,16 +139,64 @@ jobs:
       - name: Build assets
         run: deno task build
 
-  release:
-    name: Create Release
-    needs: [test, quality, frontend]
+  # Pull requests build the image only when something it's built from changed;
+  # the jobs above already cover the application code.
+  changes:
+    name: Detect Image Changes
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create and push tags / GitHub Release
+      contents: read
+    if: github.event_name == 'pull_request'
+    outputs:
+      image: ${{ steps.diff.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Check the image's inputs
+        id: diff
+        run: |
+          # HEAD is GitHub's merge of the PR into master: its first parent is
+          # master, so this lists every file the PR changes (both sides of a
+          # rename, so moving a file the Dockerfile copies still counts).
+          CHANGED=$(git diff --name-only --no-renames HEAD^1 HEAD)
+
+          # .docker/, the build-context filter, the dependency manifests
+          # installed inside the image, the other files the Dockerfile copies
+          # by name, and this workflow. Keep in step with the Dockerfile's COPY
+          # lines.
+          IMAGE=false
+          while IFS= read -r FILE; do
+            case "$FILE" in
+              .docker/* | .dockerignore | .env.production | .github/workflows/ci.yml \
+                | composer.json | composer.lock | deno.json | deno.lock \
+                | vite.config.js | tailwind.config.js | postcss.config.js)
+                echo "Image input changed: $FILE"
+                IMAGE=true
+                ;;
+            esac
+          done <<< "$CHANGED"
+
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          if [ "$IMAGE" = "false" ]; then
+            echo "No image inputs changed, so the image build is skipped." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # Works out the next version on master. The tag and GitHub Release wait for
+  # the images (see release, at the end).
+  version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     outputs:
+      latest_tag: ${{ steps.get_tag.outputs.latest_tag }}
       new_tag: ${{ steps.next_version.outputs.next_version }}
-      released: ${{ steps.check_release.outputs.needs_release }}
+      needs_release: ${{ steps.check_release.outputs.needs_release }}
 
     steps:
       - name: Checkout repository
@@ -226,55 +274,6 @@ jobs:
             fi
           fi
 
-      - name: Generate changelog
-        id: changelog
-        if: steps.check_release.outputs.needs_release == 'true'
-        run: |
-          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
-
-          if [ "$LATEST_TAG" = "v0.0.0" ]; then
-            # First release - get all commits
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -50)
-          else
-            # Get commits since last tag
-            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          fi
-
-          # Write to file to handle multiline
-          echo "$CHANGELOG" > changelog.txt
-          echo "Changelog generated"
-
-      - name: Create and push tag
-        if: steps.check_release.outputs.needs_release == 'true'
-        run: |
-          NEXT_VERSION="${{ steps.next_version.outputs.next_version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
-          git push origin "$NEXT_VERSION"
-
-      - name: Create GitHub Release
-        if: steps.check_release.outputs.needs_release == 'true'
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
-        with:
-          tag_name: ${{ steps.next_version.outputs.next_version }}
-          name: Release ${{ steps.next_version.outputs.next_version }}
-          body_path: changelog.txt
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release summary
-        if: steps.check_release.outputs.needs_release == 'true'
-        run: |
-          echo "## Release Created :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.next_version.outputs.next_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Changelog" >> $GITHUB_STEP_SUMMARY
-          cat changelog.txt >> $GITHUB_STEP_SUMMARY
-
       - name: No release needed
         if: steps.check_release.outputs.needs_release != 'true'
         run: |
@@ -285,32 +284,29 @@ jobs:
   build:
     name: Build and Push Docker Image
     # All checks are listed so their .result is available to the if: below.
-    needs: [test, quality, frontend, release]
+    needs: [test, quality, frontend, changes, version]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write # push image to GHCR
+    # master: build and push the images for the new version. Pull requests:
+    # build without pushing, and only when the image's inputs changed.
+    # !cancelled() rather than always(), so a superseded run never starts one.
     if: >-
-      always()
+      !cancelled()
       && needs.test.result == 'success'
       && needs.quality.result == 'success'
       && needs.frontend.result == 'success'
-      && (needs.release.outputs.released == 'true' || github.event_name == 'pull_request')
+      && (needs.version.outputs.needs_release == 'true' || needs.changes.outputs.image == 'true')
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Fetch tags
-        if: needs.release.outputs.released == 'true'
-        run: git fetch --tags --force
 
       - name: Update version in config
-        if: needs.release.outputs.released == 'true'
+        if: needs.version.outputs.needs_release == 'true'
         run: |
-          VERSION="${{ needs.release.outputs.new_tag }}"
+          VERSION="${{ needs.version.outputs.new_tag }}"
           VERSION="${VERSION#v}"  # Remove 'v' prefix
           sed -i "s/'version' => '[^']*'/'version' => '$VERSION'/" config/app.php
           echo "Updated config/app.php to version $VERSION"
@@ -344,8 +340,8 @@ jobs:
             type=ref,event=branch
             # Tag with PR number
             type=ref,event=pr
-            # Tag with the new release version if created
-            type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.released == 'true' }}
+            # Tag with the version this push releases (master only)
+            type=raw,value=${{ needs.version.outputs.new_tag }},enable=${{ needs.version.outputs.needs_release == 'true' }}
             # Tag with short SHA
             type=sha
 
@@ -381,7 +377,7 @@ jobs:
             suffix=-vaapi
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
-            type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.released == 'true' }}
+            type=raw,value=${{ needs.version.outputs.new_tag }},enable=${{ needs.version.outputs.needs_release == 'true' }}
 
       - name: Build and push Docker image (VAAPI variant)
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -417,3 +413,68 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Variants" >> $GITHUB_STEP_SUMMARY
           echo "- \`*-vaapi\` (linux/amd64): adds Intel + AMD VAAPI drivers for \`media:reencode --accel=vaapi\`" >> $GITHUB_STEP_SUMMARY
+
+  # Tags and publishes the release only after both images are pushed, so a
+  # failed or cancelled build never leaves a tag or GitHub Release without
+  # images.
+  release:
+    name: Create Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create and push tags / GitHub Release
+    if: >-
+      !cancelled()
+      && needs.build.result == 'success'
+      && needs.version.outputs.needs_release == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LATEST_TAG="${{ needs.version.outputs.latest_tag }}"
+
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            # First release - get all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -50)
+          else
+            # Get commits since last tag
+            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Write to file to handle multiline
+          echo "$CHANGELOG" > changelog.txt
+          echo "Changelog generated"
+
+      - name: Create and push tag
+        run: |
+          NEXT_VERSION="${{ needs.version.outputs.new_tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
+          git push origin "$NEXT_VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ needs.version.outputs.new_tag }}
+          name: Release ${{ needs.version.outputs.new_tag }}
+          body_path: changelog.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        run: |
+          echo "## Release Created :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.version.outputs.new_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changelog" >> $GITHUB_STEP_SUMMARY
+          cat changelog.txt >> $GITHUB_STEP_SUMMARY

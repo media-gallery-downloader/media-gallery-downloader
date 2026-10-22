@@ -323,7 +323,7 @@ update while its runs still showed green. Dependabot also covers the Deno
 packages (`deno.json` at the root and in `tests/e2e`).
 
 A newly published advisory makes `composer audit` fail, which blocks the CI
-`release` job (and so the image build) until the affected packages are updated.
+image build (and so the release) until the affected packages are updated.
 
 ### When yt-dlp Changes
 
