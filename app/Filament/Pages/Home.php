@@ -3,6 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Models\Media;
+use App\Services\Download\DownloadOptions;
+use App\Services\Download\InvalidYtDlpArgumentsException;
+use App\Services\Download\YtDlpArguments;
 use App\Services\DownloadService;
 use App\Services\UploadService;
 use Filament\Actions\Action;
@@ -62,6 +65,9 @@ class Home extends Page implements HasForms
 
     /** Which intake the Add Media bar shows: 'download' (default) or 'upload'. */
     public string $intakeMode = 'download';
+
+    /** Whether the one-off yt-dlp arguments section under the URL is open. */
+    public bool $showDownloadOptions = false;
 
     /**
      * No page header: the "Home" heading only repeated the nav label and cost
@@ -182,7 +188,63 @@ class Home extends Page implements HasForms
         $this->dispatch('$refresh');
     }
 
-    public function addToDownloadQueue(string $url): void
+    public function toggleDownloadOptions(): void
+    {
+        $this->showDownloadOptions = ! $this->showDownloadOptions;
+    }
+
+    /**
+     * One-off settings are active when arguments are entered, or when
+     * "combine" is unchecked (no arguments then means none at all).
+     */
+    public function hasOneOffArguments(): bool
+    {
+        return trim((string) ($this->data['extra_args'] ?? '')) !== '' || ! ($this->data['combine_args'] ?? true);
+    }
+
+    /**
+     * The "Start Download" button: queue the URL with the one-off
+     * arguments. They are checked first, so a mistake shows up here rather
+     * than as a failed download. They stay filled in for the next URL.
+     */
+    public function startDownload(): void
+    {
+        $url = trim((string) ($this->data['url'] ?? ''));
+
+        if ($url === '') {
+            Notification::make()->title('Error')->body('URL is required')->danger()->send();
+
+            return;
+        }
+
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            Notification::make()->title('Error')->body('Please enter a valid URL')->danger()->send();
+
+            return;
+        }
+
+        $options = new DownloadOptions((string) ($this->data['extra_args'] ?? ''), (bool) ($this->data['combine_args'] ?? true));
+
+        try {
+            app(YtDlpArguments::class)->validateText($options->extraArgs);
+        } catch (InvalidYtDlpArgumentsException $e) {
+            $this->showDownloadOptions = true;
+            Notification::make()->title('Invalid extra arguments')->body($e->getMessage())->danger()->persistent()->send();
+
+            return;
+        }
+
+        $this->addToDownloadQueue($url, $options);
+        $this->data['url'] = null;
+
+        Notification::make()
+            ->title('Added to download queue')
+            ->body('URL: '.$url)
+            ->info()
+            ->send();
+    }
+
+    public function addToDownloadQueue(string $url, ?DownloadOptions $options = null): void
     {
         $downloadService = app(DownloadService::class);
 
@@ -201,7 +263,7 @@ class Home extends Page implements HasForms
         $downloadId = Str::uuid()->toString();
 
         // Add to queue and dispatch
-        $downloadService->downloadFromUrl($url, $downloadId);
+        $downloadService->downloadFromUrl($url, $downloadId, $options);
     }
 
     public function deleteMedia($id): void
@@ -252,7 +314,13 @@ class Home extends Page implements HasForms
                         ->action(fn () => $this->intakeMode = 'upload'),
                 ])
                 ->schema([
-                    Forms\Components\Grid::make(['default' => 1, 'sm' => 12])
+                    // URL | gear | Start Download. On phones the URL and gear
+                    // share the first row and the button gets its own. The
+                    // mgd-download-row class centres the three on each other
+                    // (home.blade.php): the button's label can wrap to two lines
+                    // and the gear is a smaller icon button.
+                    Forms\Components\Grid::make(['default' => 12])
+                        ->extraAttributes(['class' => 'mgd-download-row'])
                         ->visible(fn (): bool => $this->intakeMode === 'download')
                         ->schema([
                             Forms\Components\TextInput::make('url')
@@ -260,50 +328,43 @@ class Home extends Page implements HasForms
                                 ->placeholder('Enter video URL')
                                 ->url()
                                 ->required()
-                                ->columnSpan(['sm' => 10]),
+                                // Enter starts the download. The form itself can't
+                                // submit on Enter: the gallery's search box makes it
+                                // a multi-field form without a submit button.
+                                ->extraInputAttributes(['x-on:keydown.enter.prevent' => '$wire.startDownload()'])
+                                ->columnSpan(['default' => 10, 'sm' => 9]),
+                            Forms\Components\Actions::make([
+                                Forms\Components\Actions\Action::make('downloadOptions')
+                                    ->label('Extra yt-dlp arguments for this download')
+                                    ->iconButton()
+                                    ->icon('heroicon-m-cog-6-tooth')
+                                    // Highlighted while one-off settings are active,
+                                    // even with the section closed: they still apply.
+                                    ->color(fn (): string => $this->hasOneOffArguments() ? 'primary' : 'gray')
+                                    ->action(fn () => $this->toggleDownloadOptions()),
+                            ])->alignCenter()->columnSpan(['default' => 2, 'sm' => 1]),
                             Forms\Components\Actions::make([
                                 Forms\Components\Actions\Action::make('download')
                                     ->label('Start Download')
                                     ->icon('heroicon-m-cloud-arrow-down')
-                                    ->action(function (Forms\Get $get, Forms\Set $set) {
-                                        $url = $get('url');
-
-                                        // Validate URL
-                                        if (empty($url)) {
-                                            Notification::make()
-                                                ->title('Error')
-                                                ->body('URL is required')
-                                                ->danger()
-                                                ->send();
-
-                                            return;
-                                        }
-
-                                        if (! filter_var($url, FILTER_VALIDATE_URL)) {
-                                            Notification::make()
-                                                ->title('Error')
-                                                ->body('Please enter a valid URL')
-                                                ->danger()
-                                                ->send();
-
-                                            return;
-                                        }
-
-                                        // Add to download queue
-                                        $this->addToDownloadQueue($url);
-
-                                        // Clear the input field immediately
-                                        $set('url', null);
-
-                                        // Notify user
-                                        Notification::make()
-                                            ->title('Added to download queue')
-                                            ->body('URL: '.$url)
-                                            ->info()
-                                            ->send();
-                                    })
-                                    ->requiresConfirmation(false),
-                            ])->fullWidth()->columnSpan(['sm' => 2]),
+                                    ->action(fn () => $this->startDownload()),
+                            ])->fullWidth()->columnSpan(['default' => 12, 'sm' => 2]),
+                        ]),
+                    // The gear's section: one-off yt-dlp arguments below the URL.
+                    Forms\Components\Grid::make(['default' => 12])
+                        ->visible(fn (): bool => $this->intakeMode === 'download' && $this->showDownloadOptions)
+                        ->schema([
+                            Forms\Components\Textarea::make('extra_args')
+                                ->label('Extra yt-dlp arguments')
+                                ->placeholder('--impersonate firefox')
+                                ->helperText('For downloads started here, and kept for their retries. Quote values that contain spaces.')
+                                ->rows(2)
+                                ->columnSpan(['default' => 12, 'sm' => 9]),
+                            Forms\Components\Checkbox::make('combine_args')
+                                ->label('Combine with Settings arguments')
+                                ->helperText('Unchecked: use only the arguments here.')
+                                ->default(true)
+                                ->columnSpan(['default' => 12, 'sm' => 3]),
                         ]),
                     Forms\Components\FileUpload::make('file')
                         ->hiddenLabel()

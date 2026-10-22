@@ -27,33 +27,8 @@ return [
         'sub_lang' => 'en',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication (cookies)
-    |--------------------------------------------------------------------------
-    |
-    | These cookies are passed to yt-dlp for EVERY site, not just YouTube. Use
-    | them for age-restricted YouTube videos and for sites that now require a
-    | login to fetch metadata (e.g. Reddit, which gates posts behind an account).
-    | A single Netscape cookies.txt can hold cookies for multiple domains.
-    | Options:
-    |   - 'cookies_file': Path to a cookies.txt file (Netscape format)
-    |   - 'cookies_from_browser': Browser name (chrome, firefox, edge, safari, opera, brave)
-    |
-    | To export cookies manually:
-    |   1. Install a browser extension like "Get cookies.txt LOCALLY"
-    |   2. Log into the site(s) you download from (youtube.com, reddit.com, ...)
-    |   3. Export their cookies to storage/app/cookies.txt
-    |
-    | Or use browser extraction (requires browser to be closed):
-    |   Set YTDLP_COOKIES_FROM_BROWSER=chrome in your .env
-    |
-    */
-
-    'youtube' => [
-        'cookies_file' => env('YTDLP_COOKIES_FILE', storage_path('app/cookies.txt')),
-        'cookies_from_browser' => env('YTDLP_COOKIES_FROM_BROWSER', null),
-    ],
+    // Per-site cookie files (Settings → Sites), one per site, written 0600.
+    'cookies_path' => env('MGD_COOKIES_PATH') ?: storage_path('app/cookies'),
 
     /*
     |--------------------------------------------------------------------------

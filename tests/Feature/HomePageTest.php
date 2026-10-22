@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Pages\Home;
+use App\Jobs\ProcessDownloadJob;
 use App\Models\Media;
 use App\Services\DownloadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -289,5 +290,66 @@ describe('Home Page', function () {
 
         $component = Livewire::test(Home::class, ['search' => '(video)']);
         $component->assertSuccessful();
+    });
+});
+
+describe('Home one-off yt-dlp arguments', function () {
+    beforeEach(fn () => Queue::fake());
+
+    it('opens and closes the one-off arguments section with the gear', function () {
+        $component = Livewire::test(Home::class);
+        expect($component->html())->not->toContain('Combine with Settings arguments');
+
+        $component->call('toggleDownloadOptions')->assertSet('showDownloadOptions', true);
+        expect($component->html())->toContain('Combine with Settings arguments');
+
+        $component->call('toggleDownloadOptions')->assertSet('showDownloadOptions', false);
+    });
+
+    it('combines with the Settings arguments by default', function () {
+        Livewire::test(Home::class)->assertSet('data.combine_args', true);
+    });
+
+    it('queues a download with its one-off arguments and keeps them for the next URL', function () {
+        fakeYtDlpArgumentHelper(['changed' => ['impersonate']]);
+
+        Livewire::test(Home::class)
+            ->set('data.url', 'https://www.reddit.com/r/videos/comments/abc/x/')
+            ->set('data.extra_args', '--impersonate firefox')
+            ->set('data.combine_args', false)
+            ->call('startDownload')
+            ->assertSet('data.url', null)
+            ->assertSet('data.extra_args', '--impersonate firefox');
+
+        Queue::assertPushed(ProcessDownloadJob::class, fn (ProcessDownloadJob $job): bool => $job->url === 'https://www.reddit.com/r/videos/comments/abc/x/'
+            && $job->extraArgs === '--impersonate firefox'
+            && $job->combineArgs === false);
+    });
+
+    it('refuses to queue a download whose one-off arguments are not allowed', function () {
+        fakeYtDlpArgumentHelper([
+            'changed' => ['exec_cmd'],
+            'used' => [['token' => '--exec', 'option' => '--exec', 'dest' => 'exec_cmd']],
+        ]);
+
+        Livewire::test(Home::class)
+            ->set('data.url', 'https://example.com/v')
+            ->set('data.extra_args', '--exec ls')
+            ->call('startDownload')
+            ->assertNotified('Invalid extra arguments')
+            ->assertSet('data.url', 'https://example.com/v');
+
+        Queue::assertNothingPushed();
+    });
+
+    it('queues without checking anything when there are no one-off arguments', function () {
+        $helper = fakeYtDlpArgumentHelper();
+
+        Livewire::test(Home::class)
+            ->set('data.url', 'https://example.com/v')
+            ->call('startDownload');
+
+        Queue::assertPushed(ProcessDownloadJob::class, fn (ProcessDownloadJob $job): bool => $job->extraArgs === '' && $job->combineArgs === true);
+        expect($helper)->toHaveCount(0);
     });
 });

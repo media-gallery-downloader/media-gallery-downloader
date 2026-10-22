@@ -2,6 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Livewire\ManageSites;
+use App\Services\Download\InvalidYtDlpArgumentsException;
+use App\Services\Download\YtDlpArguments;
 use App\Services\MaintenanceService;
 use App\Settings\MaintenanceSettings;
 use Carbon\Carbon;
@@ -16,9 +19,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\Process\Process;
 
 /**
  * @property Form $form
@@ -110,9 +112,19 @@ class Settings extends Page implements HasForms
     // Configuration methods
     public function saveConfiguration(): void
     {
+        $extraArgs = (string) ($this->data['ytdlp_extra_args'] ?? '');
+        $this->resetErrorBag('data.ytdlp_extra_args');
+
+        // Checked with yt-dlp's own option parser; they're checked again before every run.
+        try {
+            app(YtDlpArguments::class)->validateText($extraArgs);
+        } catch (InvalidYtDlpArgumentsException $e) {
+            throw ValidationException::withMessages(['data.ytdlp_extra_args' => $e->getMessage()]);
+        }
+
         $settings = app(MaintenanceSettings::class);
 
-        $settings->ytdlp_extra_args = $this->data['ytdlp_extra_args'] ?? '';
+        $settings->ytdlp_extra_args = $extraArgs;
         $settings->save();
 
         Notification::make()->title('Configuration saved')->success()->send();
@@ -366,279 +378,6 @@ class Settings extends Page implements HasForms
         Notification::make()->title('Notification settings saved')->success()->send();
     }
 
-    // YouTube cookies methods
-    public function uploadCookies(): void
-    {
-        Log::info('uploadCookies called', ['data' => $this->data['cookies_file'] ?? 'null']);
-
-        $cookiesFile = $this->data['cookies_file'] ?? null;
-
-        if (empty($cookiesFile)) {
-            Log::info('uploadCookies: No file in data');
-            Notification::make()
-                ->title('No file selected')
-                ->body('Please select a cookies file first.')
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        try {
-            // Get the temporary file - Filament stores files in nested array structure
-            $tempFile = $cookiesFile;
-
-            // If it's an array, we need to extract the TemporaryUploadedFile
-            if (is_array($tempFile)) {
-                Log::info('uploadCookies: File is array', ['keys' => array_keys($tempFile)]);
-
-                // Filament stores as [uuid => TemporaryUploadedFile] or [uuid => [class => path]]
-                foreach ($tempFile as $key => $value) {
-                    if ($value instanceof TemporaryUploadedFile) {
-                        $tempFile = $value;
-                        Log::info('uploadCookies: Found TemporaryUploadedFile in array');
-                        break;
-                    } elseif (is_array($value)) {
-                        // Might be serialized format: [class => path]
-                        foreach ($value as $class => $path) {
-                            if (str_contains($class, 'TemporaryUploadedFile') && is_string($path)) {
-                                // Read directly from the temp path
-                                Log::info('uploadCookies: Found serialized temp file', ['path' => $path]);
-                                if (file_exists($path)) {
-                                    $content = file_get_contents($path);
-                                    Log::info('uploadCookies: Read content from temp path', ['size' => strlen($content)]);
-                                }
-                                break 2;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // If we already got content from the serialized path, skip this part
-            if (! isset($content)) {
-                if ($tempFile instanceof TemporaryUploadedFile) {
-                    Log::info('uploadCookies: Reading from TemporaryUploadedFile object');
-                    $content = $tempFile->get();
-                } elseif (is_string($tempFile) && file_exists($tempFile)) {
-                    Log::info('uploadCookies: Reading from string path', ['path' => $tempFile]);
-                    $content = file_get_contents($tempFile);
-                }
-            }
-
-            if (empty($content)) {
-                Log::warning('uploadCookies: Could not read file content');
-                Notification::make()
-                    ->title('Could not read file')
-                    ->body('The uploaded file could not be read. Please try again.')
-                    ->danger()
-                    ->send();
-
-                return;
-            }
-
-            Log::info('uploadCookies: Got content', ['size' => strlen($content)]);
-
-            // Validate the file is a Netscape-format cookies.txt (the format
-            // yt-dlp expects) rather than requiring a specific site - the same
-            // file is used for YouTube, Reddit and any other login-gated site.
-            if (! self::looksLikeNetscapeCookies($content)) {
-                Log::warning('uploadCookies: File is not a valid cookies.txt');
-                Notification::make()
-                    ->title('Invalid cookies file')
-                    ->body('This does not look like a cookies.txt file. Export it in Netscape format (e.g. with the "Get cookies.txt LOCALLY" extension) while logged into the site you want to download from.')
-                    ->danger()
-                    ->send();
-
-                return;
-            }
-
-            // Save the cookies file
-            $cookiesPath = config('mgd.youtube.cookies_file', storage_path('app/cookies.txt'));
-            file_put_contents($cookiesPath, $content);
-            Log::info('uploadCookies: Saved cookies file', ['path' => $cookiesPath]);
-
-            // Clean up the Livewire temp file if we have access to it
-            if ($tempFile instanceof TemporaryUploadedFile) {
-                try {
-                    $tempPath = $tempFile->getRealPath();
-                    if ($tempPath && file_exists($tempPath)) {
-                        @unlink($tempPath);
-                    }
-                } catch (\Exception $e) {
-                    // Livewire will clean it up eventually
-                }
-            }
-
-            // Clear the upload field
-            $this->data['cookies_file'] = null;
-
-            Notification::make()
-                ->title('Cookies uploaded successfully')
-                ->body('Downloads from login-required sites should now work.')
-                ->success()
-                ->send();
-
-            // Refresh the form to update the UI
-            $this->dispatch('$refresh');
-        } catch (\Exception $e) {
-            Log::error('uploadCookies: Exception', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            Notification::make()
-                ->title('Upload failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
-    }
-
-    public function deleteCookies(): void
-    {
-        try {
-            $cookiesPath = config('mgd.youtube.cookies_file', storage_path('app/cookies.txt'));
-
-            if (file_exists($cookiesPath)) {
-                unlink($cookiesPath);
-                Notification::make()
-                    ->title('Cookies deleted')
-                    ->body('YouTube authentication has been removed.')
-                    ->success()
-                    ->send();
-
-                // Refresh the form to update the UI
-                $this->dispatch('$refresh');
-            } else {
-                Notification::make()
-                    ->title('No cookies file found')
-                    ->warning()
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            Notification::make()
-                ->title('Delete failed')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
-    }
-
-    /**
-     * Heuristically verify uploaded content is a Netscape-format cookies.txt
-     * (the format yt-dlp expects), regardless of which site it is for.
-     */
-    protected static function looksLikeNetscapeCookies(string $content): bool
-    {
-        if (str_contains($content, '# Netscape HTTP Cookie File') || str_contains($content, '# HTTP Cookie File')) {
-            return true;
-        }
-
-        // A cookie line is TAB-separated with 7 fields: domain, include-subdomains,
-        // path, secure, expiry, name, value (i.e. at least 6 tabs).
-        foreach (preg_split('/\r\n|\r|\n/', $content) ?: [] as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-
-            // '#' starts a comment, except the '#HttpOnly_' cookie-line prefix.
-            if (str_starts_with($line, '#') && ! str_starts_with($line, '#HttpOnly_')) {
-                continue;
-            }
-
-            if (substr_count($line, "\t") >= 6) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function testCookies(): void
-    {
-        $cookiesPath = config('mgd.youtube.cookies_file', storage_path('app/cookies.txt'));
-
-        if (! file_exists($cookiesPath)) {
-            Notification::make()
-                ->title('No cookies file')
-                ->body('Please upload a cookies file first.')
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        try {
-            // Test with a known age-restricted video
-            $testUrl = 'https://www.youtube.com/watch?v=UocjQ5uiucg';
-
-            $process = new Process([
-                'yt-dlp',
-                '--cookies',
-                $cookiesPath,
-                '--simulate',
-                '--no-warnings',
-                $testUrl,
-            ]);
-            $process->setTimeout(30);
-            $process->run();
-
-            $output = $process->getOutput().$process->getErrorOutput();
-
-            if ($process->isSuccessful()) {
-                Notification::make()
-                    ->title('Cookies are valid! ✅')
-                    ->body('Age-restricted videos should download successfully.')
-                    ->success()
-                    ->send();
-            } elseif (str_contains($output, 'cookies are no longer valid') || str_contains($output, 'rotated')) {
-                Notification::make()
-                    ->title('Cookies have expired ❌')
-                    ->body('YouTube has invalidated these cookies. Please export fresh cookies from your browser. Tip: Use Firefox and don\'t open YouTube again after exporting.')
-                    ->danger()
-                    ->persistent()
-                    ->send();
-            } elseif (str_contains($output, 'Sign in to confirm your age')) {
-                Notification::make()
-                    ->title('Cookies are invalid ❌')
-                    ->body('The cookies don\'t provide authentication. Make sure you\'re logged into YouTube when exporting cookies.')
-                    ->danger()
-                    ->persistent()
-                    ->send();
-            } else {
-                Notification::make()
-                    ->title('Test failed')
-                    ->body('Could not verify cookies: '.substr($output, 0, 200))
-                    ->warning()
-                    ->send();
-            }
-        } catch (\Exception $e) {
-            Notification::make()
-                ->title('Test error')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
-    }
-
-    public function hasCookiesFile(): bool
-    {
-        $cookiesPath = config('mgd.youtube.cookies_file', storage_path('app/cookies.txt'));
-
-        return file_exists($cookiesPath);
-    }
-
-    public function getCookiesFileAge(): ?string
-    {
-        $cookiesPath = config('mgd.youtube.cookies_file', storage_path('app/cookies.txt'));
-
-        if (! file_exists($cookiesPath)) {
-            return null;
-        }
-
-        $modified = filemtime($cookiesPath);
-
-        return Carbon::createFromTimestamp($modified)->diffForHumans();
-    }
-
     // Backup management methods
     public function getBackupFiles(): array
     {
@@ -788,8 +527,8 @@ class Settings extends Page implements HasForms
                 ->schema([
                     Forms\Components\Textarea::make('ytdlp_extra_args')
                         ->label('yt-dlp Extra Arguments')
-                        ->helperText(new HtmlString('Additional command line arguments to pass to yt-dlp when downloading. One argument per line (e.g., --geo-bypass or --limit-rate 1M). See <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">yt-dlp documentation</a> for available options.'))
-                        ->placeholder("--geo-bypass\n--limit-rate 1M")
+                        ->helperText(new HtmlString('Additional command line arguments passed to yt-dlp for every download, including the metadata lookup. Put one or more per line and quote values that contain spaces, as in a shell (e.g. --add-headers "Referer: https://example.com"); lines starting with # are comments. Options that run commands, read or write local files, change where files are saved, or update yt-dlp are rejected. See the <a href="https://github.com/yt-dlp/yt-dlp#usage-and-options" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">yt-dlp documentation</a> for available options.'))
+                        ->placeholder("--limit-rate 1M\n--add-headers \"Referer: https://example.com\"")
                         ->rows(4)
                         ->columnSpanFull(),
 
@@ -800,6 +539,24 @@ class Settings extends Page implements HasForms
                             ->color('success')
                             ->action('saveConfiguration'),
                     ])->alignRight(),
+                ])
+                ->columnSpanFull(),
+
+            Section::make('Sites')
+                ->description('Cookies and extra yt-dlp arguments for specific sites. A download uses the site whose domain matches its URL, subdomains included; URLs no site covers get no cookies.')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\Livewire::make(ManageSites::class)->key('manage-sites'),
+                    Forms\Components\Placeholder::make('cookies_instructions')
+                        ->label('How to export cookies')
+                        ->content(new HtmlString('
+                            <ol class="text-sm list-decimal ps-5 space-y-1">
+                                <li>Use <strong>Firefox</strong> (its cookies stay valid longer than Chrome\'s) and log into the site.</li>
+                                <li>With the <a href="https://addons.mozilla.org/en-US/firefox/addon/get-cookies-txt-locally/" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline">Get cookies.txt LOCALLY</a> extension, export the cookies for that site.</li>
+                                <li>Edit the site here and paste the export (or upload the file).</li>
+                            </ol>
+                            <p class="mt-2 text-sm text-warning-700 dark:text-warning-300">Sites such as YouTube may invalidate exported cookies once that browser session keeps being used, so export from a browser or profile you leave alone.</p>
+                        ')),
                 ])
                 ->columnSpanFull(),
 
@@ -854,81 +611,6 @@ class Settings extends Page implements HasForms
                 ])
                 ->columnSpanFull(),
 
-            Section::make('Authentication (Cookies)')
-                ->description('Upload a cookies.txt to download from sites that require a login (e.g. age-restricted YouTube videos, Reddit). The same cookies file is used for every site.')
-                ->collapsible()
-                ->collapsed()
-                ->schema([
-                    Forms\Components\Placeholder::make('cookies_status')
-                        ->label('Status')
-                        ->content(fn () => $this->hasCookiesFile()
-                            ? "✅ Cookies file installed (uploaded {$this->getCookiesFileAge()}) - Use 'Test Cookies' to verify they work"
-                            : '❌ No cookies file - downloads from login-required sites will fail'),
-
-                    Forms\Components\Placeholder::make('cookies_instructions')
-                        ->label('How to export cookies')
-                        ->content(new HtmlString('
-                            <div class="text-sm space-y-3">
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">1</span>
-                                    <span>Use <strong>Firefox</strong> <span class="text-gray-500 dark:text-gray-400">(recommended - cookies are more stable than Chrome)</span></span>
-                                </div>
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">2</span>
-                                    <span>Install the <a href="https://addons.mozilla.org/en-US/firefox/addon/get-cookies-txt-locally/" target="_blank" class="text-primary-600 dark:text-primary-400 underline hover:no-underline"><strong>"Get cookies.txt LOCALLY"</strong></a> browser extension</span>
-                                </div>
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">3</span>
-                                    <span>Log into the site(s) you download from (e.g. YouTube, Reddit)</span>
-                                </div>
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">4</span>
-                                    <span>Click the extension icon and export cookies for those sites (e.g. youtube.com, reddit.com)</span>
-                                </div>
-                                <div class="flex items-start gap-3">
-                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center text-xs font-bold">5</span>
-                                    <span>Upload the exported file below</span>
-                                </div>
-                                <div class="mt-4 p-3 rounded-lg bg-warning-50 dark:bg-warning-500/10 border border-warning-200 dark:border-warning-500/20">
-                                    <div class="flex gap-2">
-                                        <span class="text-warning-600 dark:text-warning-400">⚠️</span>
-                                        <span class="text-warning-700 dark:text-warning-300"><strong>Important:</strong> After exporting, don\'t use YouTube in that browser again. YouTube may invalidate cookies when it detects they\'re being used elsewhere.</span>
-                                    </div>
-                                </div>
-                            </div>
-                        '))
-                        ->hidden(fn () => $this->hasCookiesFile()),
-
-                    Forms\Components\FileUpload::make('cookies_file')
-                        ->label('Upload Cookies File')
-                        ->acceptedFileTypes(['text/plain', '.txt'])
-                        ->maxSize(1024) // 1MB max
-                        ->helperText('Select a cookies.txt file to upload it automatically.')
-                        ->hidden(fn () => $this->hasCookiesFile())
-                        ->storeFiles(false)
-                        ->afterStateUpdated(fn () => $this->uploadCookies()),
-
-                    Forms\Components\Actions::make([
-                        Forms\Components\Actions\Action::make('test_cookies')
-                            ->label('Test YouTube Cookies')
-                            ->tooltip('Verifies the cookies against YouTube. Other sites (e.g. Reddit) are not tested.')
-                            ->icon('heroicon-m-beaker')
-                            ->color('info')
-                            ->action('testCookies')
-                            ->visible(fn () => $this->hasCookiesFile()),
-
-                        Forms\Components\Actions\Action::make('delete_cookies')
-                            ->label('Delete Cookies')
-                            ->icon('heroicon-m-trash')
-                            ->color('danger')
-                            ->requiresConfirmation()
-                            ->modalHeading('Delete Cookies')
-                            ->modalDescription('Are you sure you want to delete the cookies file? Downloads from login-required sites will no longer work.')
-                            ->action('deleteCookies')
-                            ->visible(fn () => $this->hasCookiesFile()),
-                    ])->alignRight(),
-                ])
-                ->columnSpanFull(),
         ])->statePath('data');
     }
 }

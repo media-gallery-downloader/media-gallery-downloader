@@ -12,7 +12,7 @@ yt-dlp, tags, encoding) see [Configuration](CONFIGURATION.md) and
 The project includes several environment files for different purposes:
 
 | File | Purpose | Committed to Git |
-|------|---------|------------------|
+| --- | --- | --- |
 | `.env.docker.example` | Template for Docker deployment settings (ports, paths, timezone). Copy to `.env` and customize. | ✅ Yes |
 | `.env.production` | Production Laravel configuration baked into the Docker image. Contains app settings, Redis/Valkey config, etc. | ✅ Yes |
 | `.env.development` | Full Laravel configuration for local development. Copy to `.env` when developing. | ✅ Yes |
@@ -27,7 +27,7 @@ The project includes several environment files for different purposes:
 These variables can be set in your `.env` file to customize the Docker deployment:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `DATA_PATH` | `./storage` | Path to all persistent data (mounted to /app/storage) |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
 | `UID` | `1000` | User ID for file ownership (used by fixperms) |
@@ -53,7 +53,7 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 **Core settings** — set these for any production deployment:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `APP_KEY` | _(none)_ | **Required.** A stable base64 encryption key (generate with `php artisan key:generate --show`). It signs/encrypts sessions and cookies, so it must stay constant — if it changes, everyone is logged out and uploads fail with a `419 CSRF token mismatch`. Supply it via the environment; the image does **not** generate one at build time |
 | `APP_URL` | `http://localhost:8080` | Public URL the app is served at, used for absolute/signed-URL generation. Set it to your real address (e.g. `https://media.example.com`) |
 | `TRUSTED_PROXIES` | `*` | Reverse proxies to trust for `X-Forwarded-*` headers. `*` trusts any proxy (fine when the container is only reachable through your proxy); a comma-separated list of IPs/CIDRs restricts it; an empty value disables proxy trust — see [Running without a reverse proxy](#running-without-a-reverse-proxy) |
@@ -62,9 +62,7 @@ The remaining variables are optional — they tune download behaviour, safety
 limits, and the database. Only set them to change the defaults.
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `YTDLP_COOKIES_FILE` | `storage/app/cookies.txt` | Path to the `cookies.txt` sent to yt-dlp for **all** sites (see [Authentication](CONFIGURATION.md#authentication-cookies)) |
-| `YTDLP_COOKIES_FROM_BROWSER` | _(unset)_ | Extract cookies from a local browser instead of a file (`chrome`, `firefox`, `edge`, …) |
+| --- | --- | --- |
 | `MGD_BLOCK_PRIVATE_HOSTS` | `true` | Block direct (non-yt-dlp) downloads whose host resolves to a private/loopback/link-local/reserved IP (SSRF protection). Disable only if you intentionally download from your LAN |
 | `MGD_MAX_DOWNLOAD_BYTES` | `0` | Maximum size of a single direct download, in bytes (`0` = unlimited) |
 | `MGD_MAX_ARCHIVE_BYTES` | `0` | Maximum total **uncompressed** size of an uploaded archive, in bytes (`0` = unlimited; guards against zip bombs) |
@@ -180,4 +178,3 @@ APP_URL=http://your-host:8080
 You'll be serving plain HTTP unless you terminate TLS some other way. The
 [Security](../README.md#security) note still applies — the app has no built-in authentication,
 so don't put it on an untrusted network without protecting it.
-

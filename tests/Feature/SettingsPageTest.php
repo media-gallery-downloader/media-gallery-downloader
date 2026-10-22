@@ -411,3 +411,103 @@ describe('Settings Page - Error Handling', function () {
         $component->assertSuccessful();
     });
 });
+
+describe('Settings Page - yt-dlp extra arguments', function () {
+    beforeEach(function () {
+        Storage::fake('public');
+    });
+
+    it('saves arguments yt-dlp accepts', function () {
+        $helper = fakeYtDlpArgumentHelper(['changed' => ['headers', 'impersonate']]);
+        $text = "--impersonate firefox\n--add-headers \"Referer: https://example.com\"";
+
+        Livewire::test(Settings::class)
+            ->set('data.ytdlp_extra_args', $text)
+            ->call('saveConfiguration')
+            ->assertHasNoErrors();
+
+        expect(app(MaintenanceSettings::class)->ytdlp_extra_args)->toBe($text)
+            ->and($helper)->toHaveCount(1);
+    });
+
+    it('refuses to save a denied argument and names it', function () {
+        fakeYtDlpArgumentHelper([
+            'changed' => ['exec_cmd'],
+            'used' => [['token' => '--exec', 'option' => '--exec', 'dest' => 'exec_cmd']],
+        ]);
+
+        $component = Livewire::test(Settings::class)
+            ->set('data.ytdlp_extra_args', "--limit-rate 1M\n--exec 'touch /tmp/pwned'")
+            ->call('saveConfiguration')
+            ->assertHasErrors(['data.ytdlp_extra_args']);
+
+        expect($component->errors()->first('data.ytdlp_extra_args'))->toContain('--exec is not allowed: it runs commands')
+            ->and(app(MaintenanceSettings::class)->ytdlp_extra_args)->toBe('');
+    });
+
+    it('refuses to save text it cannot parse, without running the helper', function () {
+        $helper = fakeYtDlpArgumentHelper();
+
+        $component = Livewire::test(Settings::class)
+            ->set('data.ytdlp_extra_args', '--add-headers "Referer: https://example.com')
+            ->call('saveConfiguration')
+            ->assertHasErrors(['data.ytdlp_extra_args']);
+
+        expect($component->errors()->first('data.ytdlp_extra_args'))->toContain('Line 1: missing closing double quote')
+            ->and($helper)->toHaveCount(0)
+            ->and(app(MaintenanceSettings::class)->ytdlp_extra_args)->toBe('');
+    });
+
+    it('refuses to save when the arguments cannot be checked', function () {
+        fakeYtDlpArgumentHelper('', 1, 'python3: not found');
+
+        $component = Livewire::test(Settings::class)
+            ->set('data.ytdlp_extra_args', '--limit-rate 1M')
+            ->call('saveConfiguration')
+            ->assertHasErrors(['data.ytdlp_extra_args']);
+
+        expect($component->errors()->first('data.ytdlp_extra_args'))->toContain('Could not check these arguments with yt-dlp')
+            ->and(app(MaintenanceSettings::class)->ytdlp_extra_args)->toBe('');
+    });
+
+    it('saves cleared arguments without running the helper', function () {
+        $settings = app(MaintenanceSettings::class);
+        $settings->ytdlp_extra_args = '--limit-rate 1M';
+        $settings->save();
+        $helper = fakeYtDlpArgumentHelper();
+
+        Livewire::test(Settings::class)
+            ->set('data.ytdlp_extra_args', '')
+            ->call('saveConfiguration')
+            ->assertHasNoErrors();
+
+        expect(app(MaintenanceSettings::class)->ytdlp_extra_args)->toBe('')
+            ->and($helper)->toHaveCount(0);
+    });
+});
+
+describe('Settings Page - Sites', function () {
+    it('manages cookies per site instead of one shared cookies file', function () {
+        $html = Livewire::test(Settings::class)->assertSuccessful()->html();
+
+        expect($html)->toContain('Sites')
+            ->and($html)->not->toContain('Authentication (Cookies)')
+            ->and($html)->not->toContain('Upload Cookies File');
+    });
+
+    it('never nests forms, so the Sites table\'s modal forms submit themselves', function () {
+        // Browsers drop a <form> inside another <form>: a surrounding settings
+        // form would swallow the Add site / Edit modal submissions.
+        preg_match_all('~<(/?)form\b~i', Livewire::test(Settings::class)->html(), $tags, PREG_SET_ORDER);
+
+        $depth = 0;
+        $deepest = 0;
+        foreach ($tags as $tag) {
+            $depth += $tag[1] === '/' ? -1 : 1;
+            $deepest = max($deepest, $depth);
+        }
+
+        expect($tags)->not->toBeEmpty()
+            ->and($deepest)->toBe(1);
+    });
+});

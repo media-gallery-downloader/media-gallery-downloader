@@ -7,6 +7,13 @@
             padding-block: 0.75rem 2rem;
             row-gap: 1rem;
         }
+
+        /* Centre the URL field, gear and Start Download on each other
+           (Home::form): the button's label can wrap to two lines, and the
+           gear is a smaller icon button with a negative margin. */
+        .mgd-download-row > .fi-fo-component-ctn {
+            align-items: center;
+        }
     </style>
 
     <x-filament-panels::form wire:submit="submit">

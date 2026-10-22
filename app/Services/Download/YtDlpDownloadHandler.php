@@ -3,8 +3,7 @@
 namespace App\Services\Download;
 
 use App\Models\Media;
-use App\Settings\MaintenanceSettings;
-use Illuminate\Support\Facades\Log;
+use App\Services\Sites\SiteCookieCopy;
 use Symfony\Component\Process\Process;
 
 /**
@@ -13,6 +12,24 @@ use Symfony\Component\Process\Process;
  */
 class YtDlpDownloadHandler extends BaseDownloadHandler
 {
+    private DownloadOptions $options;
+
+    public function __construct(private ?YtDlpArguments $arguments = null)
+    {
+        $this->options = DownloadOptions::none();
+    }
+
+    /**
+     * The download's own options (one-off yt-dlp arguments), applied on top
+     * of the Settings arguments for every yt-dlp command of this download.
+     */
+    public function withOptions(DownloadOptions $options): static
+    {
+        $this->options = $options;
+
+        return $this;
+    }
+
     public function getName(): string
     {
         return 'yt-dlp';
@@ -28,46 +45,41 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     public function download(string $url, string $downloadId, ?callable $progressCallback = null): Media
     {
         $tempDir = $this->createTempDirectory('ytdlp');
+        $cookies = null;
 
         try {
+            // yt-dlp works on a private copy of the site's cookies (see
+            // SiteCookieCopy), written back once both runs are over.
+            $cookies = $this->arguments()->copyCookies($url, $tempDir);
+
             // Get video metadata (this will fail if yt-dlp can't handle the URL)
-            $metadata = $this->fetchMetadata($url);
+            $metadata = $this->fetchMetadata($url, $tempDir, $cookies);
             $videoTitle = $metadata['fulltitle'] ?? $metadata['title'];
 
             // Download the video
-            $downloadedFile = $this->executeDownload($url, $tempDir, $downloadId, $progressCallback);
+            $downloadedFile = $this->executeDownload($url, $tempDir, $downloadId, $progressCallback, $cookies);
 
             // Create media record
-            $media = $this->storeAndCreateMedia($downloadedFile, $videoTitle, $url);
-
+            return $this->storeAndCreateMedia($downloadedFile, $videoTitle, $url);
+        } finally {
+            $cookies?->writeBack();
             $this->cleanupTempDirectory($tempDir);
-
-            return $media;
-        } catch (\Exception $e) {
-            $this->cleanupTempDirectory($tempDir);
-            throw $e;
         }
     }
 
     /**
-     * Fetch video metadata from yt-dlp
+     * Fetch video metadata from yt-dlp. Runs in $workingDirectory (the
+     * download's temp directory) so anything yt-dlp writes relative to its
+     * working directory stays in there.
      */
-    protected function fetchMetadata(string $url): array
+    protected function fetchMetadata(string $url, ?string $workingDirectory = null, ?SiteCookieCopy $cookies = null): array
     {
-        $cookieArgs = $this->getCookieArguments();
-
-        $metadataCommand = array_merge(
-            ['yt-dlp', '--no-playlist', '--no-warnings', '--dump-json'],
-            $cookieArgs,
-            [$url]
-        );
-
-        $metadataProcess = new Process($metadataCommand);
+        $metadataProcess = new Process($this->buildMetadataCommand($url, $cookies), $workingDirectory);
         $metadataProcess->setTimeout(config('mgd.timeouts.metadata', 120));
         $metadataProcess->run();
 
         if (! $metadataProcess->isSuccessful()) {
-            throw new \Exception($this->parseError($metadataProcess->getErrorOutput()));
+            throw new \Exception($this->parseError($metadataProcess->getErrorOutput(), self::hostWithoutSite($url, $cookies)));
         }
 
         $metadata = json_decode($metadataProcess->getOutput(), true);
@@ -79,18 +91,44 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     }
 
     /**
+     * Build the yt-dlp metadata command. It is the first request to the site,
+     * so it gets the same cookies and extra arguments as the download:
+     * options such as impersonation, a proxy, headers or the IP family can
+     * decide whether the site can be reached at all.
+     *
+     * @return list<string>
+     */
+    protected function buildMetadataCommand(string $url, ?SiteCookieCopy $cookies = null): array
+    {
+        return [
+            'yt-dlp',
+            '--no-playlist',
+            '--no-warnings',
+            '--dump-json',
+            ...self::cookieArguments($cookies),
+            // Extra arguments go last, right before "--" (which stops the
+            // URL from ever being read as an option) and the URL.
+            ...$this->arguments()->extraArguments($url, $this->options),
+            '--',
+            $url,
+        ];
+    }
+
+    /**
      * Execute the download command
      */
     protected function executeDownload(
         string $url,
         string $tempDir,
         string $downloadId,
-        ?callable $progressCallback
+        ?callable $progressCallback,
+        ?SiteCookieCopy $cookies = null,
     ): string {
         $outputTemplate = $tempDir.'/%(title)s.%(ext)s';
-        $command = $this->buildDownloadCommand($url, $outputTemplate);
+        $command = $this->buildDownloadCommand($url, $outputTemplate, $cookies);
 
-        $process = new Process($command);
+        // Run in the temp directory so nothing lands in the app's working directory.
+        $process = new Process($command, $tempDir);
         $process->setTimeout(config('mgd.timeouts.download', 600));
 
         $process->run(function ($type, $buffer) use ($progressCallback) {
@@ -103,7 +141,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         });
 
         if (! $process->isSuccessful()) {
-            throw new \Exception($this->parseError($process->getErrorOutput()));
+            throw new \Exception($this->parseError($process->getErrorOutput(), self::hostWithoutSite($url, $cookies)));
         }
 
         $files = glob($tempDir.'/*');
@@ -123,7 +161,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     /**
      * Build the yt-dlp download command
      */
-    protected function buildDownloadCommand(string $url, string $outputTemplate): array
+    protected function buildDownloadCommand(string $url, string $outputTemplate, ?SiteCookieCopy $cookies = null): array
     {
         $preferredFormat = config(
             'mgd.video_quality.format_selector',
@@ -143,7 +181,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         ];
 
         // Add cookie arguments
-        $command = array_merge($command, $this->getCookieArguments());
+        $command = array_merge($command, self::cookieArguments($cookies));
 
         // Add subtitle options
         if (config('mgd.video_quality.embed_subs', true)) {
@@ -156,150 +194,66 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
             $command[] = config('mgd.video_quality.sub_lang', 'en');
         }
 
-        // Add user-configured extra arguments from settings
-        $command = array_merge($command, $this->getExtraArguments());
+        // Extra arguments go last, right before "--" (which stops the URL
+        // from ever being read as an option) and the URL: they can override
+        // the defaults above, and nothing the app adds comes after them.
+        $command = array_merge($command, $this->arguments()->extraArguments($url, $this->options));
 
+        $command[] = '--';
         $command[] = $url;
 
         return $command;
     }
 
     /**
-     * yt-dlp flags that are refused in user-supplied extra arguments because
-     * they allow arbitrary command execution, reading/writing arbitrary files,
-     * or escaping the managed output directory.
+     * The URL's host when the run had no site cookies, for error hints.
      */
-    protected const DISALLOWED_EXTRA_FLAGS = [
-        '--exec',
-        '--exec-before-download',
-        '--config-location',
-        '--config-locations',
-        '--load-info-json',
-        '--load-info',
-        '--batch-file',
-        '-a',
-        '--output',
-        '-o',
-        '--paths',
-        '-P',
-        '--downloader',
-        '--external-downloader',
-        '--use-postprocessor',
-        '--print-to-file',
-        '--cookies',
-        '--cookies-from-browser',
-    ];
-
-    /**
-     * Get extra arguments configured in settings
-     */
-    protected function getExtraArguments(): array
+    private static function hostWithoutSite(string $url, ?SiteCookieCopy $cookies): ?string
     {
-        $args = [];
-
-        try {
-            $settings = app(MaintenanceSettings::class);
-            $extraArgs = $settings->ytdlp_extra_args ?? '';
-
-            if (! empty($extraArgs)) {
-                // Split by newlines and filter empty lines
-                $lines = array_filter(
-                    array_map('trim', explode("\n", $extraArgs)),
-                    fn ($line) => ! empty($line) && ! str_starts_with($line, '#')
-                );
-
-                foreach ($lines as $line) {
-                    // Handle arguments that may contain spaces (e.g., "--output /path/to/file")
-                    // by using preg_split to respect quoted strings
-                    $parts = preg_split('/\s+/', $line, -1, PREG_SPLIT_NO_EMPTY);
-                    $args = array_merge($args, $parts);
-                }
-            }
-        } catch (\Exception $e) {
-            // If settings aren't available, just continue without extra args
-            return [];
-        }
-
-        if ($disallowed = $this->findDisallowedFlag($args)) {
-            // Fail safe: drop the entire user-supplied set rather than running a
-            // command with a dangerous flag. Admin-only, but still validated.
-            Log::warning('Ignoring yt-dlp extra arguments: disallowed flag present', [
-                'flag' => $disallowed,
-            ]);
-
-            return [];
-        }
-
-        return $args;
+        return $cookies === null ? (parse_url($url, PHP_URL_HOST) ?: null) : null;
     }
 
     /**
-     * Return the first disallowed flag found in a token list, or null if clean.
-     * Long flags are matched case-insensitively and support the --flag=value
-     * form; short flags are matched exactly (yt-dlp short flags are case
-     * sensitive, e.g. -P differs from -p).
+     * @return list<string>
      */
-    protected function findDisallowedFlag(array $tokens): ?string
+    private static function cookieArguments(?SiteCookieCopy $cookies): array
     {
-        foreach ($tokens as $token) {
-            if (! str_starts_with($token, '-')) {
-                continue;
-            }
-
-            $flag = explode('=', $token, 2)[0];
-            $normalized = str_starts_with($flag, '--') ? strtolower($flag) : $flag;
-
-            if (in_array($normalized, self::DISALLOWED_EXTRA_FLAGS, true)) {
-                return $flag;
-            }
-        }
-
-        return null;
+        return $cookies !== null ? ['--cookies', $cookies->path] : [];
     }
 
-    /**
-     * Get cookie arguments for yt-dlp
-     */
-    protected function getCookieArguments(): array
+    protected function arguments(): YtDlpArguments
     {
-        $args = [];
-
-        $browserName = config('mgd.youtube.cookies_from_browser');
-        if ($browserName) {
-            $args[] = '--cookies-from-browser';
-            $args[] = $browserName;
-
-            return $args;
-        }
-
-        $cookiesFile = config('mgd.youtube.cookies_file');
-        if ($cookiesFile && file_exists($cookiesFile)) {
-            $args[] = '--cookies';
-            $args[] = $cookiesFile;
-        }
-
-        return $args;
+        return $this->arguments ??= app(YtDlpArguments::class);
     }
 
     /**
      * Parse error output for user-friendly messages
      */
-    protected function parseError(string $errorOutput): string
+    protected function parseError(string $errorOutput, ?string $hostWithoutSite = null): string
     {
+        $errorOutput = YtDlpOutput::withoutCookieLines($errorOutput);
+        $noSite = $hostWithoutSite !== null ? " No site in Settings → Sites covers {$hostWithoutSite} yet." : '';
+
         if (str_contains($errorOutput, 'cookies are no longer valid') || str_contains($errorOutput, 'rotated')) {
-            return 'YouTube cookies have expired. Please upload fresh cookies in Settings → Authentication (Cookies).';
+            return 'YouTube cookies have expired. Paste fresh YouTube cookies into the YouTube site in Settings → Sites.';
         }
 
         if (str_contains($errorOutput, 'Sign in to confirm your age')) {
-            return 'This video is age-restricted. Please upload valid YouTube cookies in Settings → Authentication (Cookies).';
+            return 'This video is age-restricted. Add cookies from a logged-in YouTube account to the YouTube site in Settings → Sites.'.$noSite;
         }
 
-        // Reddit (and others) now require an authenticated session to fetch
-        // metadata. The cookies.txt configured in Settings → YouTube
-        // Authentication is sent to yt-dlp for every site, so adding this
-        // site's cookies to that file resolves it.
+        // yt-dlp says "Your IP address is unable to access the Reddit API"
+        // whenever a reddit_session cookie was sent and Reddit still refused
+        // the request. That is rarely about the IP address.
+        if (str_contains($errorOutput, 'unable to access the Reddit API')) {
+            return 'Reddit refused the request even with the uploaded cookies. Re-export fresh Reddit cookies and replace them in the Reddit site in Settings → Sites. If fresh cookies don\'t help, Reddit is blocking the way yt-dlp accesses it and a yt-dlp update is needed (Settings → Maintenance → yt-dlp update → Run Now).';
+        }
+
+        // Reddit (and others) require an authenticated session to fetch
+        // metadata: cookies from a logged-in browser, added to the site in
+        // Settings → Sites, resolve it.
         if (str_contains($errorOutput, 'authentication is required') || str_contains($errorOutput, 'Account authentication')) {
-            return 'This site requires you to be logged in. Add this site\'s cookies to your cookies.txt (Settings → Authentication (Cookies)); the same cookies file is used for all sites.';
+            return 'This site requires you to be logged in. Add this site\'s cookies in Settings → Sites.'.$noSite;
         }
 
         return 'yt-dlp error: '.($errorOutput ?: 'URL not supported');

@@ -189,6 +189,18 @@ describe('MaintenanceService', function () {
     });
 
     describe('cleanupTempFiles', function () {
+        // Against a throwaway storage directory: in the dev container storage/
+        // is the live app storage, and storage/app/temp is PHP's temp and
+        // upload directory (.docker/php.ini), so it must never be deleted.
+        beforeEach(function () {
+            $this->storageDir = storage_path('framework/testing/storage_'.str_replace('.', '', uniqid('', true)));
+            app()->useStoragePath($this->storageDir);
+        });
+
+        afterEach(function () {
+            File::deleteDirectory($this->storageDir);
+        });
+
         it('removes stale temp files older than max age', function () {
             $tempPath = storage_path('app/temp');
             if (! file_exists($tempPath)) {
@@ -216,14 +228,7 @@ describe('MaintenanceService', function () {
         });
 
         it('returns zero when temp directory does not exist', function () {
-            $tempPath = storage_path('app/temp');
-            if (file_exists($tempPath)) {
-                // Clean up any existing temp files
-                foreach (File::files($tempPath) as $file) {
-                    File::delete($file->getPathname());
-                }
-                File::deleteDirectory($tempPath);
-            }
+            expect(file_exists(storage_path('app/temp')))->toBeFalse();
 
             $service = app(MaintenanceService::class);
             $deletedCount = $service->cleanupTempFiles();

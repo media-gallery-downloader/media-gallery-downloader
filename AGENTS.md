@@ -15,7 +15,26 @@ on this repository. This is the single source of truth; tool-specific files
   real server.
 - Frontend tooling is Deno (`deno task build` / `deno task dev`), not npm/bun.
   PHP quality gates: Laravel Pint + PHPStan (level 5). Tests: Pest, plus
-  Playwright E2E under `tests/e2e`.
+  Playwright E2E under `tests/e2e` (headless; against the dev stack set
+  `APP_URL=http://localhost:<HTTP_PORT>`).
+- The dev stack bind-mounts the repo, `storage/` included, so tests run in it
+  share the dev app's live data (cookies, temp files, logs). Keep tests on
+  throwaway paths; see "Unit Tests" in `docs/DEVELOPMENT.md`. Never delete
+  `storage/app/temp`: it is PHP's temp and upload directory.
+- Don't run one-off npm tools with `deno run npm:…` from the repo root: Deno
+  installs them into the repo's `node_modules` and rewrites `deno.lock`. Run
+  them from another directory.
+
+## Gotchas
+
+- Bumping `YTDLP_VERSION` means reviewing yt-dlp's new option destinations and
+  regenerating `resources/python/ytdlp_known_destinations.json`; see "When
+  yt-dlp Changes" in `docs/DEVELOPMENT.md`.
+- `resources/views/vendor/` holds published package views that override the
+  installed ones and go stale. If a Filament component misbehaves after an
+  update, compare them with `vendor/filament/*/resources/views/` first.
+- Cookie files under `storage/app/cookies/` are secrets: never render, log or
+  copy their contents (only counts and domains).
 
 ## CI & releases
 

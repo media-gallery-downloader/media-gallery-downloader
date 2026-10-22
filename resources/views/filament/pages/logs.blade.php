@@ -30,6 +30,13 @@
                         {{ $download['error_message'] }}
                     </div>
                     @endif
+                    {{-- One-off yt-dlp arguments a retry will reuse; "replacing" with
+                         none means the retry runs without any extra arguments. --}}
+                    @if(filled($download['extra_args'] ?? null) || ! ($download['combine_args'] ?? true))
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono break-all">
+                        Extra arguments ({{ ($download['combine_args'] ?? true) ? 'combined with Settings' : 'replacing Settings' }}): {{ filled($download['extra_args'] ?? null) ? $download['extra_args'] : 'none' }}
+                    </div>
+                    @endif
                 </div>
                 <div class="flex items-center gap-2 ml-4">
                     <x-filament::icon-button

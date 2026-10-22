@@ -94,4 +94,3 @@ MGD_IMPORT_FAILED_PATH=/custom/path/to/failed
 # Number of files to queue at once (default: 10)
 MGD_IMPORT_BATCH_SIZE=10
 ```
-

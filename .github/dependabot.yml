@@ -43,3 +43,35 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+
+  # Frontend build (deno.json / deno.lock: Vite, Tailwind, Vidstack, linting)
+  - package-ecosystem: deno
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      deno-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Playwright E2E tests (tests/e2e/deno.json)
+  - package-ecosystem: deno
+    directory: /tests/e2e
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    groups:
+      e2e-minor-patch:
+        update-types:
+          - minor
+          - patch

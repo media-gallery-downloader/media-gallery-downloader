@@ -28,6 +28,11 @@
         <!-- WAL is for prod concurrency; the test DB is single-connection and
              WAL leaves -wal/-shm state that makes repeated local runs flaky. -->
         <env name="DB_JOURNAL_MODE" value="DELETE" />
+        <!-- Keep tests away from real cookie files: in the dev container
+             storage/ is the live, bind-mounted app storage, and migrations
+             import (then delete) the legacy cookies file. -->
+        <env name="MGD_COOKIES_PATH" value="storage/framework/testing/cookies" force="true" />
+        <env name="YTDLP_COOKIES_FILE" value="storage/framework/testing/no-legacy-cookies.txt" force="true" />
         <env name="MAIL_MAILER" value="array" />
         <env name="PULSE_ENABLED" value="false" />
         <env name="QUEUE_CONNECTION" value="sync" />

@@ -15,6 +15,7 @@ A web application built with Laravel and FrankenPHP for downloading and managing
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Background Processing**: Queue-based processing for downloads and uploads
 - **Resilient Downloads**: Failed downloads retry automatically with exponential backoff (up to 5 attempts); the Logs page tracks outstanding failures
+- **Per-site Cookies & Arguments**: Give each site its own login cookies and yt-dlp arguments, and add one-off arguments to a single download (see [Sites](docs/CONFIGURATION.md#sites-cookies-and-per-site-arguments))
 - **SQLite Database**: Lightweight, file-based database for easy deployment
 
 ## Technology Stack
@@ -127,7 +128,7 @@ The application will automatically:
 
 - **[Deployment](docs/DEPLOYMENT.md)** — production setup, environment variables, reverse proxy, updating.
 - **[Backup & Restore](docs/BACKUP.md)** — creating and downloading backups, restoring, migrating to a new server.
-- **[Configuration](docs/CONFIGURATION.md)** — editing media & tags, authentication cookies, yt-dlp options, filenames, playback & hardware re-encoding.
+- **[Configuration](docs/CONFIGURATION.md)** — editing media & tags, sites (per-site cookies and arguments), yt-dlp options (global, per-site and per-download), filenames, playback & hardware re-encoding.
 - **[Bulk Import](docs/BULK_IMPORT.md)** — importing large numbers of files from a directory.
 - **[Development](docs/DEVELOPMENT.md)** — architecture, local development, frontend build, linting, testing.
 
