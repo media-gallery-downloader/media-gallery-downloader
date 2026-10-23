@@ -24,7 +24,7 @@
         "husky": "npm:husky@^9.1.7",
         "lint-staged": "npm:lint-staged@^15.5.2",
         "@commitlint/cli": "npm:@commitlint/cli@^19.8.1",
-        "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^19.8.1"
+        "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^21.2.4"
     },
     "compilerOptions": {
         "lib": ["dom", "dom.iterable", "esnext"],
