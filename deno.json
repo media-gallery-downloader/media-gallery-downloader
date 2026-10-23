@@ -23,7 +23,7 @@
         "vidstack": "npm:vidstack@^1.15.7",
         "husky": "npm:husky@^9.1.7",
         "lint-staged": "npm:lint-staged@^15.5.2",
-        "@commitlint/cli": "npm:@commitlint/cli@^19.8.1",
+        "@commitlint/cli": "npm:@commitlint/cli@^21.2.4",
         "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^19.8.1"
     },
     "compilerOptions": {
