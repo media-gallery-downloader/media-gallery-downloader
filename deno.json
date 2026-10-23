@@ -13,8 +13,8 @@
         "bump-version": "./scripts/bump-version.sh"
     },
     "imports": {
-        "vite": "npm:vite@^6.4.5",
-        "laravel-vite-plugin": "npm:laravel-vite-plugin@^1.3.0",
+        "vite": "npm:vite@^8.3.4",
+        "laravel-vite-plugin": "npm:laravel-vite-plugin@^3.2.0",
         "tailwindcss": "npm:tailwindcss@^4.3.3",
         "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.3.3",
         "autoprefixer": "npm:autoprefixer@^10.6.1",
@@ -22,9 +22,9 @@
         "axios": "npm:axios@^1.20.0",
         "vidstack": "npm:vidstack@^1.15.7",
         "husky": "npm:husky@^9.1.7",
-        "lint-staged": "npm:lint-staged@^15.5.2",
-        "@commitlint/cli": "npm:@commitlint/cli@^19.8.1",
-        "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^19.8.1"
+        "lint-staged": "npm:lint-staged@^17.6.0",
+        "@commitlint/cli": "npm:@commitlint/cli@^21.2.4",
+        "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^21.2.4"
     },
     "compilerOptions": {
         "lib": ["dom", "dom.iterable", "esnext"],
