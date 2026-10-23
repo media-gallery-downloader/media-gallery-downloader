@@ -35,6 +35,10 @@ on this repository. This is the single source of truth; tool-specific files
   update, compare them with `vendor/filament/*/resources/views/` first.
 - Cookie files under `storage/app/cookies/` are secrets: never render, log or
   copy their contents (only counts and domains).
+- `symfony/filesystem` looks unused, but production needs it: the container's
+  start script runs `storage:link --relative`. Without it the link is never
+  created and every media URL returns 404.
+  `tests/Unit/ProductionDependenciesTest.php` guards it.
 
 ## CI & releases
 

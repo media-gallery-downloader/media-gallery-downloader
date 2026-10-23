@@ -139,9 +139,15 @@ fi
 # Laravel Setup (all commands are idempotent)
 # =============================================================================
 
-# Create storage link (--force overwrites existing, --relative for portability)
+# Create the storage link (--force replaces an existing one). Relative, so it
+# also resolves from the host when the app directory is bind-mounted in
+# development. Without the link every media and thumbnail URL returns 404, so
+# fall back to an absolute link and say so rather than failing silently.
 log "Ensuring storage link exists..."
-php artisan storage:link --relative --force 2>/dev/null || true
+if ! php artisan storage:link --relative --force; then
+    warn "Could not create a relative storage link; creating an absolute one instead"
+    php artisan storage:link --force || error "Could not create the public/storage link: media and thumbnails will return 404"
+fi
 
 # Install Octane if not already installed
 if [ ! -f config/octane.php ]; then
