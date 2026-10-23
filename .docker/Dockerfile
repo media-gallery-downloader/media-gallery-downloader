@@ -3,7 +3,7 @@
 # =============================================================================
 # Built assets are arch-independent, so this stage always runs natively on the
 # build host — deno (V8) can SIGILL under qemu when emulating the arm64 leg.
-FROM --platform=$BUILDPLATFORM denoland/deno:2.9.4 AS frontend-builder
+FROM --platform=$BUILDPLATFORM denoland/deno:2.9.8 AS frontend-builder
 
 WORKDIR /app
 
@@ -43,7 +43,10 @@ RUN composer dump-autoload --optimize --classmap-authoritative
 # =============================================================================
 # Stage 3: Production image
 # =============================================================================
-FROM dunglas/frankenphp:php8.4-bookworm AS production
+# Exact FrankenPHP + PHP + Debian versions: a floating tag hides which PHP patch
+# an image ships, and a cached copy of it can lag behind security releases.
+# Keep image references in FROM lines literal (not ARGs) so Dependabot can bump them.
+FROM dunglas/frankenphp:1.13.2-php8.4.27-bookworm AS production
 
 ARG TZ=UTC
 
@@ -150,13 +153,45 @@ RUN sed -i 's/<policy domain="coder" rights="none" pattern="PDF" \/>/<policy dom
     sed -i 's/<policy domain="resource" name="disk" value="1GiB"\/>/<policy domain="resource" name="disk" value="8GiB"\/>/g' /etc/ImageMagick-6/policy.xml && \
     sed -i 's/<policy domain="resource" name="area" value="128MB"\/>/<policy domain="resource" name="area" value="1GB"\/>/g' /etc/ImageMagick-6/policy.xml
 
-# Install yt-dlp nightly (owned by app user for in-app updates)
-RUN curl -L https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+# Bundled tool versions are pinned so each image states exactly what it ships,
+# and bumping one changes its layers' cache key (a floating "latest" URL keeps
+# hitting a stale cached layer). The in-app updater still moves yt-dlp and deno
+# to their latest releases at runtime.
+
+# curl_cffi lets yt-dlp impersonate browsers (some sites, e.g. Reddit, require
+# it). The yt-dlp zipapp runs on Debian's system python3, so install it there.
+# bookworm's Python is externally managed (PEP 668), hence
+# --break-system-packages. Wheels only (manylinux, amd64 + arm64) so nothing is
+# compiled; pip is purged again in the same layer. Keep the version inside the
+# range yt-dlp supports (yt_dlp/networking/_curlcffi.py).
+ARG CURL_CFFI_VERSION=0.16.3
+RUN apt-get update && apt-get install -yqq --no-install-recommends python3-pip \
+    && pip3 install --break-system-packages --no-cache-dir --only-binary=:all: \
+        --root-user-action=ignore --disable-pip-version-check \
+        "curl_cffi==${CURL_CFFI_VERSION}" \
+    && apt-get purge -y --auto-remove python3-pip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && python3 -I -c "import curl_cffi"
+
+# yt-dlp nightly (owned by app user for in-app updates). The plain `yt-dlp`
+# asset is the arch-independent zipapp, run by the system python3.
+ARG YTDLP_VERSION=2026.10.21.233146
+RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${YTDLP_VERSION}/yt-dlp" -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
     ln -sf /usr/local/bin/yt-dlp /usr/bin/youtube-dl
 
-# Add deno for runtime use (owned by app user for in-app updates)
-RUN curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o /tmp/deno.zip && \
+# Add deno for runtime use (owned by app user for in-app updates). TARGETARCH
+# is set by BuildKit for each platform being built; anything without a Linux
+# deno build mapped here fails the build instead of shipping a foreign binary.
+ARG TARGETARCH
+ARG DENO_VERSION=2.9.8
+RUN case "${TARGETARCH:-}" in \
+        amd64) deno_arch=x86_64 ;; \
+        arm64) deno_arch=aarch64 ;; \
+        *) echo "Unsupported TARGETARCH '${TARGETARCH:-}': no deno build mapped for it" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip" -o /tmp/deno.zip && \
     unzip -o /tmp/deno.zip -d /usr/local/bin && \
     chmod a+rx /usr/local/bin/deno && \
     rm /tmp/deno.zip
@@ -227,7 +262,7 @@ RUN apt-get update && apt-get install -yqq --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Add composer
-COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
+COPY --from=composer-builder /usr/bin/composer /usr/bin/composer
 
 # Copy development PHP config (zzz prefix ensures it loads last and overrides)
 COPY .docker/php.dev.ini ${PHP_INI_DIR}/conf.d/zzz-dev.ini

@@ -104,7 +104,7 @@ class MediaMaintenanceService extends BaseMaintenanceService
                 // Only QUEUES the job — the job's outcome resolves or re-fails
                 // the row (with backoff). Resolving here on dispatch made every
                 // failure spawn a fresh row that retried immediately, forever.
-                $downloadService->downloadFromUrl($failed->url, uniqid('retry_'));
+                $downloadService->retryFailed($failed);
                 $retriedCount++;
             } catch (\Exception $e) {
                 $failed->markFailed($e->getMessage());

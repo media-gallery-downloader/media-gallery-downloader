@@ -95,6 +95,9 @@ if [ -z "${APP_KEY:-}" ] && ! grep -qE '^APP_KEY=.+' .env 2>/dev/null; then
     php artisan key:generate --force 2>/dev/null || warn "Could not generate APP_KEY (read-only filesystem?). Set APP_KEY in the environment."
 fi
 
+# PHP's temp and upload directory (.docker/php.ini: sys_temp_dir, upload_tmp_dir)
+mkdir -p storage/app/temp
+
 # Create SQLite database if it doesn't exist
 mkdir -p storage/app/db
 if [ ! -f storage/app/db/database.sqlite ]; then

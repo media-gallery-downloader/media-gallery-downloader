@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Download\DownloadOptions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,12 +18,24 @@ class FailedDownload extends Model
         'last_attempt_at',
         'next_retry_at',
         'status',
+        'extra_args',
+        'combine_args',
     ];
 
     protected $casts = [
         'last_attempt_at' => 'datetime',
         'next_retry_at' => 'datetime',
+        'combine_args' => 'boolean',
     ];
+
+    /**
+     * The one-off yt-dlp arguments this download was started with; rows
+     * saved before those existed have none.
+     */
+    public function downloadOptions(): DownloadOptions
+    {
+        return DownloadOptions::fromArray($this->only(['extra_args', 'combine_args']));
+    }
 
     /**
      * Scope for pending retries

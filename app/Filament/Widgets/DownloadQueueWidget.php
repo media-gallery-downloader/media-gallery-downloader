@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Services\Download\DownloadOptions;
 use App\Services\DownloadService;
 use Filament\Widgets\Widget;
 
@@ -60,7 +61,7 @@ class DownloadQueueWidget extends Widget
 
         if ($item && $item['status'] === 'failed') {
             $downloadService->removeFromQueue($downloadId);
-            $downloadService->downloadFromUrl($item['url'], uniqid('retry_'));
+            $downloadService->downloadFromUrl($item['url'], uniqid('retry_'), DownloadOptions::fromArray($item));
         }
 
         $this->dispatch('$refresh');

@@ -5,20 +5,17 @@
     "description": "Media Gallery Downloader",
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "filament/filament": "^3.3",
         "filament/spatie-laravel-settings-plugin": "^3.0",
         "filament/spatie-laravel-tags-plugin": "^3.0",
-        "filament/spatie-laravel-translatable-plugin": "^3.0",
         "justbetter/laravel-http3earlyhints": "^1.4",
         "laravel/framework": "^12.0",
         "laravel/horizon": "^5.39",
         "laravel/octane": "^2.9",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
-        "php-ffmpeg/php-ffmpeg": "^1.3",
-        "runtime/frankenphp-symfony": "^0.2.0",
-        "symfony/filesystem": "^7.2"
+        "php-ffmpeg/php-ffmpeg": "^1.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -91,8 +88,10 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true,
-            "symfony/runtime": true
+            "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.4.27"
         }
     },
     "minimum-stability": "stable",

@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\FailedDownload;
 use App\Services\Download\DirectDownloadHandler;
+use App\Services\Download\DownloadOptions;
+use App\Services\Download\InvalidYtDlpArgumentsException;
 use App\Services\Download\YtDlpDownloadHandler;
 use App\Services\DownloadService;
 use Illuminate\Bus\Queueable;
@@ -24,10 +26,28 @@ class ProcessDownloadJob implements ShouldQueue
     /** Tracks which handler was actually being used when a failure occurred. */
     protected string $attemptedMethod = 'yt-dlp';
 
+    /**
+     * One-off yt-dlp arguments (see DownloadOptions). Declared with defaults,
+     * not promoted, so jobs queued before they existed still unserialize.
+     */
+    public string $extraArgs = '';
+
+    public bool $combineArgs = true;
+
     public function __construct(
         public string $url,
-        public string $downloadId
-    ) {}
+        public string $downloadId,
+        string $extraArgs = '',
+        bool $combineArgs = true,
+    ) {
+        $this->extraArgs = $extraArgs;
+        $this->combineArgs = $combineArgs;
+    }
+
+    protected function downloadOptions(): DownloadOptions
+    {
+        return new DownloadOptions($this->extraArgs, $this->combineArgs);
+    }
 
     public function handle(): void
     {
@@ -78,12 +98,16 @@ class ProcessDownloadJob implements ShouldQueue
 
         // Try yt-dlp first
         $ytDlpError = '';
-        $ytDlpHandler = new YtDlpDownloadHandler;
+        $ytDlpHandler = app(YtDlpDownloadHandler::class)->withOptions($this->downloadOptions());
         try {
             // Update method to show we're using yt-dlp
             $downloadService->updateStatus($this->downloadId, 'downloading', ['method' => 'yt-dlp']);
 
             return $ytDlpHandler->download($this->url, $this->downloadId, $progressCallback);
+        } catch (InvalidYtDlpArgumentsException $e) {
+            // The download's arguments can't be used: fail it rather than
+            // fetch the file directly without them (e.g. without a --proxy).
+            throw $e;
         } catch (\Exception $e) {
             // If it's a YouTube URL, we trust yt-dlp's failure and do not fallback.
             if ($this->isYouTubeUrl($this->url)) {
@@ -167,9 +191,11 @@ class ProcessDownloadJob implements ShouldQueue
                 'status' => 'pending',
                 'retry_count' => 0,
                 'last_attempt_at' => now(),
+                ...$this->downloadOptions()->toArray(),
             ]);
         } else {
             $existing->method = $this->attemptedMethod;
+            $existing->fill($this->downloadOptions()->toArray());
         }
 
         $existing->markFailed($message);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\UpdaterService;
+use Illuminate\Support\Facades\Log;
 
 describe('UpdaterService', function () {
     describe('checkAndUpdateYtdlp', function () {
@@ -47,5 +48,64 @@ describe('UpdaterService', function () {
             @unlink($dest);
             @rmdir($dir);
         })->skip(! str_contains(strtolower(PHP_OS), 'linux') && PHP_OS !== 'Darwin', 'Requires a POSIX filesystem');
+    });
+
+    // The image ships for linux/amd64 and linux/arm64, so the in-app Deno
+    // updater must fetch the build matching the machine it runs on.
+    describe('denoArchitecture', function () {
+        it('maps the machine name to the Deno release architecture', function (string $machine, string $expected) {
+            expect((new UpdaterService)->denoArchitecture($machine))->toBe($expected);
+        })->with([
+            'x86_64' => ['x86_64', 'x86_64'],
+            'amd64' => ['amd64', 'x86_64'],
+            'AMD64' => ['AMD64', 'x86_64'],
+            'aarch64' => ['aarch64', 'aarch64'],
+            'arm64' => ['arm64', 'aarch64'],
+            'padded aarch64' => [" aarch64\n", 'aarch64'],
+        ]);
+
+        it('returns null when Deno has no Linux build for the machine', function (string $machine) {
+            expect((new UpdaterService)->denoArchitecture($machine))->toBeNull();
+        })->with(['armv7l', 'i686', 'riscv64', 's390x', 'ppc64le', '']);
+
+        it('defaults to the machine PHP is running on', function () {
+            $service = new UpdaterService;
+
+            expect($service->denoArchitecture())->toBe($service->denoArchitecture(php_uname('m')));
+        });
+    });
+
+    describe('denoDownloadUrl', function () {
+        it('points at the latest release asset for the architecture', function (string $machine, string $asset) {
+            expect((new UpdaterService)->denoDownloadUrl($machine))
+                ->toBe('https://github.com/denoland/deno/releases/latest/download/'.$asset);
+        })->with([
+            'amd64' => ['x86_64', 'deno-x86_64-unknown-linux-gnu.zip'],
+            'arm64' => ['aarch64', 'deno-aarch64-unknown-linux-gnu.zip'],
+        ]);
+
+        it('returns null when Deno has no Linux build for the machine', function () {
+            expect((new UpdaterService)->denoDownloadUrl('armv7l'))->toBeNull();
+        });
+    });
+
+    describe('downloadAndInstallDeno', function () {
+        it('fails without downloading anything on an unsupported architecture', function () {
+            Log::spy();
+
+            $service = new class extends UpdaterService
+            {
+                public function denoArchitecture(?string $machine = null): ?string
+                {
+                    return null;
+                }
+            };
+
+            expect($service->downloadAndInstallDeno())->toBeFalse();
+
+            Log::shouldHaveReceived('warning')
+                ->once()
+                ->withArgs(fn (string $message) => str_contains($message, 'no Linux release build for machine architecture'));
+        });
     });
 });

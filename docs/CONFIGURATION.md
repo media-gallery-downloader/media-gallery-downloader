@@ -1,7 +1,7 @@
 # Configuration
 
-Configuring a running instance: editing media, tags, authentication cookies,
-yt-dlp behaviour, filenames, and playback/re-encoding. See also
+Configuring a running instance: editing media, tags, sites (cookies and
+per-site arguments), yt-dlp behaviour, filenames, and playback/re-encoding. See also
 [Bulk Import](BULK_IMPORT.md); for install and deployment see
 [Deployment](DEPLOYMENT.md).
 
@@ -21,38 +21,62 @@ tags to filter the grid to items that have **all** of the selected tags; click
 again (or **Clear**) to remove them. The tag filter is preserved as you sort,
 search, and page, and is reflected in the URL so it can be bookmarked.
 
-## Authentication (Cookies)
+## Sites (Cookies and Per-Site Arguments)
 
-Some sites require a logged-in session before they will hand over media, and the
-application provides those credentials to yt-dlp via a `cookies.txt` file. The
-**same cookies file is used for every site** (not just YouTube), so one file can
-hold cookies for several domains. Common cases:
+Some sites only hand over media to a logged-in session, and some need special
+yt-dlp arguments. **Settings → Sites** keeps both per site. Each site has:
 
-- **YouTube** — age-restricted videos.
-- **Reddit** — Reddit now requires an account to read post metadata, so Reddit
-  links (including videos hosted on redgifs and other providers embedded in a
-  Reddit post) need cookies. Without them the download fails with a message like
-  _"This site requires you to be logged in."_
+- **Domains**: a download uses the site whose domain matches its URL.
+  Subdomains are included (`reddit.com` also covers `old.reddit.com`), so a
+  leading `www.` is dropped. Add a site's short-link domains too, such as
+  `youtu.be` for YouTube or `redd.it` for Reddit. The most specific domain wins
+  when two sites match, and a domain can belong to one site only.
+- **Cookies**: sent to yt-dlp only for that site's downloads. There is no
+  shared cookies file, so a URL that no site covers gets no cookies.
+- **Extra yt-dlp arguments**: added to the global arguments or, with **Combine
+  with the global arguments** unchecked, used instead of them (see
+  [Order of arguments](#order-of-arguments)).
+
+Common reasons to add cookies:
+
+- **YouTube**: age-restricted videos.
+- **Reddit**: Reddit links (including videos hosted on redgifs and other
+  providers embedded in a Reddit post) need two things in the Reddit site:
+  cookies from a logged-in account, and `--impersonate firefox` in its
+  arguments. Reddit refuses yt-dlp's own requests even with valid cookies, and
+  refuses everyone who isn't logged in.
 - Any other site that gates content behind a login.
 
-### Export Cookies from Your Browser
+### Adding Cookies to a Site
 
-1. Install a browser extension like "Get cookies.txt LOCALLY" (available for Chrome and Firefox)
-2. Log into the site(s) you download from (e.g. youtube.com, reddit.com)
-3. Use the extension to export cookies to a `cookies.txt` file (Netscape format) — a single file can contain cookies for multiple sites
+1. Use Firefox (its cookies stay valid longer than Chrome's) and log into the site.
+2. Export the site's cookies in Netscape `cookies.txt` format, e.g. with the
+   "Get cookies.txt LOCALLY" extension.
+3. In **Settings → Sites**, add the site (or edit it) and paste the export into
+   **Paste cookies**, or upload the file.
 
-### Upload Cookies to the Application
+The cookies must belong to one of the site's domains (cookies for a parent
+domain, such as `google.com` for `accounts.google.com`, count). Stored cookies
+are never shown again: the list only says how many there are and when they were
+added. Editing a site without pasting new cookies keeps the stored ones, and
+**Clear cookies** removes them.
 
-1. Open the application and navigate to **Settings**
-2. In the **Authentication (Cookies)** section, click "Upload Cookies File"
-3. Select your exported `cookies.txt` file
-4. Click "Upload Cookies"
+> **⚠️ Warning**: If you keep using the browser and account you exported the cookies from, the site may invalidate them quickly. For best results, export from a browser and account you don't otherwise use.
 
-Downloads from authenticated sites should now succeed.
+**Note**: Cookies expire over time. If downloads from a site start failing with
+an authentication / login error, export fresh cookies and paste them into the
+site again.
 
-> **⚠️ Warning**: If you continue to use the browser and account you exported the cookies from, the uploaded cookie may become invalidated quickly. For best results, use a browser and account that you don't normally use and don't use that combination again.
-
-**Note**: Cookies expire over time. If downloads from a site start failing with an authentication / login error, export fresh cookies from your browser and upload them again.
+**Upgrading from a single cookies file**: earlier versions sent one
+`cookies.txt` to every site (`YTDLP_COOKIES_FILE`, default
+`storage/app/cookies.txt`). On the first start after upgrading, that file is
+split into one site per domain it contains (subdomains folded into their parent
+domain), with `youtu.be`, `youtube-nocookie.com` and `redd.it` added to the
+YouTube and Reddit sites, and then removed. Rename the generated sites as you
+like; to combine two, paste both exports into one site and delete the other. If
+the file can't be imported, it is left in place and the reason is logged.
+`YTDLP_COOKIES_FROM_BROWSER` is no longer supported: it only worked with a
+browser on the same machine as yt-dlp.
 
 ## yt-dlp Configuration
 
@@ -64,6 +88,35 @@ The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download medi
 2. Expand the **Configuration** section
 3. In the **yt-dlp extra arguments** field, enter any additional arguments you want to pass to yt-dlp
 4. Click **Save**
+
+The arguments apply to every yt-dlp step of a download: the metadata lookup and
+the download itself. Quote values that contain spaces, as you would in a shell
+(`--add-headers "Referer: https://example.com"`). Lines starting with `#` are
+comments.
+
+### Order of Arguments
+
+A download's yt-dlp arguments come from up to three places, applied in this
+order (when two set the same option, the later one wins):
+
+1. **Global**: Settings → Configuration → yt-dlp Extra Arguments.
+2. **Site**: the matching site's arguments (Settings → Sites), added to the
+   global ones or replacing them.
+3. **This download**: the one-off arguments from the Home page (below), added
+   to everything from Settings or replacing it.
+
+### One-off Arguments for a Download
+
+On the Home page, paste a URL and press Enter (or click **Start Download**).
+The gear button between the URL field and **Start Download** opens a field for
+arguments that apply only to downloads started there. With
+**Combine with Settings arguments** checked (the default) they are added to the
+global and site arguments; unchecked, they replace them, and leaving the field
+empty then runs the download without any extra arguments. The gear stays
+highlighted while one-off settings are active, and they stay filled in for the
+next URL. They are saved with each download, so its retries (automatic or from
+the Logs page) use them again, while global and site arguments are read fresh
+at retry time.
 
 ### Example Configurations
 
@@ -85,20 +138,32 @@ The application uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download medi
 --proxy socks5://127.0.0.1:1080
 ```
 
+**Look like a regular browser** (some sites, Reddit among them, refuse yt-dlp's
+own requests; the image includes
+[curl_cffi](https://github.com/lexiforest/curl_cffi) for this, and it suits a
+site's own arguments in Settings → Sites):
+
+```text
+--impersonate firefox
+```
+
 **Multiple arguments:**
 
 ```text
 --limit-rate 5M --sleep-interval 5 --max-sleep-interval 30
 ```
 
-> **Restricted arguments**: For safety, a few flags are ignored if you add them
-> here, because they allow arbitrary command/file access or change where files
-> are written: `--exec`, `--exec-before-download`, `--config-location`,
-> `--load-info-json`, `--batch-file`/`-a`, `--output`/`-o`, `--paths`/`-P`,
-> `--downloader`/`--external-downloader`, `--use-postprocessor`,
-> `--print-to-file`, `--cookies`, `--cookies-from-browser`. For authentication,
-> upload a cookies file via Settings (see [Authentication](#authentication-cookies))
-> rather than passing `--cookies` here.
+> **Restricted arguments**: Arguments are checked with yt-dlp's own option
+> parser when you save them and again before every download, so every spelling
+> or abbreviation of an option counts. Options that run programs, load code or
+> config files, update yt-dlp, read or write local files, change where files are
+> saved, rewrite metadata fields, or dump request traffic are rejected, as are
+> `--alias` and anything that isn't an option (such as an extra URL). Options
+> that a newer yt-dlp adds are refused until they have been reviewed. If the
+> arguments can't be checked, the download fails with the reason. For
+> authentication, add the site's cookies in Settings → Sites (see
+> [Sites](#sites-cookies-and-per-site-arguments)) rather than passing
+> `--cookies` here.
 
 For a complete list of available options, see the [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp#usage-and-options).
 
@@ -111,7 +176,8 @@ then 80 minutes (an hourly task re-queues anything whose window has passed) —
 up to **5 attempts** in total, after which the item is marked permanently
 failed and left for manual retry from the Logs page. A later successful
 download of the same URL resolves its failure record, and each Logs section has
-a **Clear all** action.
+a **Clear all** action. A failed download started with one-off yt-dlp
+arguments shows them, since its retries use them again.
 
 ## Media Filenames
 
@@ -224,4 +290,3 @@ Then enable your GPU:
 ```bash
 docker compose exec app php artisan media:reencode --shrink --accel=vaapi --min-size=1G
 ```
-

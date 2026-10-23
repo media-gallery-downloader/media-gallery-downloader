@@ -4,9 +4,11 @@ namespace App\Jobs;
 
 use App\Helpers\MimeTypeHelper;
 use App\Models\Media;
+use App\Services\Download\YtDlpArguments;
+use App\Services\Download\YtDlpOutput;
 use App\Services\FaststartService;
+use App\Services\Sites\SiteCookieCopy;
 use App\Services\ThumbnailService;
-use App\Settings\MaintenanceSettings;
 use App\Support\MediaFilename;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -133,52 +135,23 @@ class ProcessRestoreDownloadJob implements ShouldQueue
         }
 
         try {
-            $cookieArgs = $this->getCookieArguments();
-
-            // Output template
             $outputTemplate = $tempDir.'/%(title)s.%(ext)s';
 
-            // Get format preference from config
-            $preferredFormat = config(
-                'mgd.video_quality.format_selector',
-                'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
-            );
+            // yt-dlp works on a private copy of the site's cookies (see
+            // SiteCookieCopy), written back (and removed) right after the run.
+            $cookies = app(YtDlpArguments::class)->copyCookies($url, $tempDir);
 
-            $command = [
-                'yt-dlp',
-                '--no-playlist',
-                '--no-warnings',
-                '--merge-output-format',
-                config('mgd.video_quality.format', 'mp4'),
-                '-f',
-                $preferredFormat,
-                '-o',
-                $outputTemplate,
-            ];
-
-            $command = array_merge($command, $cookieArgs);
-
-            if (config('mgd.video_quality.embed_subs', true)) {
-                $command[] = '--embed-subs';
+            try {
+                // Run in the temp directory so nothing lands in the app's working directory.
+                $process = new Process($this->buildCommand($url, $outputTemplate, $cookies), $tempDir);
+                $process->setTimeout(config('mgd.timeouts.download', 600));
+                $process->run();
+            } finally {
+                $cookies?->writeBack();
             }
-
-            if (config('mgd.video_quality.auto_subs', true)) {
-                $command[] = '--write-auto-sub';
-                $command[] = '--sub-lang';
-                $command[] = config('mgd.video_quality.sub_lang', 'en');
-            }
-
-            // Add user-configured extra arguments from settings
-            $command = array_merge($command, $this->getExtraArguments());
-
-            $command[] = $url;
-
-            $process = new Process($command);
-            $process->setTimeout(config('mgd.timeouts.download', 600));
-            $process->run();
 
             if (! $process->isSuccessful()) {
-                throw new \Exception('yt-dlp error: '.$process->getErrorOutput());
+                throw new \Exception('yt-dlp error: '.YtDlpOutput::withoutCookieLines($process->getErrorOutput()));
             }
 
             $files = glob($tempDir.'/*');
@@ -213,47 +186,44 @@ class ProcessRestoreDownloadJob implements ShouldQueue
     }
 
     /**
-     * Get cookie arguments for yt-dlp
+     * Build the yt-dlp command for a restore download, with the same cookies
+     * and validated extra arguments as a regular download.
+     *
+     * @return list<string>
      */
-    private function getCookieArguments(): array
+    private function buildCommand(string $url, string $outputTemplate, ?SiteCookieCopy $cookies = null): array
     {
-        $cookiesPath = storage_path('app/youtube_cookies.txt');
+        $arguments = app(YtDlpArguments::class);
 
-        if (file_exists($cookiesPath)) {
-            return ['--cookies', $cookiesPath];
+        $command = [
+            'yt-dlp',
+            '--no-playlist',
+            '--no-warnings',
+            '--merge-output-format',
+            config('mgd.video_quality.format', 'mp4'),
+            '-f',
+            config(
+                'mgd.video_quality.format_selector',
+                'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
+            ),
+            '-o',
+            $outputTemplate,
+            ...($cookies !== null ? ['--cookies', $cookies->path] : []),
+        ];
+
+        if (config('mgd.video_quality.embed_subs', true)) {
+            $command[] = '--embed-subs';
         }
 
-        return [];
-    }
-
-    /**
-     * Get extra arguments configured in settings
-     */
-    private function getExtraArguments(): array
-    {
-        $args = [];
-
-        try {
-            $settings = app(MaintenanceSettings::class);
-            $extraArgs = $settings->ytdlp_extra_args ?? '';
-
-            if (! empty($extraArgs)) {
-                // Split by newlines and filter empty lines
-                $lines = array_filter(
-                    array_map('trim', explode("\n", $extraArgs)),
-                    fn ($line) => ! empty($line) && ! str_starts_with($line, '#')
-                );
-
-                foreach ($lines as $line) {
-                    // Handle arguments that may contain spaces
-                    $parts = preg_split('/\s+/', $line, -1, PREG_SPLIT_NO_EMPTY);
-                    $args = array_merge($args, $parts);
-                }
-            }
-        } catch (\Exception $e) {
-            // If settings aren't available, just continue without extra args
+        if (config('mgd.video_quality.auto_subs', true)) {
+            $command[] = '--write-auto-subs';
+            $command[] = '--sub-langs';
+            $command[] = config('mgd.video_quality.sub_lang', 'en');
         }
 
-        return $args;
+        // Extra arguments go last, right before "--" (which stops the URL -
+        // here the restored record's source - from ever being read as an
+        // option) and the URL.
+        return [...$command, ...$arguments->extraArguments($url), '--', $url];
     }
 }

@@ -3,28 +3,42 @@
 namespace App\Services;
 
 use App\Jobs\ProcessDownloadJob;
+use App\Models\FailedDownload;
 use App\Models\QueueItem;
+use App\Services\Download\DownloadOptions;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 class DownloadService
 {
     /**
-     * Add a URL to the download queue and dispatch the job
+     * Add a URL to the download queue and dispatch the job. $options (the
+     * one-off yt-dlp arguments) are kept on the queue item too, so retrying
+     * it asks for the same.
      */
-    public function downloadFromUrl(string $url, string $downloadId): void
+    public function downloadFromUrl(string $url, string $downloadId, ?DownloadOptions $options = null): void
     {
+        $options ??= DownloadOptions::none();
+
         Log::info('Adding download to queue', [
             'url' => $url,
             'downloadId' => $downloadId,
         ]);
 
         // Record the queued job (atomic single-row insert) and dispatch.
-        $this->addToQueue($downloadId, $url, 'auto');
+        $this->addToQueue($downloadId, $url, 'auto', $options);
 
         // Dispatch the download job
-        ProcessDownloadJob::dispatch($url, $downloadId)
+        ProcessDownloadJob::dispatch($url, $downloadId, $options->extraArgs, $options->combineArgs)
             ->onQueue('downloads'); // Use a specific queue for downloads
+    }
+
+    /**
+     * Queue a failed download again with the options it was started with.
+     */
+    public function retryFailed(FailedDownload $failed): void
+    {
+        $this->downloadFromUrl($failed->url, uniqid('retry_'), $failed->downloadOptions());
     }
 
     public function getQueue(): array
@@ -42,12 +56,14 @@ class DownloadService
             ->all();
     }
 
-    public function addToQueue(string $id, string $url, string $method): void
+    public function addToQueue(string $id, string $url, string $method, ?DownloadOptions $options = null): void
     {
-        QueueItem::updateOrCreate(
-            ['queue_id' => $id],
-            ['type' => 'download', 'url' => $url, 'method' => $method, 'status' => 'queued'],
-        );
+        $values = ['type' => 'download', 'url' => $url, 'method' => $method, 'status' => 'queued'];
+        if ($options !== null) {
+            $values['meta'] = $options->toArray();
+        }
+
+        QueueItem::updateOrCreate(['queue_id' => $id], $values);
     }
 
     public function updateStatus(string $id, string $status, array $extra = []): void

@@ -200,10 +200,50 @@ class UpdaterService
     }
 
     /**
-     * Download and install the latest version of Deno
+     * CPU part of Deno's Linux release target ("x86_64" or "aarch64") for the
+     * given machine hardware name, which defaults to the machine PHP runs on
+     * (php_uname('m')). Docker/Go-style names (amd64, arm64) are accepted too.
+     *
+     * @return string|null Null when Deno publishes no Linux build for it
+     */
+    public function denoArchitecture(?string $machine = null): ?string
+    {
+        return match (strtolower(trim($machine ?? php_uname('m')))) {
+            'x86_64', 'amd64' => 'x86_64',
+            'aarch64', 'arm64' => 'aarch64',
+            default => null,
+        };
+    }
+
+    /**
+     * Download URL of the latest Deno release for the given (default: this)
+     * machine, or null when Deno publishes no Linux build for it.
+     */
+    public function denoDownloadUrl(?string $machine = null): ?string
+    {
+        $architecture = $this->denoArchitecture($machine);
+
+        if ($architecture === null) {
+            return null;
+        }
+
+        return "https://github.com/denoland/deno/releases/latest/download/deno-{$architecture}-unknown-linux-gnu.zip";
+    }
+
+    /**
+     * Download and install the latest version of Deno built for this
+     * machine's architecture
      */
     public function downloadAndInstallDeno(): bool
     {
+        $downloadUrl = $this->denoDownloadUrl();
+
+        if ($downloadUrl === null) {
+            Log::warning('Cannot install Deno: no Linux release build for machine architecture "'.php_uname('m').'"');
+
+            return false;
+        }
+
         $denoPath = '/usr/local/bin/deno';
         $tempDir = storage_path('app/temp');
         $tempZip = $tempDir.'/deno_update_'.uniqid().'.zip';
@@ -217,7 +257,7 @@ class UpdaterService
         $downloadProcess = new Process([
             'curl',
             '-fsSL',
-            'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip',
+            $downloadUrl,
             '-o',
             $tempZip,
         ]);
@@ -305,7 +345,7 @@ class UpdaterService
             // Download the latest nightly version
             $downloadProcess = new Process([
                 'curl',
-                '-L',
+                '-fsSL',
                 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp',
                 '-o',
                 $tempFile,
@@ -378,7 +418,7 @@ class UpdaterService
         // Download the new nightly version to a temporary file
         $downloadProcess = new Process([
             'curl',
-            '-L',
+            '-fsSL',
             'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp',
             '-o',
             $tempFile,

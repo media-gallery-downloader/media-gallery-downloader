@@ -37,7 +37,7 @@ class FailedDownloadsWidget extends Widget
 
         try {
             // Queues the job; the job's outcome resolves or re-fails the row.
-            $downloadService->downloadFromUrl($failed->url, uniqid('retry_'));
+            $downloadService->retryFailed($failed);
 
             Notification::make()
                 ->title('Download queued for retry')

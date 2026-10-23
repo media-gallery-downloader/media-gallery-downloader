@@ -64,4 +64,7 @@ To migrate your media library to a new server (e.g., Synology NAS):
    - Videos with local files will be immediately available
    - Videos without local files (but with source URLs) will be queued for download
    - Check the queue status in the application to monitor re-downloads
-
+   - Set up **Settings → Sites** again and paste each site's cookies: a restore
+     only imports media, and cookies are never part of a backup (they live in
+     `storage/app/cookies/`, outside the database). Do this before the queued
+     re-downloads run if any of them need a login.

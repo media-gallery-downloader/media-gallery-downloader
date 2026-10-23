@@ -300,3 +300,42 @@ describe('Logs Page - System Logs', function () {
         expect($content)->toBe('File not found.');
     });
 });
+
+describe('Logs Page - one-off arguments', function () {
+    it('shows the one-off arguments a retry will reuse', function () {
+        FailedDownload::create([
+            'url' => 'https://www.reddit.com/r/videos/comments/abc/x/',
+            'method' => 'yt-dlp',
+            'error_message' => 'boom',
+            'status' => 'pending',
+            'extra_args' => '--impersonate firefox',
+            'combine_args' => false,
+        ]);
+
+        Livewire::test(Logs::class)->assertSeeText('Extra arguments (replacing Settings): --impersonate firefox');
+    });
+
+    it('says when a retry will run without any extra arguments', function () {
+        FailedDownload::create([
+            'url' => 'https://example.com/v',
+            'method' => 'yt-dlp',
+            'error_message' => 'boom',
+            'status' => 'pending',
+            'extra_args' => '',
+            'combine_args' => false,
+        ]);
+
+        Livewire::test(Logs::class)->assertSeeText('Extra arguments (replacing Settings): none');
+    });
+
+    it('shows nothing extra for downloads without one-off arguments', function () {
+        FailedDownload::create([
+            'url' => 'https://example.com/v',
+            'method' => 'yt-dlp',
+            'error_message' => 'boom',
+            'status' => 'pending',
+        ]);
+
+        Livewire::test(Logs::class)->assertDontSeeText('Extra arguments');
+    });
+});
