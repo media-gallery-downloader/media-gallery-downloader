@@ -59,7 +59,9 @@ The cookies must belong to one of the site's domains (cookies for a parent
 domain, such as `google.com` for `accounts.google.com`, count). Stored cookies
 are never shown again: the list only says how many there are and when they were
 added. Editing a site without pasting new cookies keeps the stored ones, and
-**Clear cookies** removes them.
+**Clear cookies** removes them. To delete several sites at once, tick them (the
+box in the header ticks them all) and choose **Delete selected**; their cookies
+are deleted too.
 
 > **⚠️ Warning**: If you keep using the browser and account you exported the cookies from, the site may invalidate them quickly. For best results, export from a browser and account you don't otherwise use.
 
@@ -70,11 +72,17 @@ site again.
 **Upgrading from a single cookies file**: earlier versions sent one
 `cookies.txt` to every site (`YTDLP_COOKIES_FILE`, default
 `storage/app/cookies.txt`). On the first start after upgrading, that file is
-split into one site per domain it contains (subdomains folded into their parent
-domain), with `youtu.be`, `youtube-nocookie.com` and `redd.it` added to the
-YouTube and Reddit sites, and then removed. Rename the generated sites as you
-like; to combine two, paste both exports into one site and delete the other. If
-the file can't be imported, it is left in place and the reason is logged.
+split into one site for each domain something was downloaded from: a source URL
+in the library, or a failed or queued download. Subdomains and short links
+count, so a `youtu.be` link counts for YouTube. Subdomains are folded into
+their parent domain, and `youtu.be`, `youtube-nocookie.com` and `redd.it` are
+added to the YouTube and Reddit sites. Cookies for every other domain are
+dropped (a full browser export also holds banks, shops and ad networks), the
+log lists those domains, and the file is removed. Rename the generated sites as
+you like; to combine two, paste both exports into one site and delete the
+other. If the file can't be imported, it is left in place and the reason is
+logged. Version 0.7.0 imported every domain in the file; if that left sites you
+don't need, delete them together as described above.
 `YTDLP_COOKIES_FROM_BROWSER` is no longer supported: it only worked with a
 browser on the same machine as yt-dlp.
 

@@ -72,6 +72,10 @@ class ManageSites extends Component implements HasForms, HasTable
                 Tables\Actions\DeleteAction::make()
                     ->modalDescription('Its cookies are deleted too.'),
             ])
+            ->bulkActions([
+                Tables\Actions\DeleteBulkAction::make()
+                    ->modalDescription('Their cookies are deleted too.'),
+            ])
             ->emptyStateHeading('No sites yet')
             ->emptyStateDescription('Add a site to give downloads from it their own cookies and yt-dlp arguments.')
             ->paginated(false);

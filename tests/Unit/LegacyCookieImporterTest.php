@@ -1,11 +1,28 @@
 <?php
 
+use App\Models\FailedDownload;
+use App\Models\Media;
+use App\Models\QueueItem;
 use App\Models\Site;
 use App\Services\Sites\LegacyCookieImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
+
+/**
+ * Download history for the importer: it only keeps cookies for domains
+ * something was downloaded from.
+ */
+function recordDownloadsFrom(string ...$urls): void
+{
+    foreach ($urls as $url) {
+        FailedDownload::factory()->create(['url' => $url]);
+    }
+}
 
 beforeEach(function () {
     $this->cookiesDir = useTemporaryCookiesDirectory();
@@ -25,6 +42,7 @@ it('splits the old cookies file into one site per domain, folding in subdomains'
     $google = ".google.com\tTRUE\t/\tTRUE\t9999999999\tSID\tg2";
     file_put_contents($this->legacyFile, "# Netscape HTTP Cookie File\n"
         .implode("\n", [$reddit, $youtube, $youtubeWww, $googleAccounts, $google])."\n");
+    recordDownloadsFrom('https://www.reddit.com/r/a/comments/1', 'https://www.youtube.com/watch?v=1', 'https://photos.google.com/share/1');
 
     app(LegacyCookieImporter::class)->import($this->legacyFile);
 
@@ -55,6 +73,7 @@ it('keeps an old file that contains no cookies', function () {
 it('keeps the old file and creates no site when cookies cannot be written', function () {
     config(['mgd.cookies_path' => '/proc/mgd-cookies-not-writable']);
     file_put_contents($this->legacyFile, ".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n");
+    recordDownloadsFrom('https://www.reddit.com/r/a/comments/1');
 
     expect(app(LegacyCookieImporter::class)->import($this->legacyFile))->toBe([])
         ->and(Site::count())->toBe(0)
@@ -74,6 +93,7 @@ describe('LegacyCookieImporter on a file it cannot change', function () {
         $this->lockedFile = $this->lockedDir.'/cookies.txt';
         file_put_contents($this->lockedFile, ".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n");
         chmod($this->lockedDir, 0555);
+        recordDownloadsFrom('https://www.reddit.com/r/a/comments/1');
     });
 
     afterEach(function () {
@@ -109,6 +129,7 @@ describe('LegacyCookieImporter short-link domains', function () {
     it('gives YouTube and Reddit their short-link domains, which used to get the same cookies', function () {
         file_put_contents($this->legacyFile, ".youtube.com\tTRUE\t/\tTRUE\t9999999999\tLOGIN_INFO\ty1\n"
             .".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n");
+        recordDownloadsFrom('https://www.youtube.com/watch?v=1', 'https://www.reddit.com/r/a/comments/1');
 
         app(LegacyCookieImporter::class)->import($this->legacyFile);
 
@@ -119,10 +140,58 @@ describe('LegacyCookieImporter short-link domains', function () {
     it('leaves a short-link domain to its own site when the file has cookies for it', function () {
         file_put_contents($this->legacyFile, ".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n"
             .".redd.it\tTRUE\t/\tTRUE\t9999999999\tloid\tx1\n");
+        recordDownloadsFrom('https://www.reddit.com/r/a/comments/1', 'https://redd.it/abc');
 
         app(LegacyCookieImporter::class)->import($this->legacyFile);
 
         expect(Site::where('name', 'reddit.com')->sole()->domains)->toBe(['reddit.com'])
             ->and(Site::where('name', 'redd.it')->sole()->domains)->toBe(['redd.it']);
+    });
+});
+
+describe('LegacyCookieImporter and download history', function () {
+    it('keeps the cookies of sites something was downloaded from and drops the rest of a full browser export', function () {
+        file_put_contents($this->legacyFile, ".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n"
+            .".adp.com\tTRUE\t/\tTRUE\t9999999999\tSMSESSION\tpayroll-secret\n"
+            .".amazon-adsystem.com\tTRUE\t/\tTRUE\t9999999999\tad-id\ttracker\n");
+        Media::factory()->create(['source' => 'https://www.reddit.com/r/videos/comments/abc/clip/']);
+        Log::spy();
+
+        app(LegacyCookieImporter::class)->import($this->legacyFile);
+
+        expect(Site::pluck('name')->all())->toBe(['reddit.com'])
+            ->and(file_exists($this->legacyFile))->toBeFalse();
+        Log::shouldHaveReceived('info')
+            ->with('Dropped legacy cookies for domains nothing was downloaded from', ['domains' => ['adp.com', 'amazon-adsystem.com']])
+            ->once();
+    });
+
+    it('counts failed and queued downloads, subdomains and short links as downloads from a site', function () {
+        file_put_contents($this->legacyFile, ".youtube.com\tTRUE\t/\tTRUE\t9999999999\tLOGIN_INFO\ty1\n"
+            .".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n"
+            .".vimeo.com\tTRUE\t/\tTRUE\t9999999999\tvuid\tv1\n");
+        recordDownloadsFrom('https://youtu.be/abc');
+        QueueItem::create(['queue_id' => (string) Str::uuid(), 'type' => 'download', 'url' => 'https://old.reddit.com/r/a/comments/1']);
+
+        app(LegacyCookieImporter::class)->import($this->legacyFile);
+
+        expect(Site::orderBy('name')->pluck('name')->all())->toBe(['reddit.com', 'youtube.com']);
+    });
+
+    it('imports nothing and drops the file when nothing was downloaded from its domains', function () {
+        file_put_contents($this->legacyFile, ".adp.com\tTRUE\t/\tTRUE\t9999999999\tSMSESSION\tpayroll-secret\n");
+
+        expect(app(LegacyCookieImporter::class)->import($this->legacyFile))->toBe([])
+            ->and(Site::count())->toBe(0)
+            ->and(file_exists($this->legacyFile))->toBeFalse();
+    });
+
+    it('keeps the old file when the download history cannot be read', function () {
+        file_put_contents($this->legacyFile, ".reddit.com\tTRUE\t/\tTRUE\t9999999999\treddit_session\tr1\n");
+        Schema::drop('failed_downloads');
+
+        expect(app(LegacyCookieImporter::class)->import($this->legacyFile))->toBe([])
+            ->and(Site::count())->toBe(0)
+            ->and(file_exists($this->legacyFile))->toBeTrue();
     });
 });
