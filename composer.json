@@ -15,7 +15,8 @@
         "laravel/octane": "^2.9",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
-        "php-ffmpeg/php-ffmpeg": "^1.3"
+        "php-ffmpeg/php-ffmpeg": "^1.3",
+        "symfony/filesystem": "^8.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
