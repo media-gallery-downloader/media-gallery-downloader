@@ -40,10 +40,11 @@ yt-dlp arguments. **Settings → Sites** keeps both per site. Each site has:
 Common reasons to add cookies:
 
 - **YouTube**: age-restricted videos.
-- **Reddit**: Reddit requires an account to read post metadata, so Reddit
-  links (including videos hosted on redgifs and other providers embedded in a
-  Reddit post) need cookies. Without them the download fails with a message like
-  _"This site requires you to be logged in."_
+- **Reddit**: Reddit links (including videos hosted on redgifs and other
+  providers embedded in a Reddit post) need two things in the Reddit site:
+  cookies from a logged-in account, and `--impersonate firefox` in its
+  arguments. Reddit refuses yt-dlp's own requests even with valid cookies, and
+  refuses everyone who isn't logged in.
 - Any other site that gates content behind a login.
 
 ### Adding Cookies to a Site
@@ -137,9 +138,10 @@ at retry time.
 --proxy socks5://127.0.0.1:1080
 ```
 
-**Look like a regular browser** (some sites refuse yt-dlp's own requests; the
-image includes [curl_cffi](https://github.com/lexiforest/curl_cffi) for this,
-and it suits a site's own arguments in Settings → Sites):
+**Look like a regular browser** (some sites, Reddit among them, refuse yt-dlp's
+own requests; the image includes
+[curl_cffi](https://github.com/lexiforest/curl_cffi) for this, and it suits a
+site's own arguments in Settings → Sites):
 
 ```text
 --impersonate firefox

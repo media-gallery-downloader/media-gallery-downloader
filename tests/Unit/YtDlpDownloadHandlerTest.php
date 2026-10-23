@@ -126,24 +126,36 @@ describe('YtDlpDownloadHandler commands', function () {
 });
 
 describe('YtDlpDownloadHandler error parsing', function () {
-    it('maps the Reddit "IP address" refusal to cookie and update advice', function () {
+    it('maps the Reddit "IP address" refusal to impersonation, then cookie and update advice', function () {
         $message = parseYtDlpError('ERROR: [Reddit] 1txiqwi: Your IP address is unable to access the Reddit API');
 
         expect($message)
-            ->toContain('Reddit refused the request even with the uploaded cookies')
+            ->toContain('Reddit refused the request even with the Reddit site\'s cookies')
+            ->toContain('--impersonate firefox')
             ->toContain('fresh Reddit cookies')
             ->toContain('Settings → Sites')
             ->toContain('yt-dlp update')
             ->not->toContain('IP address')
-            ->not->toMatch('/\b20\d\d\b/'); // no dates
+            ->not->toMatch('/\b20\d\d\b/') // no dates
+            ->and(strpos($message, '--impersonate firefox'))->toBeLessThan(strpos($message, 'fresh Reddit cookies'));
     });
 
-    it('maps "authentication is required" to a hint about the site\'s cookies', function () {
+    it('tells Reddit users without a logged-in session they need cookies and impersonation', function () {
         $raw = 'ERROR: [Reddit] 1txiqwi: Account authentication is required. Use --cookies, ...';
 
         expect(parseYtDlpError($raw))
-            ->toContain('requires you to be logged in')
+            ->toContain('logged-in Reddit account')
+            ->toContain('--impersonate firefox')
             ->toContain('Settings → Sites');
+    });
+
+    it('maps "authentication is required" to a hint about the site\'s cookies', function () {
+        $raw = 'ERROR: [instagram] C1x2y3: Account authentication is required. Use --cookies, ...';
+
+        expect(parseYtDlpError($raw))
+            ->toContain('requires you to be logged in')
+            ->toContain('Settings → Sites')
+            ->not->toContain('impersonate');
     });
 
     it('maps expired-cookie errors to a friendly message', function () {
@@ -177,13 +189,41 @@ describe('yt-dlp error output with cookie lines', function () {
     });
 });
 
-describe('login errors for a URL no site covers', function () {
-    it('names the host that has no site', function () {
-        expect(callYtDlpHandler('parseError', 'ERROR: [youtube] x: Sign in to confirm your age', 'youtu.be'))
+describe('login errors from a run without cookies', function () {
+    beforeEach(function () {
+        $this->cookiesDir = useTemporaryCookiesDirectory();
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->cookiesDir);
+    });
+
+    it('names the host when no site covers it', function () {
+        $hint = callYtDlpHandler('noCookiesHint', 'https://youtu.be/x', null);
+
+        expect(callYtDlpHandler('parseError', 'ERROR: [youtube] x: Sign in to confirm your age', $hint))
             ->toContain('No site in Settings → Sites covers youtu.be');
     });
 
-    it('says nothing about coverage when the site\'s cookies were used', function () {
-        expect(parseYtDlpError('ERROR: [youtube] x: Sign in to confirm your age'))->not->toContain('covers');
+    it('names the site when it has no cookies yet', function () {
+        makeSite('YouTube', ['youtube.com']);
+
+        expect(callYtDlpHandler('noCookiesHint', 'https://www.youtube.com/watch?v=x', null))
+            ->toContain('The YouTube site in Settings → Sites has no cookies yet')
+            ->not->toContain('covers');
+    });
+
+    it('adds nothing when the run used the site\'s cookies', function () {
+        $site = makeSite('YouTube', ['youtube.com']);
+        $site->storeCookies(".youtube.com\tTRUE\t/\tTRUE\t9999999999\tSID\tx\n");
+        $runDir = storage_path('framework/testing/run_'.str_replace('.', '', uniqid('', true)));
+        File::ensureDirectoryExists($runDir);
+
+        try {
+            expect(callYtDlpHandler('noCookiesHint', 'https://www.youtube.com/watch?v=x', SiteCookieCopy::create($site, $runDir)))
+                ->toBe('');
+        } finally {
+            File::deleteDirectory($runDir);
+        }
     });
 });

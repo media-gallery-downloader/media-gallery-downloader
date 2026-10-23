@@ -4,6 +4,7 @@ namespace App\Services\Download;
 
 use App\Models\Media;
 use App\Services\Sites\SiteCookieCopy;
+use App\Services\Sites\SiteResolver;
 use Symfony\Component\Process\Process;
 
 /**
@@ -79,7 +80,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         $metadataProcess->run();
 
         if (! $metadataProcess->isSuccessful()) {
-            throw new \Exception($this->parseError($metadataProcess->getErrorOutput(), self::hostWithoutSite($url, $cookies)));
+            throw new \Exception($this->parseError($metadataProcess->getErrorOutput(), self::noCookiesHint($url, $cookies)));
         }
 
         $metadata = json_decode($metadataProcess->getOutput(), true);
@@ -141,7 +142,7 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
         });
 
         if (! $process->isSuccessful()) {
-            throw new \Exception($this->parseError($process->getErrorOutput(), self::hostWithoutSite($url, $cookies)));
+            throw new \Exception($this->parseError($process->getErrorOutput(), self::noCookiesHint($url, $cookies)));
         }
 
         $files = glob($tempDir.'/*');
@@ -206,11 +207,23 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     }
 
     /**
-     * The URL's host when the run had no site cookies, for error hints.
+     * For login errors from a run without cookies: says whether no site covers
+     * the URL yet or its site has no cookies. Empty when cookies were used.
      */
-    private static function hostWithoutSite(string $url, ?SiteCookieCopy $cookies): ?string
+    private static function noCookiesHint(string $url, ?SiteCookieCopy $cookies): string
     {
-        return $cookies === null ? (parse_url($url, PHP_URL_HOST) ?: null) : null;
+        if ($cookies !== null) {
+            return '';
+        }
+
+        $site = app(SiteResolver::class)->forUrl($url);
+        if ($site !== null) {
+            return " The {$site->name} site in Settings → Sites has no cookies yet.";
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return $host ? " No site in Settings → Sites covers {$host} yet." : '';
     }
 
     /**
@@ -229,31 +242,35 @@ class YtDlpDownloadHandler extends BaseDownloadHandler
     /**
      * Parse error output for user-friendly messages
      */
-    protected function parseError(string $errorOutput, ?string $hostWithoutSite = null): string
+    protected function parseError(string $errorOutput, string $noCookiesHint = ''): string
     {
         $errorOutput = YtDlpOutput::withoutCookieLines($errorOutput);
-        $noSite = $hostWithoutSite !== null ? " No site in Settings → Sites covers {$hostWithoutSite} yet." : '';
 
         if (str_contains($errorOutput, 'cookies are no longer valid') || str_contains($errorOutput, 'rotated')) {
             return 'YouTube cookies have expired. Paste fresh YouTube cookies into the YouTube site in Settings → Sites.';
         }
 
         if (str_contains($errorOutput, 'Sign in to confirm your age')) {
-            return 'This video is age-restricted. Add cookies from a logged-in YouTube account to the YouTube site in Settings → Sites.'.$noSite;
+            return 'This video is age-restricted. Add cookies from a logged-in YouTube account to the YouTube site in Settings → Sites.'.$noCookiesHint;
         }
 
         // yt-dlp says "Your IP address is unable to access the Reddit API"
         // whenever a reddit_session cookie was sent and Reddit still refused
-        // the request. That is rarely about the IP address.
+        // the request. That is rarely about the IP address: Reddit also
+        // refuses yt-dlp's own connection unless it impersonates a browser.
         if (str_contains($errorOutput, 'unable to access the Reddit API')) {
-            return 'Reddit refused the request even with the uploaded cookies. Re-export fresh Reddit cookies and replace them in the Reddit site in Settings → Sites. If fresh cookies don\'t help, Reddit is blocking the way yt-dlp accesses it and a yt-dlp update is needed (Settings → Maintenance → yt-dlp update → Run Now).';
+            return 'Reddit refused the request even with the Reddit site\'s cookies. Add --impersonate firefox to the Reddit site\'s arguments in Settings → Sites: Reddit now needs a browser-like connection as well as cookies. If that\'s already there, re-export fresh Reddit cookies; if that doesn\'t help either, a yt-dlp update is needed (Settings → Maintenance → yt-dlp update → Run Now).';
         }
 
-        // Reddit (and others) require an authenticated session to fetch
-        // metadata: cookies from a logged-in browser, added to the site in
-        // Settings → Sites, resolve it.
+        // Sites that need an authenticated session: cookies from a logged-in
+        // browser, added to the site in Settings → Sites. Reddit also needs
+        // browser impersonation, so name both at once.
         if (str_contains($errorOutput, 'authentication is required') || str_contains($errorOutput, 'Account authentication')) {
-            return 'This site requires you to be logged in. Add this site\'s cookies in Settings → Sites.'.$noSite;
+            if (stripos($errorOutput, '[reddit]') !== false) {
+                return 'Reddit needs a logged-in account and a browser-like connection: in Settings → Sites, give the Reddit site cookies from a logged-in Reddit account and add --impersonate firefox to its arguments.'.$noCookiesHint;
+            }
+
+            return 'This site requires you to be logged in. Add this site\'s cookies in Settings → Sites.'.$noCookiesHint;
         }
 
         return 'yt-dlp error: '.($errorOutput ?: 'URL not supported');
