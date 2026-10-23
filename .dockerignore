@@ -45,6 +45,21 @@ bootstrap/cache/*.php
 !storage/framework/sessions/.gitkeep
 !storage/framework/views/.gitkeep
 
+# Local installs, builds and app data. CI builds from a clean checkout, so
+# published images never contain these; ignoring them keeps local builds the
+# same and keeps local databases, media, cookies and keys out of images.
+vendor/
+public/build/
+public/hot
+public/storage
+storage/app/*
+!storage/app/.gitignore
+!storage/app/data/.gitignore
+storage/caddy/*
+!storage/caddy/.gitignore
+storage/framework/testing/*
+!storage/framework/testing/.gitignore
+
 # OS files
 .DS_Store
 Thumbs.db

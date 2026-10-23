@@ -181,4 +181,19 @@ describe('Settings → Sites', function () {
         expect(Site::count())->toBe(0)
             ->and(file_exists($cookieFile))->toBeFalse();
     });
+
+    it('deletes the selected sites and their cookies in one go', function () {
+        $keep = makeSite('Reddit', ['reddit.com']);
+        $keep->storeCookies(redditCookies());
+        $shop = makeSite('Shop', ['shop.example']);
+        $shop->storeCookies(".shop.example\tTRUE\t/\tTRUE\t9999999999\tsid\tshop-secret\n");
+        $tracker = makeSite('Tracker', ['tracker.example']);
+
+        Livewire::test(ManageSites::class)
+            ->callTableBulkAction('delete', [$shop, $tracker]);
+
+        expect(Site::pluck('name')->all())->toBe(['Reddit'])
+            ->and(file_exists($shop->cookiesPath()))->toBeFalse()
+            ->and($keep->fresh()->hasCookies())->toBeTrue();
+    });
 });
