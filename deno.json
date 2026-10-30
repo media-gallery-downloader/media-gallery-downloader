@@ -13,13 +13,13 @@
         "bump-version": "./scripts/bump-version.sh"
     },
     "imports": {
-        "vite": "npm:vite@^8.3.4",
+        "vite": "npm:vite@^8.3.5",
         "laravel-vite-plugin": "npm:laravel-vite-plugin@^3.2.0",
         "tailwindcss": "npm:tailwindcss@^4.3.3",
         "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.3.3",
-        "autoprefixer": "npm:autoprefixer@^10.6.1",
-        "postcss": "npm:postcss@^8.5.31",
-        "axios": "npm:axios@^1.20.0",
+        "autoprefixer": "npm:autoprefixer@^10.6.2",
+        "postcss": "npm:postcss@^8.5.32",
+        "axios": "npm:axios@^1.21.0",
         "vidstack": "npm:vidstack@^1.15.7",
         "husky": "npm:husky@^9.1.7",
         "lint-staged": "npm:lint-staged@^17.6.0",
