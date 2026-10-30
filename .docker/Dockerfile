@@ -46,7 +46,7 @@ RUN composer dump-autoload --optimize --classmap-authoritative
 # Exact FrankenPHP + PHP + Debian versions: a floating tag hides which PHP patch
 # an image ships, and a cached copy of it can lag behind security releases.
 # Keep image references in FROM lines literal (not ARGs) so Dependabot can bump them.
-FROM dunglas/frankenphp:1.13.2-php8.4.27-bookworm AS production
+FROM dunglas/frankenphp:1.13.3-php8.4.27-bookworm AS production
 
 ARG TZ=UTC
 
