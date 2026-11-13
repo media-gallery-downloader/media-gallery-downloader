@@ -5,8 +5,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@std/internal@^1.0.14": "1.0.14",
     "jsr:@std/path@^1.1.6": "1.1.6",
-    "npm:playwright@*": "1.64.1",
-    "npm:playwright@^1.64.1": "1.64.1"
+    "npm:playwright@^1.65.0": "1.65.0"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -26,12 +25,12 @@
     }
   },
   "npm": {
-    "playwright-core@1.64.1": {
-      "integrity": "sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==",
+    "playwright-core@1.65.0": {
+      "integrity": "sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==",
       "bin": true
     },
-    "playwright@1.64.1": {
-      "integrity": "sha512-HCrVhHr5QQuwYoswEUGTb7gGp522yflbv/ST8nF4sFWGuLjQCt17Q/EubpGGSNKYn1tsTCPZxqHhHCfVURu7UA==",
+    "playwright@1.65.0": {
+      "integrity": "sha512-F3AMWcR44qMBt4kq+6Kb6mX7bjGXshktKFOPULd7reED6ZJWevjbNRqysP7q+AATE9kdPEZBibex1BYsvpVoeA==",
       "dependencies": [
         "playwright-core"
       ],
@@ -42,7 +41,7 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.19",
       "jsr:@std/path@^1.1.6",
-      "npm:playwright@^1.64.1"
+      "npm:playwright@^1.65.0"
     ]
   }
 }
