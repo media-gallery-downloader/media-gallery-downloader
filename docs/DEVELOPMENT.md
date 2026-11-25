@@ -256,11 +256,14 @@ docker compose exec app php vendor/bin/pest --coverage
 The dev stack bind-mounts the repository, `storage/` included, so tests run
 there share the dev app's live data. Keep tests on throwaway paths:
 `phpunit.xml` points the cookie paths (`MGD_COOKIES_PATH`,
-`YTDLP_COOKIES_FILE`) at `storage/framework/testing/` (guarded by
-`TestEnvironmentIsolationTest`), `useTemporaryCookiesDirectory()` gives a test
-its own site-cookie directory, and `app()->useStoragePath()` moves
-`storage_path()` for anything else. Never delete `storage/app/temp`: it is PHP's
-temp and upload directory (`.docker/php.ini`).
+`YTDLP_COOKIES_FILE`) and the database backups directory (`MGD_BACKUPS_PATH`)
+at `storage/framework/testing/` (guarded by `TestEnvironmentIsolationTest`),
+`useTemporaryCookiesDirectory()` and `useTemporaryBackupsDirectory()` give a
+test its own site-cookie or backups directory, and `app()->useStoragePath()`
+moves `storage_path()` for anything else. A test that creates a backup needs
+its own backups directory: creating one also prunes the old ones in it. Never
+delete `storage/app/temp`: it is PHP's temp and upload directory
+(`.docker/php.ini`).
 
 ### Acceptance Tests
 

@@ -18,7 +18,7 @@ on this repository. This is the single source of truth; tool-specific files
   Playwright E2E under `tests/e2e` (headless; against the dev stack set
   `APP_URL=http://localhost:<HTTP_PORT>`).
 - The dev stack bind-mounts the repo, `storage/` included, so tests run in it
-  share the dev app's live data (cookies, temp files, logs). Keep tests on
+  share the dev app's live data (cookies, backups, temp files, logs). Keep tests on
   throwaway paths; see "Unit Tests" in `docs/DEVELOPMENT.md`. Never delete
   `storage/app/temp`: it is PHP's temp and upload directory.
 - Don't run one-off npm tools with `deno run npm:…` from the repo root: Deno

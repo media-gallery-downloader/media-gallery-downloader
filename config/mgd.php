@@ -30,6 +30,9 @@ return [
     // Per-site cookie files (Settings → Sites), one per site, written 0600.
     'cookies_path' => env('MGD_COOKIES_PATH') ?: storage_path('app/cookies'),
 
+    // Database backups: created, listed, downloaded and pruned here.
+    'backups_path' => env('MGD_BACKUPS_PATH') ?: storage_path('app/data/backups'),
+
     /*
     |--------------------------------------------------------------------------
     | Download Timeouts

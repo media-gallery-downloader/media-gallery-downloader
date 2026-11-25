@@ -381,7 +381,7 @@ class Settings extends Page implements HasForms
     // Backup management methods
     public function getBackupFiles(): array
     {
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         if (! File::exists($backupDir)) {
             return [];
         }
@@ -407,7 +407,7 @@ class Settings extends Page implements HasForms
 
     public function downloadBackup(string $filename): BinaryFileResponse
     {
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         $filepath = $backupDir.'/'.basename($filename); // basename to prevent directory traversal
 
         if (! file_exists($filepath)) {

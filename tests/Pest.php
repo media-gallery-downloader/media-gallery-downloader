@@ -91,6 +91,21 @@ function useTemporaryCookiesDirectory(): string
 }
 
 /**
+ * Point database backups at a throwaway directory for this test, so tests
+ * never create, list or prune backups in the app's real
+ * storage/app/data/backups (in the dev container that is the live,
+ * bind-mounted storage). Returns the directory, which is not created yet;
+ * remove it with File::deleteDirectory() in afterEach.
+ */
+function useTemporaryBackupsDirectory(): string
+{
+    $dir = storage_path('framework/testing/backups_'.str_replace('.', '', uniqid('', true)));
+    config(['mgd.backups_path' => $dir]);
+
+    return $dir;
+}
+
+/**
  * @param  list<string>  $domains
  * @param  array<string, mixed>  $attributes
  */

@@ -33,6 +33,9 @@
              import (then delete) the legacy cookies file. -->
         <env name="MGD_COOKIES_PATH" value="storage/framework/testing/cookies" force="true" />
         <env name="YTDLP_COOKIES_FILE" value="storage/framework/testing/no-legacy-cookies.txt" force="true" />
+        <!-- Same for database backups: creating one also prunes old ones, so
+             a test must never reach the real storage/app/data/backups. -->
+        <env name="MGD_BACKUPS_PATH" value="storage/framework/testing/backups" force="true" />
         <env name="MAIL_MAILER" value="array" />
         <env name="PULSE_ENABLED" value="false" />
         <env name="QUEUE_CONNECTION" value="sync" />

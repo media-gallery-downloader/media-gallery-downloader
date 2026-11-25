@@ -26,7 +26,7 @@ class BackupService extends BaseMaintenanceService
      */
     public function createDatabaseBackup(): ?string
     {
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         if (! File::exists($backupDir)) {
             File::makeDirectory($backupDir, 0755, true);
         }
@@ -110,7 +110,7 @@ class BackupService extends BaseMaintenanceService
         $settings = app(MaintenanceSettings::class);
         $retentionDays = $settings->database_backup_retention_days ?? 30;
 
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         if (! File::exists($backupDir)) {
             return 0;
         }
