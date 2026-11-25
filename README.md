@@ -67,7 +67,13 @@ The manual way to run Media Gallery Downloader using the pre-built Docker image 
 ### 1. Create Project Directory
 
 ```bash
-mkdir media-gallery-downloader && cd media-gallery-downloader
+mkdir -p media-gallery-downloader/storage && cd media-gallery-downloader
+```
+
+`storage/` holds all persistent data. Create it yourself rather than leaving it to Docker: a directory Docker creates is owned by root, and the container, which runs as UID 1000, cannot write to it. If your own UID is not 1000 (check with `id -u`), give the directory to the container's user:
+
+```bash
+sudo chown 1000:1000 storage
 ```
 
 ### 2. Download Docker Compose File
@@ -85,7 +91,7 @@ curl -O https://raw.githubusercontent.com/media-gallery-downloader/media-gallery
 mv .env.docker.example .env
 ```
 
-Edit `.env` to adjust settings. See [Environment Variables](docs/DEPLOYMENT.md#environment-variables) for available options.
+Edit `.env` to adjust settings. See [Environment Variables](docs/DEPLOYMENT.md#environment-variables) for available options. If you change `DATA_PATH`, create that directory the same way as `storage/` in step 1.
 
 ### 4. Start the Application
 

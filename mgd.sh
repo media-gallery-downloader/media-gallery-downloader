@@ -119,7 +119,15 @@ do_fix_permissions() {
     local gid=$(grep -E "^GID=" .env 2>/dev/null | cut -d'=' -f2 || echo "1000")
     uid=${uid:-1000}
     gid=${gid:-1000}
-    
+
+    # The container always runs as UID 1000 and never reads UID from .env, so a
+    # data directory owned by any other user is read-only to it.
+    if [ "$uid" != "1000" ]; then
+        warn "UID in .env is ${uid}, but the container always runs as UID 1000."
+        warn "Owned by ${uid}, $data_path will not be writable by the container."
+        warn "Set UID=1000 in .env and run './mgd.sh fixperms' again."
+    fi
+
     log "Setting ownership to ${uid}:${gid}..."
     if [ "$(id -u)" = "0" ]; then
         chown -R "${uid}:${gid}" "$data_path"
