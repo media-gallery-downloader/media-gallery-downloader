@@ -106,10 +106,15 @@ jobs:
       - name: Lint and analyse
         run: composer lint
 
-      # Fails the job only on known security advisories. Abandoned packages are
-      # reported (not failed) — that's a maintenance concern, not a CVE.
-      - name: Audit Composer dependencies
-        run: composer audit --no-interaction --abandoned=report
+  # Its own check rather than a step in quality: an advisory published after a
+  # pull request was opened fails this, and only this, so it reads as "master
+  # needs a dependency update" instead of "this change broke lint". The same
+  # workflow also runs daily against master (see audit.yml).
+  audit:
+    name: Composer Audit
+    uses: ./.github/workflows/audit.yml
+    permissions:
+      contents: read
 
   frontend:
     name: Frontend Lint & Build
@@ -284,7 +289,7 @@ jobs:
   build:
     name: Build and Push Docker Image
     # All checks are listed so their .result is available to the if: below.
-    needs: [test, quality, frontend, changes, version]
+    needs: [test, quality, audit, frontend, changes, version]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -296,6 +301,7 @@ jobs:
       !cancelled()
       && needs.test.result == 'success'
       && needs.quality.result == 'success'
+      && needs.audit.result == 'success'
       && needs.frontend.result == 'success'
       && (needs.version.outputs.needs_release == 'true' || needs.changes.outputs.image == 'true')
 

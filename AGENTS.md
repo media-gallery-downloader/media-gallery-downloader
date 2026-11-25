@@ -58,5 +58,10 @@ on this repository. This is the single source of truth; tool-specific files
   rerun the job before investigating. The frontend stage is pinned to
   `--platform=$BUILDPLATFORM` so deno (V8) never runs emulated; keep it that
   way.
-- Dependabot PRs opened before a dependency security fix landed on `master`
-  fail `composer audit` until rebased (comment `@dependabot rebase`).
+- `composer audit` is its own check (`.github/workflows/audit.yml`): part of
+  every CI run, and daily against `master`. It follows the advisory feed, not
+  the diff, so when it fails on a pull request that doesn't touch
+  `composer.lock`, `master` itself is affected and every open pull request
+  fails the same way. Fix `master` first (`composer update <package>` for each
+  package the audit names, transitive ones included), then rebase the others
+  (comment `@dependabot rebase` on Dependabot's).

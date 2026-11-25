@@ -1,0 +1,46 @@
+# Checks composer.lock against the published security advisories.
+#
+# Advisories arrive on their own schedule, so a lock file that passed yesterday
+# can fail today without a single commit. This workflow therefore runs two ways:
+#   - daily against master, so a new advisory is noticed when it is published
+#     rather than when the next pull request happens to run;
+#   - from ci.yml (workflow_call), where it is its own check and gates the
+#     image build. A failure here on a pull request that does not touch
+#     composer.lock means master needs a dependency update, not that the pull
+#     request is broken.
+name: Composer Audit
+
+on:
+  schedule:
+    - cron: "40 6 * * *" # Daily at 6:40 AM UTC
+  workflow_dispatch:
+  workflow_call:
+
+# No concurrency group here: inside a called workflow github.workflow is the
+# caller's name, so a group would collide with ci.yml's and cancel it.
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Security advisories
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      # --locked reads composer.lock directly, so nothing has to be installed.
+      # Fails only on known security advisories. Abandoned packages are
+      # reported (not failed) — that's a maintenance concern, not a CVE.
+      - name: Audit Composer dependencies
+        run: composer audit --locked --no-interaction --abandoned=report

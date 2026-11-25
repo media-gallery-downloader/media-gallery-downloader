@@ -1,6 +1,6 @@
 # Psalm taint analysis (security SAST for the PHP backend).
 # CodeQL does not support PHP, so this fills the code-level security gap;
-# composer audit (in ci.yml) covers the dependency-CVE half. Advisory only:
+# composer audit (audit.yml) covers the dependency-CVE half. Advisory only:
 # findings are uploaded to the Security tab and do not fail the build.
 name: Psalm
 
