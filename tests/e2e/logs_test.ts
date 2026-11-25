@@ -18,26 +18,22 @@ Deno.test("Log Viewer Test", async (t) => {
             const page = await context.newPage();
 
             try {
-                // Go to Settings
-                console.log(`[${name}] Navigating to Settings...`);
-                await page.goto(`${BASE_URL}/admin/settings`);
+                // System Logs is a section of the Logs page (it used to be
+                // on Settings)
+                console.log(`[${name}] Navigating to Logs...`);
+                await page.goto(`${BASE_URL}/admin/logs`);
 
-                // Expand System Logs section
-                console.log(`[${name}] Expanding System Logs section...`);
+                // The section starts expanded, so its heading isn't clicked:
+                // that would collapse it
                 const logSection = page.getByRole("heading", {
                     name: "System Logs",
                 });
-                await logSection.click();
-
-                // Wait for animation
-                await page.waitForTimeout(500);
+                await logSection.waitFor();
 
                 // Wait for the select to be visible
                 await page.getByText("Select Log File").waitFor();
 
-                console.log(
-                    `[${name}] System Logs section found and expanded.`
-                );
+                console.log(`[${name}] System Logs section found.`);
 
                 // We might not be able to easily select a file if the dropdown is complex without knowing the exact markup.
                 // But we can check if the controls are present.

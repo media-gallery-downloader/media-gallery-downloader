@@ -47,8 +47,11 @@ for (const { name, launcher } of BROWSERS) {
                 // Navigate to home page
                 await page.goto(`${BASE_URL}/admin/home`);
 
-                // Wait for the page to load
-                const heading = page.locator("h1");
+                // Wait for the page to load. Home has no page header (and so
+                // no h1): the Media Gallery section holds the search box.
+                const heading = page.getByRole("heading", {
+                    name: "Media Gallery",
+                });
                 await heading.waitFor({ state: "visible", timeout: 10000 });
                 console.log(`[${name}] Home page loaded`);
 

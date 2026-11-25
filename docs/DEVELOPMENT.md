@@ -268,7 +268,8 @@ Acceptance tests use Deno with Playwright for browser-based end-to-end testing. 
 
 **Prerequisites:**
 
-- Deno 2.x installed locally
+- Deno 2.2 or newer installed locally (`backup_restore_test.ts` uses
+  `node:sqlite`)
 - Application running via Docker
 
 ```bash
@@ -285,9 +286,19 @@ deno test -A app_test.ts
 
 The tests default to `https://mgd.localhost`. Against the dev stack, point
 them at its port: `APP_URL=http://localhost:8080 deno task test` (or your
-`HTTP_PORT`). They drive the running app: `home_download_row_test.ts` queues a
-harmless `example.com` download, which then shows up on the Logs page as
-failed.
+`HTTP_PORT`). They drive the running app, which in the dev stack shares your
+live data, so they stay on throwaway data and clean up after themselves
+(through `docker compose exec`):
+
+- `app_test.ts` downloads a short YouTube video and deletes it again, leaving
+  alone any copy that was already in the library.
+- `backup_restore_test.ts` creates a database backup and deletes it again. What
+  it restores is a copy of that backup with the media table emptied, so nothing
+  is imported.
+- `duplicates_test.ts` only checks that the Duplicate removal controls are
+  there: running the removal would delete duplicates from the whole library.
+- `home_download_row_test.ts` queues a harmless `example.com` download, which
+  then shows up on the Logs page as failed.
 
 **Test Structure:**
 

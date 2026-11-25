@@ -1,12 +1,14 @@
-import { chromium } from "npm:playwright";
+import { chromium } from "playwright";
+
+const BASE_URL = Deno.env.get("APP_URL") || "https://mgd.localhost";
 
 Deno.test("Settings page loads without errors", async () => {
     const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext();
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
     const page = await context.newPage();
 
     try {
-        const response = await page.goto("http://localhost:8080/admin/settings", {
+        const response = await page.goto(`${BASE_URL}/admin/settings`, {
             waitUntil: "networkidle",
             timeout: 30000,
         });
