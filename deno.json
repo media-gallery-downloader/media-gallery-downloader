@@ -17,7 +17,7 @@
         "laravel-vite-plugin": "npm:laravel-vite-plugin@^3.2.1",
         "tailwindcss": "npm:tailwindcss@^4.3.5",
         "@tailwindcss/vite": "npm:@tailwindcss/vite@^4.3.5",
-        "autoprefixer": "npm:autoprefixer@^10.6.2",
+        "autoprefixer": "npm:autoprefixer@^10.7.0",
         "postcss": "npm:postcss@^8.5.33",
         "axios": "npm:axios@^1.21.1",
         "vidstack": "npm:vidstack@^1.15.7",

@@ -7,7 +7,7 @@
     "npm:@commitlint/cli@^21.2.4": "21.2.4",
     "npm:@commitlint/config-conventional@^21.2.4": "21.2.4",
     "npm:@tailwindcss/vite@^4.3.5": "4.3.5_vite@8.3.8",
-    "npm:autoprefixer@^10.6.2": "10.7.0_postcss@8.5.33",
+    "npm:autoprefixer@^10.7.0": "10.7.0_postcss@8.5.33",
     "npm:axios@^1.21.1": "1.21.1",
     "npm:husky@*": "9.1.7",
     "npm:husky@^9.1.7": "9.1.7",
@@ -540,8 +540,8 @@
     "callsites@3.1.0": {
       "integrity": "sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ=="
     },
-    "caniuse-lite@1.0.30001826": {
-      "integrity": "sha512-wTB+9tIbLro/BCXwLuNV1meHE4L9dS6dArMDwgYfNBPMYScqClHyGunhkCSDtHhe/69Xl0sHlKgBVZ+fNsYtWA=="
+    "caniuse-lite@1.0.30001828": {
+      "integrity": "sha512-7MWeT+3DlrpuDybTWHl4Zb1Z80Z1fLLnOXuBjDXebzDVcqnEWUlV8JcbASg8B8BhcW8QT2UiR1KAtzYFIZHZYA=="
     },
     "cliui@9.0.1": {
       "integrity": "sha512-k7ndgKhwoQveBL+/1tqGJYNz097I7WOvwbmmU2AR5+magtbjPWQTS1C5vzGkBC8Ym8UWRzfKUzUUqFLypY4Q+w==",
@@ -606,8 +606,8 @@
         "gopd"
       ]
     },
-    "electron-to-chromium@1.5.492": {
-      "integrity": "sha512-4uMs7omhajKiud0GqALLTazS/zyvHLTLmDWVTR+e6BnyJo5bSNrph/JoRWEFJJmY75ct9hCiSGsbFF9fLe5gDw=="
+    "electron-to-chromium@1.5.494": {
+      "integrity": "sha512-Tph7ohL4Xc0ft3DXElYEIVTmPI3H0MtPCTdgtz5AwWGZG6q+vMiT3IzJ3RJX/HJQ8pYzeimQyvi6SsBTOS0nyQ=="
     },
     "emoji-regex@10.6.0": {
       "integrity": "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="
@@ -1170,7 +1170,7 @@
       "npm:@commitlint/cli@^21.2.4",
       "npm:@commitlint/config-conventional@^21.2.4",
       "npm:@tailwindcss/vite@^4.3.5",
-      "npm:autoprefixer@^10.6.2",
+      "npm:autoprefixer@^10.7.0",
       "npm:axios@^1.21.1",
       "npm:husky@^9.1.7",
       "npm:laravel-vite-plugin@^3.2.1",
