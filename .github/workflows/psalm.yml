@@ -1,6 +1,6 @@
 # Psalm taint analysis (security SAST for the PHP backend).
 # CodeQL does not support PHP, so this fills the code-level security gap;
-# composer audit (in ci.yml) covers the dependency-CVE half. Advisory only:
+# composer audit (audit.yml) covers the dependency-CVE half. Advisory only:
 # findings are uploaded to the Security tab and do not fail the build.
 name: Psalm
 
@@ -69,7 +69,7 @@ jobs:
       - name: Upload analysis results to GitHub
         # Advisory workflow: a transient SARIF upload error must not fail the job.
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: psalm-results.sarif
           wait-for-processing: true

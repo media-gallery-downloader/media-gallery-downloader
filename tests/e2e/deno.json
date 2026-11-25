@@ -4,7 +4,7 @@
         "install:browsers": "deno run -A npm:playwright install"
     },
     "imports": {
-        "playwright": "npm:playwright@^1.64.1",
+        "playwright": "npm:playwright@^1.65.0",
         "@std/assert": "jsr:@std/assert@^1.0.19",
         "@std/path": "jsr:@std/path@^1.1.6"
     },

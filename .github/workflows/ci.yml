@@ -106,10 +106,15 @@ jobs:
       - name: Lint and analyse
         run: composer lint
 
-      # Fails the job only on known security advisories. Abandoned packages are
-      # reported (not failed) — that's a maintenance concern, not a CVE.
-      - name: Audit Composer dependencies
-        run: composer audit --no-interaction --abandoned=report
+  # Its own check rather than a step in quality: an advisory published after a
+  # pull request was opened fails this, and only this, so it reads as "master
+  # needs a dependency update" instead of "this change broke lint". The same
+  # workflow also runs daily against master (see audit.yml).
+  audit:
+    name: Composer Audit
+    uses: ./.github/workflows/audit.yml
+    permissions:
+      contents: read
 
   frontend:
     name: Frontend Lint & Build
@@ -284,7 +289,7 @@ jobs:
   build:
     name: Build and Push Docker Image
     # All checks are listed so their .result is available to the if: below.
-    needs: [test, quality, frontend, changes, version]
+    needs: [test, quality, audit, frontend, changes, version]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -296,6 +301,7 @@ jobs:
       !cancelled()
       && needs.test.result == 'success'
       && needs.quality.result == 'success'
+      && needs.audit.result == 'success'
       && needs.frontend.result == 'success'
       && (needs.version.outputs.needs_release == 'true' || needs.changes.outputs.image == 'true')
 
@@ -320,7 +326,7 @@ jobs:
 
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -460,7 +466,7 @@ jobs:
           git push origin "$NEXT_VERSION"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.version.outputs.new_tag }}
           name: Release ${{ needs.version.outputs.new_tag }}

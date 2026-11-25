@@ -27,6 +27,12 @@ updates:
       prefix: chore
       prefix-development: chore
       include: scope
+    # Version updates only look at the packages named in composer.json unless
+    # told otherwise, which leaves transitive ones (most of Symfony, pulled in
+    # by Laravel and Filament) on old patch releases until an advisory fails
+    # `composer audit`. "all" includes them in the weekly group.
+    allow:
+      - dependency-type: all
     groups:
       # Collapse the routine minor/patch churn into a single PR; majors stay separate.
       composer-minor-patch:

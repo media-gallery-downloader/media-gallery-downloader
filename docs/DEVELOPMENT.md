@@ -322,8 +322,18 @@ older than the lock really needed, Dependabot quietly gave up on every Composer
 update while its runs still showed green. Dependabot also covers the Deno
 packages (`deno.json` at the root and in `tests/e2e`).
 
-A newly published advisory makes `composer audit` fail, which blocks the CI
-image build (and so the release) until the affected packages are updated.
+`composer audit` runs as its own CI check and daily against `master`
+(`.github/workflows/audit.yml`). A newly published advisory makes it fail, which
+blocks the CI image build (and so the release) until the affected packages are
+updated. Open pull requests fail with it whatever they change, because they
+share `master`'s lock file. To clear it, run `composer update <package>` for
+each package the audit names.
+
+Dependabot's weekly Composer group includes transitive packages
+(`allow: dependency-type: all` in `.github/dependabot.yml`), so its next update
+normally carries the fix. Its separate security updates follow GitHub's advisory
+database, which can lag behind the Packagist feed `composer audit` reads, so
+don't wait on them.
 
 ### When yt-dlp Changes
 
