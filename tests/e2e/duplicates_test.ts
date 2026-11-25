@@ -1,9 +1,15 @@
 import { chromium, firefox } from "playwright";
-import { join } from "@std/path";
+import { assert } from "@std/assert";
 
 const BASE_URL = Deno.env.get("APP_URL") || "https://mgd.localhost";
 
-Deno.test("Duplicate Removal Test", async (t) => {
+// Duplicate removal is a row of the Maintenance table on the Settings page.
+// Its "Run Now" has no confirmation step and deletes duplicates from the
+// whole library at once, and the stack under test shares its library with
+// the dev app. So this only checks the controls are reachable; it never
+// clicks them. The removal itself is covered by Pest (MaintenanceServiceTest,
+// SettingsPageTest).
+Deno.test("Duplicate removal controls", async (t) => {
     const browsers = [chromium, firefox];
 
     for (const browserType of browsers) {
@@ -18,53 +24,41 @@ Deno.test("Duplicate Removal Test", async (t) => {
             });
             const page = await context.newPage();
 
-            // Create a dummy file for upload
-            const dummyFileName = `test-duplicate-${Date.now()}.png`;
-            const dummyFilePath = join(Deno.cwd(), dummyFileName);
-            const minimalPng = new Uint8Array([
-                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0,
-                0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0,
-                10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10,
-                45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
-            ]);
-            await Deno.writeFile(dummyFilePath, minimalPng);
-
             try {
                 // Go to Settings
                 console.log(`[${name}] Navigating to Settings...`);
                 await page.goto(`${BASE_URL}/admin/settings`);
 
-                // Click Remove Duplicates
-                console.log(`[${name}] Clicking Remove Duplicates...`);
-                await page
-                    .getByRole("button", { name: "Check & Remove Duplicates" })
-                    .click();
+                // The Maintenance section. Filament wraps the page itself in
+                // a <section> too, hence the class.
+                const maintenance = page.locator("section.fi-section").filter({
+                    has: page.getByRole("heading", {
+                        name: "Maintenance",
+                        exact: true,
+                    }),
+                });
+                const row = maintenance.locator("tr", {
+                    hasText: "Duplicate removal",
+                });
+                const runNow = row.getByRole("button", { name: "Run Now" });
+                const save = row.getByRole("button", { name: "Save" });
 
-                // Confirm modal
-                await page
-                    .getByRole("button", { name: "Yes, remove duplicates" })
-                    .click();
+                // The section starts collapsed, which hides its table
+                if (!(await runNow.isVisible())) {
+                    console.log(`[${name}] Expanding Maintenance section...`);
+                    await maintenance.locator("header").first().click();
+                }
 
-                // Check for success message
-                console.log(`[${name}] Waiting for notification...`);
-                const successMsg = page.getByText(
-                    /Successfully removed|No Duplicates Found/
-                );
-                await successMsg.waitFor();
-                console.log(
-                    `[${name}] Notification found:`,
-                    await successMsg.innerText()
-                );
+                await row.getByText("Remove duplicate media files.").waitFor();
+                await runNow.waitFor();
+                await save.waitFor();
+                assert(await runNow.isEnabled(), "Run Now is enabled");
+                assert(await save.isEnabled(), "Save is enabled");
+                console.log(`[${name}] Duplicate removal controls found.`);
             } catch (err) {
                 console.error(`[${name}] Test failed:`, err);
                 throw err;
             } finally {
-                // Cleanup dummy file
-                try {
-                    await Deno.remove(dummyFilePath);
-                } catch {
-                    // ignore
-                }
                 await browser.close();
             }
         });

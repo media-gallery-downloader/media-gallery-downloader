@@ -50,6 +50,22 @@ else
 fi
 
 # =============================================================================
+# Storage Skeleton (idempotent)
+# =============================================================================
+
+# /app/storage is normally a bind mount, and an empty one hides the skeleton
+# baked into the image. Laravel does not recreate it: without framework/views
+# every artisan command fails ("Please provide a valid cache path"), so these
+# must exist before the first artisan call below. mkdir -p leaves directories
+# that already exist, and everything in them, as they are.
+mkdir -p \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/testing \
+    storage/logs
+
+# =============================================================================
 # Environment Setup (idempotent - only runs if needed)
 # =============================================================================
 

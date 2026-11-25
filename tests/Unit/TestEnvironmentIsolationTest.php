@@ -12,3 +12,9 @@ it('keeps the legacy cookie import away from the real cookies file', function ()
 it('keeps per-site cookie files out of the real storage directory', function () {
     expect(config('mgd.cookies_path'))->toBe('storage/framework/testing/cookies');
 });
+
+// Creating a backup also prunes old ones, so a test that reached the real
+// storage/app/data/backups would add empty backups and delete real ones.
+it('keeps database backups out of the real storage directory', function () {
+    expect(config('mgd.backups_path'))->toBe('storage/framework/testing/backups');
+});

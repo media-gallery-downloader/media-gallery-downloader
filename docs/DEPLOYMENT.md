@@ -30,21 +30,21 @@ These variables can be set in your `.env` file to customize the Docker deploymen
 | --- | --- | --- |
 | `DATA_PATH` | `./storage` | Path to all persistent data (mounted to /app/storage) |
 | `HTTP_PORT` | `8080` | HTTP port mapping |
-| `UID` | `1000` | User ID for file ownership (used by fixperms) |
-| `GID` | `1000` | Group ID for file ownership (used by fixperms) |
+| `UID` | `1000` | User ID that `./mgd.sh fixperms` makes the owner of the data directory. The container does not read it and always runs as UID `1000`, so keep it at `1000` |
+| `GID` | `1000` | Group ID that `./mgd.sh fixperms` gives the data directory. The container does not read it and always runs with GID `1000` |
 | `MEMORY_LIMIT` | `4G` | Container memory limit |
 | `TZ` | `UTC` | Timezone |
 | `APP_ENV` | `production` | Laravel environment |
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `LOG_LEVEL` | `warning` | Log verbosity |
 
-> **NAS Users (Synology, QNAP, etc.):** The container runs as UID/GID `1000:1000` by default. If you encounter permission errors, either:
+> **NAS Users (Synology, QNAP, etc.):** The container always runs as UID/GID `1000:1000`, whatever your own user's IDs are, so the data directory must be owned by UID `1000`. If you encounter permission errors, either:
 >
-> 1. Run `id` to find your user's UID/GID, set them in your `.env` file, then run `./mgd.sh fixperms`
+> 1. Run `./mgd.sh fixperms`, with `UID` left at `1000` in your `.env` file
 > 2. Or manually fix permissions:
 >
 >    ```bash
->    sudo chown -R $(id -u):$(id -g) ./storage
+>    sudo chown -R 1000:1000 ./storage
 >    sudo chmod -R 755 ./storage
 >    ```
 

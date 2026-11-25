@@ -3,11 +3,55 @@ import { assert } from "@std/assert";
 
 const BASE_URL = Deno.env.get("APP_URL") || "https://mgd.localhost";
 const TEST_VIDEO_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw";
+const TEST_VIDEO_ID = new URL(TEST_VIDEO_URL).searchParams.get("v");
 
 const BROWSERS = [
     { name: "chromium", launcher: chromium },
     { name: "firefox", launcher: firefox },
 ];
+
+/** Run PHP inside the app container with Laravel booted. */
+async function runInApp(
+    php: string
+): Promise<{ code: number; stdout: string; stderr: string }> {
+    const command = new Deno.Command("docker", {
+        args: [
+            "compose",
+            "exec",
+            "-T",
+            "app",
+            "php",
+            "-r",
+            `require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); ${php}`,
+        ],
+    });
+    const { code, stdout, stderr } = await command.output();
+    const decoder = new TextDecoder();
+
+    return {
+        code,
+        stdout: decoder.decode(stdout),
+        stderr: decoder.decode(stderr),
+    };
+}
+
+/**
+ * Ids of the copies of the test video already in the library, or null when
+ * they can't be listed (the app isn't running under Docker Compose here).
+ */
+async function existingTestVideoIds(): Promise<number[] | null> {
+    try {
+        const { code, stdout } = await runInApp(
+            `echo json_encode(App\\Models\\Media::where('source', 'like', '%${TEST_VIDEO_ID}%')->pluck('id')->all());`
+        );
+        if (code !== 0) return null;
+        const ids = JSON.parse(stdout.trim().split("\n").pop() ?? "");
+
+        return Array.isArray(ids) && ids.every(Number.isInteger) ? ids : null;
+    } catch {
+        return null;
+    }
+}
 
 for (const { name, launcher } of BROWSERS) {
     Deno.test({
@@ -41,9 +85,12 @@ for (const { name, launcher } of BROWSERS) {
                 // Navigate to the dashboard
                 await page.goto(`${BASE_URL}/admin/home`);
 
-                // Wait for the main content to load
-                // Filament usually puts the page title in an h1 or h2
-                const heading = page.locator("h1");
+                // Wait for the main content to load. Home has no page header
+                // (Home::getHeading() returns ''), so there is no h1: the
+                // Media Gallery section marks the page as rendered.
+                const heading = page.getByRole("heading", {
+                    name: "Media Gallery",
+                });
                 await heading.waitFor({ state: "visible", timeout: 10000 });
 
                 const title = await page.title();
@@ -95,9 +142,9 @@ for (const { name, launcher } of BROWSERS) {
                     // Count initial items
                     // The gallery uses custom divs, not a table.
                     // Selector based on media-gallery.blade.php:
-                    // <div class="flex flex-wrap"> ... <div class="relative cursor-pointer ...">
+                    // <div class="mgd-gallery-grid"> ... <div data-media-url="/admin/view/{id}" ...>
                     const galleryItemSelector =
-                        "div.flex.flex-wrap > div.relative.cursor-pointer";
+                        ".mgd-gallery-grid > [data-media-url]";
 
                     const initialCount = await page
                         .locator(galleryItemSelector)
@@ -106,16 +153,28 @@ for (const { name, launcher } of BROWSERS) {
                         `[${name}] Initial media count: ${initialCount}`
                     );
 
+                    // The stack under test shares its library with the dev
+                    // app, so note any copies of the test video that are
+                    // already there: cleanup must leave those alone.
+                    const existingIds = await existingTestVideoIds();
+                    if (existingIds === null) {
+                        console.log(
+                            `[${name}] Could not list existing copies of the test video; cleanup will be skipped`
+                        );
+                    }
+
                     try {
                         // Find the URL input
                         const urlInput = page.locator('input[type="url"]');
                         await urlInput.waitFor({ state: "visible" });
                         await urlInput.fill(TEST_VIDEO_URL);
 
-                        // Click download
-                        const downloadButton = page
-                            .locator("button", { hasText: /Download/i })
-                            .first();
+                        // Click download. Matched by its full name: the Add
+                        // Media header also has a "Download" mode pill, and
+                        // every gallery card a "Download" menu item.
+                        const downloadButton = page.getByRole("button", {
+                            name: "Start Download",
+                        });
                         await downloadButton.click();
 
                         // Wait for notification
@@ -168,32 +227,24 @@ for (const { name, launcher } of BROWSERS) {
                             "New media item should appear in the list"
                         );
                     } finally {
-                        // Cleanup
-                        console.log(
-                            `[${name}] Cleaning up downloaded media...`
-                        );
-                        const videoId = new URL(
-                            TEST_VIDEO_URL
-                        ).searchParams.get("v");
-                        const command = new Deno.Command("docker", {
-                            args: [
-                                "compose",
-                                "exec",
-                                "-T",
-                                "app",
-                                "php",
-                                "-r",
-                                `require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\\Contracts\\Console\\Kernel::class); $kernel->bootstrap(); App\\Models\\Media::where('source', 'like', '%${videoId}%')->get()->each->delete();`,
-                            ],
-                        });
-                        const { code, stderr } = await command.output();
-                        if (code !== 0) {
-                            console.error(
-                                `[${name}] Cleanup failed:`,
-                                new TextDecoder().decode(stderr)
+                        // Cleanup: only the copies this run downloaded.
+                        if (existingIds !== null) {
+                            console.log(
+                                `[${name}] Cleaning up downloaded media...`
                             );
-                        } else {
-                            console.log(`[${name}] Cleanup successful`);
+                            const { code, stderr } = await runInApp(
+                                `App\\Models\\Media::where('source', 'like', '%${TEST_VIDEO_ID}%')->whereNotIn('id', [${existingIds.join(
+                                    ","
+                                )}])->get()->each->delete();`
+                            );
+                            if (code !== 0) {
+                                console.error(
+                                    `[${name}] Cleanup failed:`,
+                                    stderr
+                                );
+                            } else {
+                                console.log(`[${name}] Cleanup successful`);
+                            }
                         }
                     }
                 }

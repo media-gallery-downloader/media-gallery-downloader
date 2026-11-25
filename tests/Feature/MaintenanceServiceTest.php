@@ -305,23 +305,57 @@ describe('MaintenanceService', function () {
     });
 
     describe('createDatabaseBackup', function () {
+        // Against a throwaway backups directory: in the dev container storage/
+        // is the live app storage, and creating a backup also prunes old ones.
+        beforeEach(function () {
+            $this->backupDir = useTemporaryBackupsDirectory();
+        });
+
+        afterEach(function () {
+            File::deleteDirectory($this->backupDir);
+        });
+
         it('creates a database backup file', function () {
             $service = app(MaintenanceService::class);
             $filepath = $service->createDatabaseBackup();
 
-            // The backup should be created (or return null if not SQLite)
-            if ($filepath) {
-                expect(file_exists($filepath))->toBeTrue();
-                expect($filepath)->toContain('backup_');
-                expect($filepath)->toContain('.sql');
+            expect($filepath)->toStartWith($this->backupDir.'/backup_')
+                ->and($filepath)->toEndWith('.sqlite')
+                ->and(file_exists($filepath))->toBeTrue();
+        });
 
-                // Cleanup
-                @unlink($filepath);
-            }
+        it('prunes backups older than the retention period', function () {
+            $settings = app(MaintenanceSettings::class);
+            $settings->database_backup_retention_days = 30;
+            $settings->save();
+
+            File::makeDirectory($this->backupDir, 0755, true);
+            $expired = $this->backupDir.'/backup_expired.sqlite';
+            $recent = $this->backupDir.'/backup_recent.sqlite';
+            file_put_contents($expired, 'expired');
+            file_put_contents($recent, 'recent');
+            touch($expired, time() - (86400 * 31));
+            touch($recent, time() - (86400 * 29));
+
+            app(MaintenanceService::class)->createDatabaseBackup();
+
+            expect(file_exists($expired))->toBeFalse()
+                ->and(file_exists($recent))->toBeTrue();
         });
     });
 
     describe('getBackups', function () {
+        // getBackups() reads storage/app/backups, and the second test empties
+        // it: against a throwaway storage directory, as for cleanupTempFiles.
+        beforeEach(function () {
+            $this->storageDir = storage_path('framework/testing/storage_'.str_replace('.', '', uniqid('', true)));
+            app()->useStoragePath($this->storageDir);
+        });
+
+        afterEach(function () {
+            File::deleteDirectory($this->storageDir);
+        });
+
         it('returns list of backup files', function () {
             $backupDir = storage_path('app/backups');
             if (! File::exists($backupDir)) {

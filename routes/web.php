@@ -73,7 +73,7 @@ Route::get('/api/media/stats', function () {
 // Backup download route (contains a full database dump - must be authenticated)
 Route::get('/backup/download/{filename}', function (string $filename) {
     $safeName = basename($filename); // prevent directory traversal and header injection
-    $backupDir = storage_path('app/data/backups');
+    $backupDir = config('mgd.backups_path');
     $filepath = $backupDir.'/'.$safeName;
 
     if (! file_exists($filepath)) {

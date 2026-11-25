@@ -14,6 +14,8 @@ Backups can be created automatically on a schedule or manually:
 
 Backups are stored in `storage/app/data/backups/` and are automatically cleaned up based on the retention period (default: 30 days).
 
+Each SQLite backup is a single, self-contained file: a snapshot of the whole database at the moment it was taken, including changes SQLite still holds in its write-ahead log (`database.sqlite-wal`). Copying `database.sqlite` by hand while the application runs does not give you that.
+
 ## Downloading Backups
 
 To download a backup for offsite storage or migration:
@@ -42,7 +44,7 @@ To restore your media database from a backup:
 
 **Supported backup formats:**
 
-- SQLite database files (direct copies from this application)
+- SQLite database files (backups created by this application)
 - SQL dump files with INSERT statements
 
 ## Migration to a New Server

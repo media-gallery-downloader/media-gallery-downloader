@@ -138,6 +138,14 @@ describe('Settings Page', function () {
 describe('Settings Page - Run Actions', function () {
     beforeEach(function () {
         Storage::fake('public');
+
+        // Running a backup writes a file and prunes old ones for real: keep it
+        // in a throwaway directory, away from the dev app's live backups.
+        $this->backupDir = useTemporaryBackupsDirectory();
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->backupDir);
     });
 
     it('can run duplicate removal', function () {
@@ -203,10 +211,15 @@ describe('Settings Page - Run Actions', function () {
     });
 
     it('can run database backup', function () {
-        $component = Livewire::test(Settings::class)
-            ->call('runBackup');
+        Livewire::test(Settings::class)
+            ->call('runBackup')
+            ->assertSuccessful()
+            ->assertNotified('Backup created successfully');
 
-        $component->assertSuccessful();
+        $backups = File::glob($this->backupDir.'/backup_*.sqlite');
+
+        expect($backups)->toHaveCount(1)
+            ->and(file_get_contents($backups[0], length: 15))->toBe('SQLite format 3');
     });
 
     it('can run thumbnail regeneration', function () {

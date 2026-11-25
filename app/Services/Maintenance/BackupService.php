@@ -26,14 +26,14 @@ class BackupService extends BaseMaintenanceService
      */
     public function createDatabaseBackup(): ?string
     {
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         if (! File::exists($backupDir)) {
             File::makeDirectory($backupDir, 0755, true);
         }
 
         // Use .sqlite extension for SQLite backups, .sql for MySQL dumps
         $extension = config('database.default') === 'sqlite' ? 'sqlite' : 'sql';
-        $filename = 'backup_'.date('Y-m-d_His').'.'.$extension;
+        $filename = 'backup_'.now()->format('Y-m-d_His').'.'.$extension;
         $filepath = $backupDir.'/'.$filename;
 
         $database = config('database.connections.sqlite.database');
@@ -45,8 +45,7 @@ class BackupService extends BaseMaintenanceService
                 $database = base_path($database);
             }
 
-            // SQLite backup - just copy the file
-            if (File::copy($database, $filepath)) {
+            if ($this->snapshotSqliteDatabase($database, $filepath)) {
                 Cache::put('last_database_backup', now());
                 $this->cleanupOldBackups();
                 $this->sendNotification('Database Backup', "Backup created: {$filename}", true);
@@ -64,6 +63,47 @@ class BackupService extends BaseMaintenanceService
         $this->sendNotification('Database Backup', 'Backup failed!', false);
 
         return null;
+    }
+
+    /**
+     * Write a point-in-time snapshot of a SQLite database to a single file.
+     *
+     * The app runs SQLite in WAL mode, where recent changes live in
+     * database.sqlite-wal until a checkpoint moves them into the main file.
+     * Copying the main file would miss them (and could catch a checkpoint
+     * half-way), so SQLite writes the snapshot itself: VACUUM INTO (SQLite
+     * 3.27+) reads the whole database, WAL included, in one read transaction.
+     *
+     * It gets its own connection because VACUUM cannot run inside a
+     * transaction, which the app's connection may have open.
+     */
+    protected function snapshotSqliteDatabase(string $database, string $filepath): bool
+    {
+        // VACUUM INTO refuses to write over an existing file, so the snapshot
+        // is built next to its destination and then moved into place. That
+        // also means a file with a backup's name is always a complete one.
+        $partial = $filepath.'.'.uniqid().'.tmp';
+
+        try {
+            // Opening a missing SQLite file creates it, and an empty database
+            // must not pass for a backup.
+            if (! File::exists($database)) {
+                throw new \RuntimeException("{$database} does not exist");
+            }
+
+            $connection = new \PDO('sqlite:'.$database);
+            $connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+            $connection->prepare('VACUUM INTO ?')->execute([$partial]);
+
+            return File::move($partial, $filepath);
+        } catch (\Throwable $e) {
+            Log::error('Database backup failed: '.$e->getMessage());
+
+            return false;
+        } finally {
+            // Already gone if the move worked.
+            File::delete($partial);
+        }
     }
 
     /**
@@ -110,7 +150,7 @@ class BackupService extends BaseMaintenanceService
         $settings = app(MaintenanceSettings::class);
         $retentionDays = $settings->database_backup_retention_days ?? 30;
 
-        $backupDir = storage_path('app/data/backups');
+        $backupDir = config('mgd.backups_path');
         if (! File::exists($backupDir)) {
             return 0;
         }
