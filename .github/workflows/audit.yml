@@ -66,8 +66,8 @@ jobs:
     permissions:
       contents: read
     env:
-      BASE_BRANCH: master
-      FIX_BRANCH: fix/composer-audit
+      BASE_BRANCH: test/audit-fix-base
+      FIX_BRANCH: test/audit-fix-pr
 
     steps:
       - name: Checkout repository
