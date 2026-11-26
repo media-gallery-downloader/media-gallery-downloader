@@ -11,8 +11,9 @@
 #
 # When the daily run (or one started by hand) fails, the fix job updates the
 # affected packages in composer.lock and opens a pull request, so the update
-# is waiting with its checks already run. It needs a one-time setup: see
-# "Security Advisories" in docs/DEVELOPMENT.md.
+# is waiting with its checks already run. When the audit passes again while
+# that pull request is still open, the close job withdraws it. Both need a
+# one-time setup: see "Security Advisories" in docs/DEVELOPMENT.md.
 name: Composer Audit
 
 on:
@@ -26,6 +27,12 @@ on:
 
 permissions:
   contents: read
+
+# The fix and close jobs act only on runs for BASE_BRANCH, and FIX_BRANCH is
+# theirs alone: they overwrite and delete it.
+env:
+  BASE_BRANCH: master
+  FIX_BRANCH: fix/composer-audit
 
 jobs:
   audit:
@@ -65,9 +72,6 @@ jobs:
     # with the workflow's own token would not trigger any workflow.
     permissions:
       contents: read
-    env:
-      BASE_BRANCH: master
-      FIX_BRANCH: fix/composer-audit
 
     steps:
       - name: Checkout repository
@@ -168,3 +172,84 @@ jobs:
         run: |
           echo "::error::Not every advisory could be fixed automatically. See the job summary."
           exit 1
+
+  # Withdraws the fix pull request when the workflow's own audit passes while
+  # it is still open: the fix reached master another way, or the advisory was
+  # withdrawn. Its lock file was worked out for an older master, so it should
+  # not be merged late. Skipped for the audits ci.yml calls, like the fix job.
+  close:
+    name: Close an outdated fix pull request
+    needs: audit
+    if: ${{ needs.audit.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    # Read-only for the same reason as the fix job.
+    permissions:
+      contents: read
+
+    steps:
+      # The job's own token is enough to see whether the branch exists, so the
+      # App token is only created when there is something to clean up.
+      - name: Check for a leftover fix branch
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_ID: ${{ vars.AUDIT_FIX_APP_CLIENT_ID }}
+          HAS_KEY: ${{ secrets.AUDIT_FIX_APP_PRIVATE_KEY != '' }}
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}.git"
+
+          if [ "$GITHUB_REF_NAME" != "$BASE_BRANCH" ]; then
+            echo "Not on ${BASE_BRANCH}, so nothing is closed."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Exit status 2 means the branch does not exist; anything else that
+          # is not 0 is a real failure.
+          STATUS=0
+          git ls-remote --exit-code "$REMOTE" "refs/heads/${FIX_BRANCH}" > /dev/null || STATUS=$?
+          if [ "$STATUS" -eq 2 ]; then
+            echo "There is no ${FIX_BRANCH} branch, so nothing is closed."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ "$STATUS" -ne 0 ]; then
+            echo "::error::Could not look up the ${FIX_BRANCH} branch."
+            exit 1
+          elif [ -n "$CLIENT_ID" ] && [ "$HAS_KEY" = "true" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The audit passes, but AUDIT_FIX_APP_CLIENT_ID and AUDIT_FIX_APP_PRIVATE_KEY are not set, so the ${FIX_BRANCH} branch and its pull request are left as they are."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create a token for the cleanup
+        id: token
+        if: steps.target.outputs.ready == 'true'
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.AUDIT_FIX_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUDIT_FIX_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # The branch belongs to this workflow, so it is deleted whether or not a
+      # pull request was still open for it.
+      - name: Close the pull request and delete the branch
+        if: steps.target.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          REPO="repos/${GITHUB_REPOSITORY}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          NUMBER=$(gh api "${REPO}/pulls?state=open&base=${BASE_BRANCH}&head=${GITHUB_REPOSITORY_OWNER}:${FIX_BRANCH}" --jq '.[0].number // empty')
+          if [ -n "$NUMBER" ]; then
+            gh api --method POST "${REPO}/issues/${NUMBER}/comments" --silent \
+              -f body="Closing: \`composer audit\` passes on \`${BASE_BRANCH}\` again ([run](${RUN_URL})), so this update is no longer needed to clear it. It was worked out for an earlier \`${BASE_BRANCH}\`. A new pull request is opened if an advisory is reported again."
+            gh api --method PATCH "${REPO}/pulls/${NUMBER}" --silent -f state=closed
+            echo "Closed pull request #${NUMBER}: the audit passes again." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+          gh api --method DELETE "${REPO}/git/refs/heads/${FIX_BRANCH}" --silent
+          echo "Deleted the ${FIX_BRANCH} branch." | tee -a "$GITHUB_STEP_SUMMARY"
