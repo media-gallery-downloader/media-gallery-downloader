@@ -31,8 +31,8 @@ permissions:
 # The fix and close jobs act only on runs for BASE_BRANCH, and FIX_BRANCH is
 # theirs alone: they overwrite and delete it.
 env:
-  BASE_BRANCH: master
-  FIX_BRANCH: fix/composer-audit
+  BASE_BRANCH: test/audit-close-base
+  FIX_BRANCH: test/audit-close-pr
 
 jobs:
   audit:
