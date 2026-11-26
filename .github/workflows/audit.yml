@@ -8,6 +8,11 @@
 #     image build. A failure here on a pull request that does not touch
 #     composer.lock means master needs a dependency update, not that the pull
 #     request is broken.
+#
+# When the daily run (or one started by hand) fails, the fix job updates the
+# affected packages in composer.lock and opens a pull request, so the update
+# is waiting with its checks already run. It needs a one-time setup: see
+# "Security Advisories" in docs/DEVELOPMENT.md.
 name: Composer Audit
 
 on:
@@ -44,3 +49,122 @@ jobs:
       # reported (not failed) — that's a maintenance concern, not a CVE.
       - name: Audit Composer dependencies
         run: composer audit --locked --no-interaction --abandoned=report
+
+  # Proposes the dependency update when the workflow's own audit fails. It is
+  # skipped for the audits ci.yml calls: there github.event_name is the
+  # caller's event (push or pull_request).
+  fix:
+    name: Open a fix pull request
+    needs: audit
+    if: ${{ !cancelled() && needs.audit.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    # Read-only on purpose. ci.yml calls this workflow with contents: read and
+    # a called workflow may not ask for more, even in a job that is skipped.
+    # The branch and the pull request are created with a GitHub App token
+    # instead, which is also what lets CI run on that pull request: one opened
+    # with the workflow's own token would not trigger any workflow.
+    permissions:
+      contents: read
+    env:
+      BASE_BRANCH: master
+      FIX_BRANCH: fix/composer-audit
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      # Changes composer.lock only: nothing is installed and no package code
+      # runs, and no write credential exists yet at this point.
+      - name: Update the affected packages
+        id: update
+        run: |
+          bash .github/scripts/composer-audit-fix.sh "$RUNNER_TEMP/audit-fix"
+          cat "$RUNNER_TEMP/audit-fix/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # Without the credentials, or on another branch than master (a manual
+      # run to see what would be proposed), the job stops at the summary
+      # above.
+      - name: Check whether a pull request can be opened
+        id: target
+        if: steps.update.outputs.changed == 'true'
+        env:
+          CLIENT_ID: ${{ vars.AUDIT_FIX_APP_CLIENT_ID }}
+          HAS_KEY: ${{ secrets.AUDIT_FIX_APP_PRIVATE_KEY != '' }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$BASE_BRANCH" ]; then
+            echo "::notice::Not on ${BASE_BRANCH}, so no pull request is opened. The proposed update is in the job summary."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$CLIENT_ID" ] && [ "$HAS_KEY" = "true" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::An update is available, but AUDIT_FIX_APP_CLIENT_ID and AUDIT_FIX_APP_PRIVATE_KEY are not set, so no pull request is opened. The proposed update is in the job summary."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create a token for the pull request
+        id: token
+        if: steps.target.outputs.ready == 'true'
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.AUDIT_FIX_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUDIT_FIX_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Push the branch and open the pull request
+        if: steps.target.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TITLE: ${{ steps.update.outputs.title }}
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}.git"
+          PULLS="repos/${GITHUB_REPOSITORY}/pulls"
+
+          # An earlier run may already have pushed exactly this lock file (its
+          # pull request is still waiting). Pushing again would only restart
+          # the checks.
+          SAME=false
+          if git fetch --quiet --depth=1 "$REMOTE" "refs/heads/${FIX_BRANCH}" 2> /dev/null \
+            && git diff --quiet FETCH_HEAD -- composer.lock; then
+            SAME=true
+          fi
+
+          if [ "$SAME" = "false" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git checkout --quiet -B "$FIX_BRANCH"
+            git add composer.lock
+            git commit --quiet -m "$TITLE" \
+              -m "Updates the packages composer audit reports, and what they require, in composer.lock only. The pull request lists the advisories and the version changes."
+            git push --quiet --force "$REMOTE" "HEAD:refs/heads/${FIX_BRANCH}"
+          fi
+
+          NUMBER=$(gh api "${PULLS}?state=open&base=${BASE_BRANCH}&head=${GITHUB_REPOSITORY_OWNER}:${FIX_BRANCH}" --jq '.[0].number // empty')
+          if [ -z "$NUMBER" ]; then
+            URL=$(gh api --method POST "$PULLS" -f title="$TITLE" -f head="$FIX_BRANCH" -f base="$BASE_BRANCH" \
+              -F body=@"$RUNNER_TEMP/audit-fix/body.md" --jq '.html_url')
+            echo "Opened ${URL}" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$SAME" = "false" ]; then
+            URL=$(gh api --method PATCH "${PULLS}/${NUMBER}" -f title="$TITLE" \
+              -F body=@"$RUNNER_TEMP/audit-fix/body.md" --jq '.html_url')
+            echo "Updated ${URL}" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Pull request #${NUMBER} already proposes this update." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Red on purpose when something is left for a person: an advisory with
+      # no safe version that composer.json allows.
+      - name: Fail when advisories remain
+        if: steps.update.outputs.clean != 'true'
+        run: |
+          echo "::error::Not every advisory could be fixed automatically. See the job summary."
+          exit 1

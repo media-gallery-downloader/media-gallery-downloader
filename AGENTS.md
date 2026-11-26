@@ -62,6 +62,9 @@ on this repository. This is the single source of truth; tool-specific files
   every CI run, and daily against `master`. It follows the advisory feed, not
   the diff, so when it fails on a pull request that doesn't touch
   `composer.lock`, `master` itself is affected and every open pull request
-  fails the same way. Fix `master` first (`composer update <package>` for each
-  package the audit names, transitive ones included), then rebase the others
-  (comment `@dependabot rebase` on Dependabot's).
+  fails the same way. The daily run's `fix` job then opens a `fix(deps): …`
+  pull request from `fix/composer-audit` with the lock file update; see
+  "Security Advisories" in `docs/DEVELOPMENT.md`. If it reports that it could
+  not, fix `master` by hand (`composer update <package>` for each package the
+  audit names, transitive ones included). Once `master` is fixed, rebase the
+  others (comment `@dependabot rebase` on Dependabot's).

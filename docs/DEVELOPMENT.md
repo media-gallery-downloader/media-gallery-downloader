@@ -336,12 +336,46 @@ older than the lock really needed, Dependabot quietly gave up on every Composer
 update while its runs still showed green. Dependabot also covers the Deno
 packages (`deno.json` at the root and in `tests/e2e`).
 
+### Security Advisories
+
 `composer audit` runs as its own CI check and daily against `master`
 (`.github/workflows/audit.yml`). A newly published advisory makes it fail, which
 blocks the CI image build (and so the release) until the affected packages are
 updated. Open pull requests fail with it whatever they change, because they
-share `master`'s lock file. To clear it, run `composer update <package>` for
-each package the audit names.
+share `master`'s lock file.
+
+When the daily run fails, its `fix` job prepares the update and opens a pull
+request named `fix(deps): …` from the `fix/composer-audit` branch. The pull
+request lists the advisories and the version changes, and CI runs on it like on
+any other; merging it is left to a person. The job changes `composer.lock`
+only, for the packages the audit names and whatever they require. To get the
+update without waiting for the next daily run, start the "Composer Audit"
+workflow by hand from the Actions tab.
+
+The job stays red, with Composer's explanation in its summary, when a package
+has no safe version that `composer.json` allows. That needs a decision: a wider
+version constraint, a replacement package, or an ignore entry in Composer's
+advisory settings.
+
+To do the same by hand, run `.github/scripts/composer-audit-fix.sh <output-dir>`
+from the repository root (it needs `jq`, and Composer 2.9 or later for a
+complete result), or `composer update <package>` for each package the audit
+names.
+
+Opening the pull request needs a GitHub App, set up once per repository:
+
+1. Create a GitHub App owned by the account that owns the repository, with the
+   repository permissions "Contents: Read and write" and "Pull requests: Read
+   and write". It needs no webhook.
+2. Generate a private key for the App and install the App on this repository
+   only.
+3. In the repository's Actions settings, add the App's client ID as the
+   variable `AUDIT_FIX_APP_CLIENT_ID` and the contents of the private key file
+   as the secret `AUDIT_FIX_APP_PRIVATE_KEY`.
+
+Without them the job still works out the update and shows it in its summary,
+but opens nothing. The workflow's own token is not used on purpose: pull
+requests opened with it do not trigger CI.
 
 Dependabot's weekly Composer group includes transitive packages
 (`allow: dependency-type: all` in `.github/dependabot.yml`), so its next update
