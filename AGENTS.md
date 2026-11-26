@@ -64,7 +64,9 @@ on this repository. This is the single source of truth; tool-specific files
   `composer.lock`, `master` itself is affected and every open pull request
   fails the same way. The daily run's `fix` job then opens a `fix(deps): …`
   pull request from `fix/composer-audit` with the lock file update; see
-  "Security Advisories" in `docs/DEVELOPMENT.md`. If it reports that it could
-  not, fix `master` by hand (`composer update <package>` for each package the
-  audit names, transitive ones included). Once `master` is fixed, rebase the
-  others (comment `@dependabot rebase` on Dependabot's).
+  "Security Advisories" in `docs/DEVELOPMENT.md`. That branch belongs to the
+  workflow, which overwrites and deletes it: never commit there. If the job
+  reports that it could not, fix `master` by hand from a branch of your own
+  (`composer update <package>` for each package the audit names, transitive
+  ones included). Once `master` is fixed, rebase the others (comment
+  `@dependabot rebase` on Dependabot's).

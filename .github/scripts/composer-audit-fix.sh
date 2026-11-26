@@ -216,7 +216,7 @@ echo "$TITLE" > "$OUT/title.txt"
     else
         echo "Opened by the Composer Audit workflow. It is updated in place"
     fi
-    echo "when the audit result changes."
+    echo "when the audit result changes, and closed if the audit passes without it."
 } > "$OUT/body.md"
 
 {

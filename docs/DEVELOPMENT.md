@@ -352,6 +352,13 @@ only, for the packages the audit names and whatever they require. To get the
 update without waiting for the next daily run, start the "Composer Audit"
 workflow by hand from the Actions tab.
 
+The `fix/composer-audit` branch belongs to the workflow. The `fix` job
+overwrites it whenever its proposal changes, so make any fix by hand on a branch
+of your own. If the audit passes while the pull request is still open (the fix
+reached `master` another way, or the advisory was withdrawn), the `close` job of
+the next daily run closes the pull request with a comment and deletes the
+branch: its lock file was worked out for an older `master`.
+
 The job stays red, with Composer's explanation in its summary, when a package
 has no safe version that `composer.json` allows. That needs a decision: a wider
 version constraint, a replacement package, or an ignore entry in Composer's
@@ -362,7 +369,8 @@ from the repository root (it needs `jq`, and Composer 2.9 or later for a
 complete result), or `composer update <package>` for each package the audit
 names.
 
-Opening the pull request needs a GitHub App, set up once per repository:
+Opening and closing the pull request needs a GitHub App, set up once per
+repository:
 
 1. Create a GitHub App owned by the account that owns the repository, with the
    repository permissions "Contents: Read and write" and "Pull requests: Read
