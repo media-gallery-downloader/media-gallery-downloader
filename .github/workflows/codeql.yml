@@ -29,6 +29,10 @@ jobs:
                     # not covered here. JS/TS is interpreted, so build-mode: none.
                     - language: javascript-typescript
                       build-mode: none
+                    # The workflow files themselves: script injection, checkouts
+                    # of untrusted code and over-broad token permissions.
+                    - language: actions
+                      build-mode: none
 
         steps:
             - name: Checkout repository
