@@ -28,7 +28,7 @@
         "pestphp/pest": "^3.8",
         "pestphp/pest-plugin-laravel": "^3.2",
         "psalm/plugin-laravel": "^4.12",
-        "vimeo/psalm": "^6.16"
+        "vimeo/psalm": "^7.18"
     },
     "autoload": {
         "psr-4": {
