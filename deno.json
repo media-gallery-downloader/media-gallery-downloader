@@ -22,7 +22,7 @@
         "axios": "npm:axios@^1.21.1",
         "vidstack": "npm:vidstack@^1.15.7",
         "husky": "npm:husky@^9.1.7",
-        "lint-staged": "npm:lint-staged@^17.6.1",
+        "lint-staged": "npm:lint-staged@^17.6.2",
         "@commitlint/cli": "npm:@commitlint/cli@^21.2.4",
         "@commitlint/config-conventional": "npm:@commitlint/config-conventional@^21.2.4"
     },
